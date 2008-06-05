@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="3.5" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>9.0.21022</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{9098BF46-CB05-421B-B6D2-177941BB5278}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Grafiti</RootNamespace>
+    <AssemblyName>Grafiti</AssemblyName>
+    <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+  <ItemGroup>
+    <Compile Include="DoubleDictionaries.cs" />
+    <Compile Include="GestureRecognizer.cs" />
+    <Compile Include="Group.cs" />
+    <Compile Include="GroupGRManager.cs" />
+    <Compile Include="GRRegistry.cs" />
+    <Compile Include="IGestureListener.cs" />
+    <Compile Include="ITuioListener.cs" />
+    <Compile Include="Main.cs" />
+    <Compile Include="MultiTraceGR.cs" />
+    <Compile Include="OSC.NET\OSCBundle.cs" />
+    <Compile Include="OSC.NET\OSCMessage.cs" />
+    <Compile Include="OSC.NET\OSCPacket.cs" />
+    <Compile Include="OSC.NET\OSCReceiver.cs" />
+    <Compile Include="OSC.NET\OSCTransmitter.cs" />
+    <Compile Include="SimpleGR.cs" />
+    <Compile Include="Surface.cs" />
+    <Compile Include="Trace.cs" />
+    <Compile Include="TuioClient.cs" />
+    <Compile Include="TuioCursor.cs" />
+    <Compile Include="TuioObject.cs" />
+    <Compile Include="TuioObjectGestureListener.cs" />
+    <Compile Include="TuioPoint.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+  </ItemGroup>
+</Project>
