@@ -35,13 +35,14 @@ namespace Grafiti
         private readonly bool m_intersectionMode;
         private static int s_counter = 0;
 		private int m_id;
-		private List<Trace> m_traces;
-        private int m_nOfCurrentTraces;
+        private List<Trace> m_traces;
 		private float m_x0, m_y0, m_t0;
+        private int m_nOfAliveTraces;
         private bool m_alive;
 
         // The maximum time in milliseconds between cursors to determine the group's INITIAL and FINAL list
         private const int GROUPING_TIMESPAN = 600; // to put in Surface
+        private List<Trace> m_startingSequence;
         private List<Trace> m_endingSequence;
 
         private List<IGestureListener> /*m_targets,*/ m_initialTargets, m_newInitialTargets, m_finalTargets;
@@ -49,8 +50,8 @@ namespace Grafiti
         private List<IGestureListener> m_enteringTargets, m_currentTargets, m_leavingTargets;
 
 
-        private SimmetricDoubleDictionary<long, float> m_traceSpaceCouplingTable;
-        private SimmetricDoubleDictionary<long, long> m_traceTimeCouplingTable;
+        private SimmetricDoubleDictionary<Trace, float> m_traceSpaceCouplingTable;
+        private SimmetricDoubleDictionary<Trace, long> m_traceTimeCouplingTable;
 
 
 
@@ -79,16 +80,14 @@ namespace Grafiti
             m_id = s_counter++;
             //m_targets = null;
             m_traces = new List<Trace>();
-            m_nOfCurrentTraces = 0;
+            m_nOfAliveTraces = 0;
             m_alive = true;
 
+            m_startingSequence = new List<Trace>();
             m_endingSequence = new List<Trace>();
 
-            //m_splitting = false;
-            //m_splittingTarget = null;
-            //m_splittingTrace = null;
-            m_traceSpaceCouplingTable = new SimmetricDoubleDictionary<long, float>(10);
-            m_traceTimeCouplingTable = new SimmetricDoubleDictionary<long, long>(10);
+            m_traceSpaceCouplingTable = new SimmetricDoubleDictionary<Trace, float>(10);
+            m_traceTimeCouplingTable = new SimmetricDoubleDictionary<Trace, long>(10);
 
             //m_targets = new List<IGestureListener>();
             m_initialTargets = new List<IGestureListener>();
@@ -104,34 +103,33 @@ namespace Grafiti
         public void StartTrace(Trace trace)
         {
             m_traces.Add(trace);
-            m_nOfCurrentTraces++;
+            m_nOfAliveTraces++;
 
             TuioCursor firstPoint = trace[0];
+            long firstPointTimeStamp = firstPoint.TimeStamp;
             
             // set reference point of the group
             if (m_traces.Count == 1)
             {
                 m_x0 = firstPoint.XPos;
                 m_y0 = firstPoint.YPos;
-                m_t0 = firstPoint.TimeStamp;
+                m_t0 = firstPointTimeStamp;
             }
 
-            // if the trace is new (it has 1 element), compute and index trace-couplings
-            if (trace.Count == 1)
-            {
-                long traceTimeStamp = firstPoint.TimeStamp;
-                foreach (Trace t in m_traces)
+            // update starting sequence
+            if (firstPointTimeStamp - m_t0 < GROUPING_TIMESPAN)
+                m_startingSequence.Add(trace);
+
+            // compute and index trace-couplings
+            foreach (Trace t in m_traces)
+                if (t != trace)
                 {
-                    if (t != trace)
-                    {
-                        TuioCursor current = t[t.Count - 1];
-                        float dx = firstPoint.XPos - current.XPos;
-                        float dy = firstPoint.YPos - current.YPos;
-                        m_traceSpaceCouplingTable[t.SessionId, trace.SessionId] = dx * dx + dy * dy;
-                        m_traceTimeCouplingTable[t.SessionId, trace.SessionId] = traceTimeStamp - current.TimeStamp;
-                    }
+                    TuioCursor current = t[t.Count - 1];
+                    float dx = firstPoint.XPos - current.XPos;
+                    float dy = firstPoint.YPos - current.YPos;
+                    m_traceSpaceCouplingTable[t, trace] = dx * dx + dy * dy;
+                    m_traceTimeCouplingTable[t, trace] = firstPointTimeStamp - current.TimeStamp;
                 }
-            }
         }
 		
         public void UpdateTrace(Trace trace)
@@ -139,40 +137,33 @@ namespace Grafiti
             // nada?
 		}
 
-        public void EndTrace(Trace trace) 
+        public void EndTrace(Trace trace)
         {
-            m_nOfCurrentTraces--;
-            m_alive = m_nOfCurrentTraces > 0;
+            m_nOfAliveTraces--;
+            m_alive = m_nOfAliveTraces > 0;
+
+            // update ending sequence
+            m_endingSequence.Add(trace);
+
+            if (!m_alive)
+            {
+                // remove not-recently-dead traces from endingSequence
+                long lastTimeStamp = trace.Last.TimeStamp;
+                int i;
+                for (i = 0; 
+                    i < m_endingSequence.Count - 1 && 
+                     lastTimeStamp - m_endingSequence[i].Last.TimeStamp > GROUPING_TIMESPAN;
+                    i++);
+                m_endingSequence.RemoveRange(0, i);
+            }
         }
 
-        public void Process(Trace trace)
+        public bool Process(Trace trace)
         {
-            m_groupGRManager.Process(trace); // TODO: don't process if GRmanager has finished
-
+            return m_groupGRManager.Process(trace);
 
             //if (!Alive)
-            //{
-            //    Console.WriteLine(ToString());
-            //}
-            
-            //if (!m_alive)
-            //{
-            //    float x, y;
-            //    Console.WriteLine("-------------------------------------------");
-            //    Console.WriteLine("Group {0}", m_id);
-            //    Console.WriteLine("-------------------------------------------");
-            //    foreach (Trace trc in m_traces)
-            //    {
-            //        Console.WriteLine("Trace {0} normalized history:", trc.SessionId);
-            //        foreach (TuioCursor cur in trc.History)
-            //        {
-            //            x = cur.XPos - m_x0;
-            //            y = cur.YPos - m_y0;
-            //            Console.WriteLine("({0},{1}), timestamp:{2}, state:{3}", x, y, cur.TimeStamp, cur.State);
-            //        }
-            //        Console.WriteLine();
-            //    }
-            //}
+            //   Console.WriteLine(Dump());
         }
 
         // Return the distance between a given point and the nearest current finger.
@@ -235,8 +226,7 @@ namespace Grafiti
                         m_newInitialTargets.Clear();
                         newInitial = true;
                     }
-                    long timeStamp = trace[0].TimeStamp;
-                    if (timeStamp - m_t0 < GROUPING_TIMESPAN)
+                    if (m_startingSequence.Contains(trace))
                     {
                         if (m_intersectionMode)
                         {
@@ -380,40 +370,31 @@ namespace Grafiti
             {
                 List<IGestureListener> traceFinalTargets = trace.FinalTargets;
 
-                m_endingSequence.Add(trace);
-
                 if (!m_alive)
                 {
                     m_finalTargets.AddRange(traceFinalTargets);
 
-                    if (m_endingSequence.Count > 1)
+                    for (int i = 0; i < m_endingSequence.Count - 1; i++)
                     {
-                        long finalTimeStamp = trace.Last.TimeStamp;
-
-                        // Iterating through the recently dead traces
-                        for (int i = m_endingSequence.Count - 2;
-                            i >= 0 && finalTimeStamp - m_endingSequence[i].Last.TimeStamp < GROUPING_TIMESPAN;
-                            i--)
+                        if (m_intersectionMode)
                         {
-                            if (m_intersectionMode)
+                            // FINAL list if the instersection of the recently dead traces' FINAL lists.
+                            m_finalTargets.RemoveAll(delegate(IGestureListener finalTarget)
                             {
-                                // FINAL list if the instersection of the recently dead traces' FINAL lists.
-                                m_finalTargets.RemoveAll(delegate(IGestureListener finalTarget)
-                                {
-                                    return !m_endingSequence[i].FinalTargets.Contains(finalTarget);
-                                });
-                            }
-                            else
+                                return !m_endingSequence[i].FinalTargets.Contains(finalTarget);
+                            });
+                        }
+                        else
+                        {
+                            // FINAL list if the union of the recently dead traces' FINAL lists.
+                            foreach (IGestureListener target in m_endingSequence[i].FinalTargets)
                             {
-                                // FINAL list if the union of the recently dead traces' FINAL lists.
-                                foreach (IGestureListener target in m_endingSequence[i].FinalTargets)
-                                {
-                                    if (!m_finalTargets.Contains(target))
-                                        m_finalTargets.Add(target);
-                                }
+                                if (!m_finalTargets.Contains(target))
+                                    m_finalTargets.Add(target);
                             }
                         }
                     }
+
                     newFinal = true;
                 }
             }
@@ -421,45 +402,11 @@ namespace Grafiti
             #endregion
 
 
-
-            //Console.Write("Group initial targets:\t\t");
-            //foreach (IGestureListener target in m_initialTargets)
-            //    Console.Write(target.ToString() + ", ");
-            //Console.WriteLine();  
-
-            //Console.Write("Group new initial targets:\t");
-            //foreach (IGestureListener target in m_newInitialTargets)
-            //    Console.Write(target.ToString() + ", ");
-            //Console.WriteLine();
-
-            //Console.Write("Group intersection targets:\t");
-            //foreach (IGestureListener target in m_intersectionTargets)
-            //    Console.Write(target.ToString() + ", ");
-            //Console.WriteLine();
-
-            //Console.Write("Group union targets:\t\t");
-            //foreach (IGestureListener target in m_unionTargets)
-            //    Console.Write(target.ToString() + ", ");
-            //Console.WriteLine();
-
-            //Console.Write("Group enter targets:\t\t");
-            //foreach (IGestureListener target in m_enteringTargets)
-            //    Console.Write(target.ToString() + ", ");
-            //Console.WriteLine();
-
-            //Console.Write("Group current targets:\t\t");
-            //foreach (IGestureListener target in m_currentTargets)
-            //    Console.Write(target.ToString() + ", ");
-            //Console.WriteLine();
-
-            //Console.Write("Group leaving targets:\t\t");
-            //foreach (IGestureListener target in m_leavingTargets)
-            //    Console.Write(target.ToString() + ", ");
-            //Console.WriteLine();
-
             if (newCurrent | newIntersect | newUnion | newInitial | newFinal | newEntering | newLeaving)
+            {
                 m_groupGRManager.UpdateGGRHandlers(newInitial, newFinal, newEntering, newCurrent, newLeaving, newIntersect, newUnion);
-        
+                //Console.WriteLine(Dump());
+            }
         }
 
         public bool AcceptNewTrace(float x, float y)
@@ -477,7 +424,7 @@ namespace Grafiti
             return true;
         }
 
-        public override string ToString()
+        public string Dump()
         {
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
 
@@ -485,8 +432,8 @@ namespace Grafiti
             foreach (IGestureListener target in m_initialTargets)
                 sb.Append(target.ToString() + ", ");
 
-            sb.Append("\nFinal targets:");
-            foreach (IGestureListener target in m_finalTargets)
+            sb.Append("\nNew Initial targets:");
+            foreach (IGestureListener target in m_newInitialTargets)
                 sb.Append(target.ToString() + ", ");
 
             sb.Append("\nIntersection targets:");
@@ -497,11 +444,39 @@ namespace Grafiti
             foreach (IGestureListener target in m_unionTargets)
                 sb.Append(target.ToString() + ", ");
 
+            sb.Append("\nEntering targets:");
+            foreach (IGestureListener target in m_enteringTargets)
+                sb.Append(target.ToString() + ", ");
+
             sb.Append("\nCurrent targets:");
             foreach (IGestureListener target in m_currentTargets)
                 sb.Append(target.ToString() + ", ");
 
+            sb.Append("\nLeaving targets:");
+            foreach (IGestureListener target in m_leavingTargets)
+                sb.Append(target.ToString() + ", ");
+
+            sb.Append("\nFinal targets:");
+            foreach (IGestureListener target in m_finalTargets)
+                sb.Append(target.ToString() + ", ");
+
             return sb.ToString();
+
+            //    float x, y;
+            //    Console.WriteLine("-------------------------------------------");
+            //    Console.WriteLine("Group {0}", m_id);
+            //    Console.WriteLine("-------------------------------------------");
+            //    foreach (Trace trc in m_traces)
+            //    {
+            //        Console.WriteLine("Trace {0} normalized history:", trc.SessionId);
+            //        foreach (TuioCursor cur in trc.History)
+            //        {
+            //            x = cur.XPos - m_x0;
+            //            y = cur.YPos - m_y0;
+            //            Console.WriteLine("({0},{1}), timestamp:{2}, state:{3}", x, y, cur.TimeStamp, cur.State);
+            //        }
+            //        Console.WriteLine();
+            //    }
         }
     }
 }

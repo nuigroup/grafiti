@@ -70,6 +70,8 @@ namespace Grafiti
             LeavingEvents = new Enum[] { Events.MultiTraceLeave };
             CurrentEvents = new Enum[] { Events.MultiTraceDown, Events.MultiTraceMove, Events.MultiTraceUp };
             FinalEvents = new Enum[] { Events.MultiTraceEnd };
+
+            Exclusive = false;
         }
 
         private void OnMultiTraceStart()
@@ -112,12 +114,12 @@ namespace Grafiti
             if (trace.Last.State == (int)TUIO.TuioCursor.States.set)
             {
                 OnMultiTraceGestureMove();
-                result = new GestureRecognitionResult(true, true, true);
+                result = new GestureRecognitionResult(false, true, true);
             }
             else if (trace.Last.State == (int)TUIO.TuioCursor.States.add)
             {
                 OnMultiTraceGestureDown();
-                result = new GestureRecognitionResult(true, true, true);
+                result = new GestureRecognitionResult(false, true, true);
             }
             else
             {
@@ -128,7 +130,7 @@ namespace Grafiti
                     result = new GestureRecognitionResult(false, true, false);
                 }
                 else
-                    result = new GestureRecognitionResult(true, true, true);
+                    result = new GestureRecognitionResult(false, true, true);
             }
 
             OnMultiTraceGestureLeave();

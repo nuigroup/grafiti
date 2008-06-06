@@ -27,7 +27,7 @@ using Grafiti;
 
 namespace Grafiti
 {
-    public class Trace
+    public class Trace : IComparable
     {
         private readonly long m_sessionId;
         private readonly Group m_group; // belonging group
@@ -151,6 +151,12 @@ namespace Grafiti
             //foreach (IGestureListener target in m_currentTargets)
             //    Console.Write(target.ToString() + ", ");
             //Console.WriteLine();
+        }
+
+
+        public int CompareTo(object obj)
+        {
+            return (int) (m_sessionId - ((Trace)obj).SessionId);
         }
     } 
 }

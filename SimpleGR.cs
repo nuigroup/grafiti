@@ -44,7 +44,10 @@ namespace SimpleGRNS
             SimpleGesture
         }
 
-        public SimpleGR() : base() { }
+        public SimpleGR() : base()
+        {
+            //Exclusive = false;
+        }
 
         //public delegate void SimpleGestureHandler(object simpleGR, GestureEventArgs args);
 

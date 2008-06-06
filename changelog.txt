@@ -7,9 +7,16 @@ by Alessandro De Nardi
 Changelog and notes
 -------------------
 
-08-06-05
-Reorganized LGR and GGR managment (tidier classes, instantiation, priority),
+r5 08-06-07
+In GroupGRManager.cs
+- refined coordination among GRs (but still work in progress). quite tested.
+In Group.cs
+- added starting sequence of traces
+Tuio client missing.
+
+r4 08-06-05
+Reorganized LGR and GGR managment (tidier classes, instanciation, priority),
 but topic still in development. Tuio client missing. 
 
-08-05-25
+r3 08-05-25
 First version. Tuio client missing.

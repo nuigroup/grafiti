@@ -26,9 +26,5 @@ namespace Grafiti
     {
         bool Contains(float x, float y);
         void GetPosition(out float x, out float y);
-
-        // this will be removed (listeners have to register event handlers
-        // through Surface, so this won't be needed anymore 
-        List<GestureRecognizer> GetLocalGRs(); 
     }
 }

@@ -19,6 +19,7 @@
 */
 
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Reflection;
 using TUIO;
@@ -28,7 +29,11 @@ namespace Grafiti
     /// <summary>
     /// Derived classes will include gesture event data
     /// </summary>
-    public class GestureEventArgs : EventArgs { }
+    public class GestureEventArgs : EventArgs
+    {
+        // public abstract Clone() ?
+    }
+
 
     /// <summary>
     /// WORK IN PROGRESS...
@@ -57,26 +62,47 @@ namespace Grafiti
         }
     }
 
+
     public delegate void GestureEventHandler(object gestureRecognizer, GestureEventArgs args);
+
+
+
 
     public abstract class GestureRecognizer
     {
         private int m_priorityNumber;
 
-        // The associated group
+        // The associated group to process
         private Group m_group;
 
+        private bool m_exclusive;
         private bool m_armed;
         private List<GestureEventHandler> m_loadedHandlers;
         private List<GestureEventArgs> m_loadedArgs;
 
-        internal bool Armed { get { return m_armed; } set { m_armed = value; } }
-
         internal int PriorityNumber { get { return m_priorityNumber; } set { m_priorityNumber = value; } }
+        
+        internal bool Armed { get { return m_armed; } set { m_armed = value; } }
+        
+
+
+
+        /*****************************************
+                Client-related parameters
+         *****************************************/
+
+        // If the following is set to true, a successful recognition of the Process function will block
+        // the callings to successive GRs (in the calling order).
+        // On the other hand, GRs that are not exclusive they allow successive GRs to process data and
+        // to send events as well
+        public bool Exclusive { get { return m_exclusive; } set { m_exclusive = value; } }
+
         public Group Group { get { return m_group; } internal set { m_group = value; } }
+        
 
         public GestureRecognizer()
         {
+            m_exclusive = true;
             m_armed = false;
             m_loadedHandlers = new List<GestureEventHandler>();
             m_loadedArgs = new List<GestureEventArgs>();
@@ -89,13 +115,17 @@ namespace Grafiti
             return GetType().GetEvent(e.ToString());
         }
 
-        //void SetFirstFittingMode(bool firstFitting);
-
         //GestureRecognitionResult Process(List<bool> updateTraces);
         //GestureRecognitionResult Process(List<int> totalNumberOfFrames);
 
         public abstract GestureRecognitionResult Process(Trace trace);
 
+        /// <summary>
+        /// Use this method to send events. If the GRs is not armed (e.g. it's in competition with another
+        /// GR), events will be scheduled and raised as soon as the GR will be armed.
+        /// </summary>
+        /// <param name="handler"></param>
+        /// <param name="args"></param>
         public void AppendEvent(GestureEventHandler handler, GestureEventArgs args)
         {
             if (handler != null)
@@ -105,22 +135,19 @@ namespace Grafiti
                 else
                 {
                     m_loadedHandlers.Add((GestureEventHandler)handler.Clone());
-                    m_loadedArgs.Add(args);
+                    m_loadedArgs.Add(args); // or clone?
                 }
             }
         }
 
         internal void ProcessPendlingEvents()
         {
-            if (!m_armed)
-                throw new Exception("Attempting to raise events while not armed");
-            else
-            {
-                for (int i = 0; i < m_loadedHandlers.Count; i++)
-                    m_loadedHandlers[i](this, m_loadedArgs[i]);
-                m_loadedHandlers.Clear();
-                m_loadedArgs.Clear();
-            }
+            Debug.Assert(m_armed);
+
+            for (int i = 0; i < m_loadedHandlers.Count; i++)
+                m_loadedHandlers[i](this, m_loadedArgs[i]);
+            m_loadedHandlers.Clear();
+            m_loadedArgs.Clear();
         }
 
         public abstract GestureRecognizer Copy();
@@ -133,7 +160,7 @@ namespace Grafiti
     {
         public LocalGestureRecognizer() : base() { }
 
-        internal override void AddHandler(Enum e, object listener, GestureEventHandler handler)
+        internal override sealed void AddHandler(Enum e, object listener, GestureEventHandler handler)
         {
             GetEventInfo(e).AddEventHandler(this, handler);
         }
@@ -188,6 +215,8 @@ namespace Grafiti
             get { return m_handlerTable; }
         }
 
+        internal object CtorParam { get { return m_ctorParam; } }
+
         public GlobalGestureRecognizer(object ctorParam) : base()
         {
             m_ctorParam = ctorParam;
@@ -196,7 +225,7 @@ namespace Grafiti
         }
 
         // This is called by GGRProvider
-        internal override void AddHandler(Enum e, object listener, GestureEventHandler handler)
+        internal override sealed void AddHandler(Enum e, object listener, GestureEventHandler handler)
         {
             // Check id it's a default event
             bool isDefaultEvent = false;

@@ -34,8 +34,6 @@ namespace Client
         private Surface m_surface;
         private readonly int m_sessionId, m_fId;
         private float m_x, m_y;
-        private SimpleGR m_simpleGR;
-        private List<GestureRecognizer> m_grList;
         
         public TuioObjectGestureListener(Surface surface, int sessionId, int fId, float x, float y)
         {
@@ -45,66 +43,32 @@ namespace Client
             m_x = x;
             m_y = y;
 
-
-            new MultiTraceGR(this); // this will make the class to compile!
+            // these will force the classes to compile
+            new SimpleGR();
+            new MultiTraceGR(this);
 
             // LGRs
 
-            m_surface.SetPriorityNumber(0);
-            m_surface.RegisterHandler(
-                typeof(SimpleGR),
-                SimpleGR.Events.SimpleGesture,
-                new GestureEventHandler(SimpleGestureEventHandler)
-                );
+            m_surface.SetPriorityNumber(3);
+            m_surface.RegisterHandler(typeof(SimpleGR), SimpleGR.Events.SimpleGesture, new GestureEventHandler(SimpleGestureEventHandler));
 
             // GGRs
 
-            m_surface.SetPriorityNumber(0);
-            m_surface.RegisterHandler(
-                typeof(MultiTraceGR),
-                MultiTraceGR.Events.MultiTraceStarted,
-                new GestureEventHandler(OnMultiTraceEvent)
-                );
+            m_surface.SetPriorityNumber(2);
+            m_surface.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceStarted, new GestureEventHandler(OnMultiTraceEvent));
+            m_surface.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceEnter, new GestureEventHandler(OnMultiTraceEvent));
+            m_surface.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceLeave, new GestureEventHandler(OnMultiTraceEvent));
+            //m_surface.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceMove, new GestureEventHandler(OnMultiTraceEvent));
+            m_surface.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceDown, new GestureEventHandler(OnMultiTraceEvent));
+            m_surface.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceUp, new GestureEventHandler(OnMultiTraceEvent));
+            m_surface.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceEnd, new GestureEventHandler(OnMultiTraceEvent));
+        }
 
-            m_surface.RegisterHandler(
-                typeof(MultiTraceGR),
-                MultiTraceGR.Events.MultiTraceEnter,
-                new GestureEventHandler(OnMultiTraceEvent)
-                );
-            m_surface.RegisterHandler(
-                typeof(MultiTraceGR),
-                MultiTraceGR.Events.MultiTraceLeave,
-                new GestureEventHandler(OnMultiTraceEvent)
-                );
-            //m_surface.RegisterGR(
-            //    typeof(MultiTraceGR),
-            //    MultiTraceGR.Events.MultiTraceMove,
-            //    new GestureEventHandler(OnMultiTraceEvent)
-            //    );
-            m_surface.RegisterHandler(
-                typeof(MultiTraceGR),
-                MultiTraceGR.Events.MultiTraceDown,
-                new GestureEventHandler(OnMultiTraceEvent)
-                );
-            m_surface.RegisterHandler(
-                typeof(MultiTraceGR),
-                MultiTraceGR.Events.MultiTraceUp,
-                new GestureEventHandler(OnMultiTraceEvent)
-                );
-            m_surface.RegisterHandler(
-                typeof(MultiTraceGR),
-                MultiTraceGR.Events.MultiTraceEnd,
-                new GestureEventHandler(OnMultiTraceEvent)
-                );
-        }
-        public List<GestureRecognizer> GetLocalGRs()
-        {
-            return m_grList;
-        }
         public void OnMultiTraceEvent(object MultiTraceGR, GestureEventArgs args)
         {
             Console.WriteLine("{0} received the MultiTraceEvent {1}", ToString(), ((MultiTraceEventArgs)args).Message);
         }
+
         public void SimpleGestureEventHandler(object source, GestureEventArgs args)
         {
             Console.WriteLine("{0} received the SimpleGestureEvent", ToString());
