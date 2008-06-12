@@ -30,8 +30,18 @@ namespace Grafiti
     /// Derived classes will include gesture event data
     /// </summary>
     public class GestureEventArgs : EventArgs
-    {
+    {        
+        public Enum EventId;
         // public abstract Clone() ?
+
+        public GestureEventArgs()
+        {
+            EventId = null;
+        }
+        public GestureEventArgs(Enum id)
+        {
+            EventId = id;
+        }
     }
 
 
@@ -112,6 +122,7 @@ namespace Grafiti
 
         internal System.Reflection.EventInfo GetEventInfo(Enum e)
         {
+            Debug.Assert(GetType().GetEvent(e.ToString()) != null);
             return GetType().GetEvent(e.ToString());
         }
 
@@ -184,7 +195,10 @@ namespace Grafiti
             FINAL,
             INTERSECT,
             UNION,
-            DEFAULT
+            DEFAULT,
+            CLOSEST_ENTERING,
+            CLOSEST_CURRENT,
+            CLOSEST_LEAVING
         }
 
 
@@ -204,6 +218,9 @@ namespace Grafiti
         protected Enum[] IntersectionEvents = new Enum[0] { };
         protected Enum[] UnionEvents = new Enum[0] { };
         protected Enum[] DefaultEvents = new Enum[0] { };
+        protected Enum[] ClosestEnteringEvents = new Enum[0] { };
+        protected Enum[] ClosestCurrentEvents = new Enum[0] { };
+        protected Enum[] ClosestLeavingEvents = new Enum[0] { };
 
 
         // GR developers can use this (in association with the predefined lists), to manage the handlers
@@ -254,7 +271,8 @@ namespace Grafiti
         /// <summary>
         /// Update handlers to the events for targets appearing in the predefined target lists
         /// </summary>
-        internal void UpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving, bool intersect, bool union)
+        internal void UpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
+            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn)
         {
             if (initial)
             {
@@ -273,7 +291,19 @@ namespace Grafiti
                 UpdateHandlers(TargetList.INTERSECT);
             if (union)
                 UpdateHandlers(TargetList.UNION);
+            if (newClosestEnt)
+                UpdateHandlers(TargetList.CLOSEST_ENTERING);
+            if (newClosestCur)
+                UpdateHandlers(TargetList.CLOSEST_CURRENT);
+            if (newClosestLvn)
+                UpdateHandlers(TargetList.CLOSEST_LEAVING);
+
+            OnUpdateHandlers(initial, final, entering, current, leaving, 
+                intersect, union, newClosestEnt, newClosestCur, newClosestLvn);
         }
+
+        protected virtual void OnUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
+            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn) { }
 
         private void UpdateHandlers(TargetList targetList)
         {
@@ -320,10 +350,31 @@ namespace Grafiti
                 groupTargetList = Group.UnionTargets;
                 eventList = UnionEvents;
             }
+            else if (targetList == TargetList.CLOSEST_ENTERING)
+            {
+                groupTargetList = new List<IGestureListener>();
+                if(Group.ClosestEnteringTarget != null)
+                    groupTargetList.Add(Group.ClosestEnteringTarget);
+                eventList = this.ClosestEnteringEvents;
+            }
+            else if (targetList == TargetList.CLOSEST_CURRENT)
+            {
+                groupTargetList = new List<IGestureListener>();
+                if (Group.ClosestCurrentTarget != null)
+                    groupTargetList.Add(Group.ClosestCurrentTarget);
+                eventList = this.ClosestCurrentEvents;
+            }
+            else if (targetList == TargetList.CLOSEST_LEAVING)
+            {
+                groupTargetList = new List<IGestureListener>();
+                if (Group.ClosestLeavingTarget != null)
+                    groupTargetList.Add(Group.ClosestLeavingTarget);
+                eventList = this.ClosestLeavingEvents;
+            }
             else
                 throw new Exception("Invalid parameter.");
 
-
+            // TODO: optimize
             EventInfo eventInfo;
             for (int i = 0; i < eventList.Length; i++)
             {

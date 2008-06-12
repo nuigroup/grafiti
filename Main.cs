@@ -26,24 +26,24 @@ using Client;
 
 namespace Grafiti
 {
-	public class grafitiListener : ITuioListener
+	public class GrafitiListener : ITuioListener
 	{
         private static int counter;
 		private Surface m_surface;
-        private List<IGestureListener> m_gListeners;
+        private GestureEventManager m_gestureEventManager;
         private DoubleDictionary<int, int, TuioObjectGestureListener> m_gListenersTable;
 		
-		public grafitiListener()
+		public GrafitiListener()
 		{
-            m_gListeners = new List<IGestureListener>();
             m_gListenersTable = new DoubleDictionary<int, int, TuioObjectGestureListener>();
-            m_surface = new Surface(m_gListeners);
+            m_surface = new Surface();
+            m_gestureEventManager = m_surface.GetGestureEventManager();
 		}
         public void AddTuioObj(long s_id, int f_id, float x, float y, float a)
         {
             Console.WriteLine("add obj " + f_id + " " + s_id + " " + x + " " + y + " " + a);
-            TuioObjectGestureListener listener = new TuioObjectGestureListener(m_surface, (int) s_id, f_id, x, y);
-            m_gListeners.Add(listener);
+            TuioObjectGestureListener listener = new TuioObjectGestureListener(m_gestureEventManager, (int)s_id, f_id, x, y);
+            m_surface.AddListener(listener);
             m_gListenersTable[(int) s_id, f_id] = listener;
         }
         public void UpdateTuioObj(long s_id, int f_id, float x, float y, float a, float X, float Y, float A, float m, float r)
@@ -56,29 +56,31 @@ namespace Grafiti
         {
             Console.WriteLine("del obj " + f_id + " " + s_id);
             TuioObjectGestureListener listener = (TuioObjectGestureListener)m_gListenersTable[(int) s_id, f_id];
-            m_surface.UnregisterAllHandlers(listener);
-            m_gListeners.Remove(listener);
+            m_surface.RemoveListener(listener);
             m_gListenersTable.Remove((int) s_id, f_id);
         }
 
         public void AddTuioCur(TuioCursor cursor)
         {
             //Console.WriteLine("add \\  cur " + s_id + " " + x + " " + y);
-            m_surface.StartTrace(cursor);
+            //Console.WriteLine("added cursor {0}", cursor.SessionId);
+            m_surface.AddCursor(cursor);
         }
         public void UpdateTuioCur(TuioCursor cursor)
         {
             //Console.WriteLine("set  | cur " + s_id + " " + x + " " + y + " " + (float)Math.Sqrt(X * X + Y * Y) + " " + m);
-            m_surface.UpdateTrace(cursor);
+            //Console.WriteLine("updated {0}, {1}", cursor.SessionId, cursor.FingerId);
+            m_surface.UpdateCursor(cursor);
         }
         public void RemoveTuioCur(TuioCursor cursor)
         {
             //Console.WriteLine("del /  cur " + s_id);
-            m_surface.RemoveTrace(cursor);
+            m_surface.RemoveCursor(cursor);
         }
         public void Refresh()
         {
-            //Console.WriteLine("refresh {0}", counter++);	
+            //Console.WriteLine("refresh {0}", counter++);
+            m_surface.Refresh();
         }
 
 
@@ -86,7 +88,7 @@ namespace Grafiti
 
         public static void Main(String[] argv)
         {
-            grafitiListener listener = new grafitiListener();
+            GrafitiListener listener = new GrafitiListener();
 
             TuioClient client = null;
 

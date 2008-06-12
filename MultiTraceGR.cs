@@ -27,12 +27,9 @@ namespace Grafiti
 
     public class MultiTraceEventArgs : GestureEventArgs
     {
-        private string m_message;
-        public string Message { get { return m_message; } }
-
-        public MultiTraceEventArgs(string message)
+        public MultiTraceEventArgs(Enum id) : base(id)
         {
-            m_message = message;
+
         }
     }
 
@@ -76,32 +73,32 @@ namespace Grafiti
 
         private void OnMultiTraceStart()
         {
-            AppendEvent(MultiTraceStarted, new MultiTraceEventArgs("START EVENT"));
+            AppendEvent(MultiTraceStarted, new MultiTraceEventArgs(Events.MultiTraceStarted));
         }
         private void OnMultiTraceEnd()
         {
-            AppendEvent(MultiTraceEnd, new MultiTraceEventArgs("END EVENT"));
+            AppendEvent(MultiTraceEnd, new MultiTraceEventArgs(Events.MultiTraceEnd));
         }
         private void OnMultiTraceGestureDown()
         {
-            AppendEvent(MultiTraceDown, new MultiTraceEventArgs("DOWN EVENT"));
+            AppendEvent(MultiTraceDown, new MultiTraceEventArgs(Events.MultiTraceDown));
         }
         private void OnMultiTraceGestureMove()
         {
-            AppendEvent(MultiTraceMove, new MultiTraceEventArgs("MOVE EVENT"));
+            AppendEvent(MultiTraceMove, new MultiTraceEventArgs(Events.MultiTraceMove));
         }
         private void OnMultiTraceGestureUp()
         {
-            AppendEvent(MultiTraceUp, new MultiTraceEventArgs("UP EVENT"));
+            AppendEvent(MultiTraceUp, new MultiTraceEventArgs(Events.MultiTraceUp));
         }
     
         private void OnMultiTraceGestureEnter()
         {
-            AppendEvent(MultiTraceEnter, new MultiTraceEventArgs("ENTER EVENT " + m_ctorParam.ToString()));
+            AppendEvent(MultiTraceEnter, new MultiTraceEventArgs(Events.MultiTraceEnter));
         }
         private void OnMultiTraceGestureLeave()
         {
-            AppendEvent(MultiTraceLeave, new MultiTraceEventArgs("LEAVE EVENT"));
+            AppendEvent(MultiTraceLeave, new MultiTraceEventArgs(Events.MultiTraceLeave));
         }
 
         public override GestureRecognitionResult Process(Trace trace)

@@ -7,6 +7,13 @@ by Alessandro De Nardi
 Changelog and notes
 -------------------
 
+r6 08-06-12
+- In GroupGRManager.cs, refined coordination among GRs: now LGRs, on success, will prevent other LGRs of the same type from succeding.
+- added closestTarget (entering/current/leaving) to GGRs
+- added GGR for recognizing basic single-finger gestures: down, up, tap, double tap, triple tap, hover, entering, move, leaving. It uses closestTarget.
+- split Surface into two logical modules: Surface and GestureEventManager.
+Tuio client missing.
+
 r5 08-06-07
 In GroupGRManager.cs
 - refined coordination among GRs (but still work in progress). quite tested.

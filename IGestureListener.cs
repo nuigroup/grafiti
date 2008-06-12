@@ -24,7 +24,12 @@ namespace Grafiti
 {
     public interface IGestureListener
     {
+        // Must return true if the interaction area contains the point given by the coordinates
+        // false otherwise
         bool Contains(float x, float y);
-        void GetPosition(out float x, out float y);
+
+        // Must return the square distance to a conventional point (e.g. the center or the point
+        // on the border closest to the given coordinates), coherently with the client application
+        float GetSquareDistance(float x, float y);
     }
 }

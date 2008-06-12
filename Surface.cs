@@ -27,107 +27,145 @@ using Grafiti;
 namespace Grafiti
 {
 	public class Surface
-	{
-		private const float CLUSTERING_THRESHOLD = 0.2f;
-        private const bool DEFAULT_INTERSECTION_MODE = true;
-        private readonly bool m_intersectionMode;
-        private List<Trace> m_traces;
+    {
+        internal const bool INTERSECTION_MODE = true;
+
+        // The maximum time in milliseconds between cursors to determine the group's INITIAL and FINAL list
+        internal const int GROUPING_TIMESPAN = 600;
+        internal const float CLUSTERING_THRESHOLD = 0.2f;
+
+        // Used e.g. for double tap
+        internal const int TRACE_RESURRECTION_TIME = 500;
+        internal const float TRACE_RESURRECTION_SPACE = 0.05f;
+
+
 		private List<Group> m_groups;
         private Dictionary<long, Trace> m_cursorTraceTable;
         private List<IGestureListener> m_listeners;
-        private GRRegistry m_grRegistry;
-        private object m_defaultGgrParam;
-        private int m_grPriorityNumber;
 
-        public Surface(List<IGestureListener> listeners) : this(listeners, DEFAULT_INTERSECTION_MODE) { }
+        private GestureEventManager m_gestureEventManager;
 
-        public Surface(List<IGestureListener> listeners, bool intersectionMode)
+        //private GRRegistry m_grRegistry;
+        //private object m_defaultGgrParam;
+        //private int m_grPriorityNumber;
+
+
+        public Surface()
 		{
-            m_traces = new List<Trace>(100);
-			m_groups = new List<Group>(100);
-            m_cursorTraceTable = new Dictionary<long, Trace>(100);
-            m_listeners = listeners;
-            m_intersectionMode = intersectionMode;
-            m_grRegistry = new GRRegistry();
-            m_defaultGgrParam = new object();
-            m_grPriorityNumber = 0;
-		}
-		
-		public void StartTrace(TuioCursor cursor)
-		{
-            float x = cursor.XPos;
-            float y = cursor.YPos;
+			m_groups = new List<Group>();
+            m_cursorTraceTable = new Dictionary<long, Trace>();
+            m_listeners = new List<IGestureListener>();
 
-            // find the best matching group
-            Group group = FindOrCreateMatchingGroup(x, y);
+            m_gestureEventManager = new GestureEventManager();
             
-            // create a new trace and index it
-            Trace trace = new Trace(cursor, group);
-            m_traces.Add(trace);
+            //m_grRegistry = new GRRegistry();
+            //m_defaultGgrParam = new object();
+            //m_grPriorityNumber = 0;
+
+
+		}
+
+        public void AddListener(IGestureListener listener)
+        {
+            m_listeners.Add(listener);
+        }
+
+        public void RemoveListener(IGestureListener listener)
+        {
+            m_listeners.Remove(listener);
+            m_gestureEventManager.UnregisterAllHandlers(listener);
+        }
+
+        public GestureEventManager GetGestureEventManager()
+        {
+            return m_gestureEventManager;
+        }
+
+		
+		internal void AddCursor(TuioCursor cursor)
+        {
+            // get the best matching group and possibly its resurrecting trace
+            Trace trace;
+            Group group = GetMatchingGroup(cursor, out trace);
+
+            if (trace != null)
+                trace.UpdateCursor(cursor); // trace has resurrected
+            else
+                trace = new Trace(cursor, group);
+            
+            // index the cursor
             m_cursorTraceTable[cursor.SessionId] = trace;
 
             // set/update trace and group targets
-            trace.UpdateTargets(ListTargetsAt(x, y));
+            trace.UpdateTargets(ListTargetsAt(cursor.XPos, cursor.YPos));
 
             // processing
             group.Process(trace);
         }
 
-        public void UpdateTrace(TuioCursor cursor) // TODO: check if already completely processed
+        internal void UpdateCursor(TuioCursor cursor) // TODO: check if already completely processed
         {
-            // update trace
+            // determine belonging trace
             Trace trace = m_cursorTraceTable[cursor.SessionId];
+            
+            // update trace, its targets and its group's targets
             trace.UpdateCursor(cursor);
-
-            // update trace and group targets
             trace.UpdateTargets(ListTargetsAt(cursor.XPos, cursor.YPos));
 
             // processing
             trace.Group.Process(trace);
         }
 
-        public void RemoveTrace(TuioCursor cursor)
+        internal void RemoveCursor(TuioCursor cursor)
         {
-            // update trace
+            // determine trace
             Trace trace = m_cursorTraceTable[cursor.SessionId];
-            trace.RemoveCursor(cursor);
 
-            // update trace and group targets
+            // update trace, its targets and its group's targets
+            trace.RemoveCursor(cursor);
             trace.UpdateTargets(ListTargetsAt(cursor.XPos, cursor.YPos));
 
             // processing
             trace.Group.Process(trace);
+
 
             // remove index
             m_cursorTraceTable.Remove(cursor.SessionId);
 
-            // remove group if it has no more traces (assuming that it has been completely processed!)
-            // TODO: implement Group.ProcessingTerminated (like 'disposable') and periodically check for
-            // groups that have this property set to true (among the dead ones) to remove them.
-            // In this way groups with a working thread in some of their GR can stay alive.
-            if (!trace.Group.Alive)
-                RemoveGroup(trace.Group);
+            // TODO
+            // remove group if it has no more traces
+            //if (!trace.Group.Alive)
+            //    RemoveGroup(trace.Group);
         }
 
-        private Group FindOrCreateMatchingGroup(float x, float y)
+        internal void Refresh()
+        {
+                
+        }
+
+
+        private Group GetMatchingGroup(TuioCursor cursor, out Trace resurrectingTrace)
         {
             Group matchingGroup = null;
+            resurrectingTrace = null;
+            Trace tempResurrectingTrace = null;
 
             float minDist = CLUSTERING_THRESHOLD * CLUSTERING_THRESHOLD;
-            float dist;
+            float tempDist;
 
             foreach (Group group in m_groups)
             {
                 // filter out groups that don't accept the trace
-                if (!group.AcceptNewTrace(x, y))
+                if (!group.AcceptNewCursor(cursor))
                     continue;
 
                 // find the closest
-                dist = group.SquareMinDist(x, y);
-                if (dist < minDist)
+                tempDist = group.Candidate(cursor, out tempResurrectingTrace);
+                if (tempDist < minDist)
                 {
-                    minDist = dist;
+                    minDist = tempDist;
                     matchingGroup = group;
+                    resurrectingTrace = tempResurrectingTrace;
                 }
             }
 
@@ -140,7 +178,7 @@ namespace Grafiti
 
         private Group CreateGroup()
         {
-            Group group = new Group(m_intersectionMode, m_grRegistry);
+            Group group = new Group(INTERSECTION_MODE, m_gestureEventManager.GetGRRegistry());
             m_groups.Add(group);
             return group;
         }
@@ -150,7 +188,27 @@ namespace Grafiti
             m_groups.Remove(group);
         }
 
+        private List<IGestureListener> ListTargetsAt(float x, float y)
+        {
+            List<IGestureListener> targets = new List<IGestureListener>();
+            foreach (IGestureListener listener in m_listeners)
+            {
+                if (listener.Contains(x, y))
+                    targets.Add(listener);
+            }
+            // TODO: optimize
+            targets.Sort(new Comparison<IGestureListener>(
+                delegate (IGestureListener a, IGestureListener b)
+                {
+                    return (int)((a.GetSquareDistance(x, y) - b.GetSquareDistance(x,y)) * 1000000000);
+                }
+            ));
 
+            return targets;
+        }
+
+
+        /*
         public void SetPriorityNumber(int pn)
         {
             m_grPriorityNumber = pn;
@@ -183,35 +241,10 @@ namespace Grafiti
             m_grRegistry.RegisterHandler(grType, grParam, m_grPriorityNumber, e, handler);
         }
 
-        public void UnregisterAllHandlers(IGestureListener listener)
+        private void UnregisterAllHandlers(IGestureListener listener)
         {
             m_grRegistry.UnregisterAllHandlers(listener);
         }
-
-
-        private List<IGestureListener> ListTargetsAt(float x, float y)
-        {
-            List<IGestureListener> targets = new List<IGestureListener>();
-            foreach (IGestureListener listener in m_listeners)
-            {
-                if (listener.Contains(x, y))
-                    targets.Add(listener);
-            }
-            // TODO: optimize (or is it done by CLR?)
-            targets.Sort(new Comparison<IGestureListener>(
-                delegate (IGestureListener a, IGestureListener b)
-                {
-                    float ax, ay, bx, by;
-                    a.GetPosition(out ax, out ay);
-                    b.GetPosition(out bx, out by);
-                    float dax = ax - x;
-                    float day = ay - y;
-                    float dbx = bx - x;
-                    float dby = by - y;
-                    return (int) (((dax * dax + day * day) - (dbx * dbx + dby * dby)) * 10000000);
-                }
-            ));
-            return targets;
-        }
-	}
+        */
+    }
 }

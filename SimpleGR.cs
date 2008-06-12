@@ -25,18 +25,6 @@ using TUIO;
 
 namespace SimpleGRNS
 {
-    //public class SimpleGREventArgs : GestureEventArgs
-    //{
-    //    public float x, y;
-
-    //    public SimpleGREventArgs(float x, float y)
-    //    {
-    //        this.x = x;
-    //        this.y = y;
-    //    }
-    //}
-
-
     public class SimpleGR : LocalGestureRecognizer
     {
         public enum Events
@@ -49,21 +37,16 @@ namespace SimpleGRNS
             //Exclusive = false;
         }
 
-        //public delegate void SimpleGestureHandler(object simpleGR, GestureEventArgs args);
-
         public event GestureEventHandler SimpleGesture;
 
         protected virtual void OnSimpleGesture()
         {
-            if (SimpleGesture != null)
-            {
-                AppendEvent(SimpleGesture, new GestureEventArgs());
-            }
+            AppendEvent(SimpleGesture, new GestureEventArgs());
         }
 
         public override GestureRecognitionResult Process(Trace trace)
         {
-            // if the gesture has been alive for 2 seconds
+            // if the gesture has been alive for 2 seconds (and is moving)
             if (trace.Last.TimeStamp - trace.First.TimeStamp >= 2000)
             {
                 OnSimpleGesture();

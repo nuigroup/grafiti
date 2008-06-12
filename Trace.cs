@@ -35,7 +35,8 @@ namespace Grafiti
         {
             ADD,
             SET,
-            DEL
+            DEL,
+            RST,
         }
         private States m_state;
         private const int ADD = 0;
@@ -81,23 +82,29 @@ namespace Grafiti
             m_group = group;
             m_group.StartTrace(this);
 
+            m_initialTargets = new List<IGestureListener>();
+            m_finalTargets = new List<IGestureListener>();
             m_enteringTargets = new List<IGestureListener>();
             m_currentTargets = new List<IGestureListener>();
             m_leavingTargets = new List<IGestureListener>();
+            m_intersectionTargets = new List<IGestureListener>();
             m_unionTargets = new List<IGestureListener>();
         }
         public void UpdateCursor(TuioCursor cursor)
         {
-            Debug.Assert(cursor.SessionId == m_sessionId);
+            //Debug.Assert(cursor.SessionId == m_sessionId); // check FingerId and time
 
             m_history.Add(cursor);
-            m_state = States.SET;
+            if (m_state == States.DEL)
+                m_state = States.RST;
+            else
+                m_state = States.SET;
             m_last = cursor;
             m_group.UpdateTrace(this);
         }
         public void RemoveCursor(TuioCursor cursor)
         {
-            Debug.Assert(cursor.SessionId == m_sessionId);
+            //Debug.Assert(cursor.SessionId == m_sessionId);
 
             m_history.Add(cursor);
             m_state = States.DEL;
@@ -134,14 +141,18 @@ namespace Grafiti
             m_currentTargets.AddRange(m_enteringTargets); // current +
 
             
-            if (m_state == States.ADD)
+            if (m_state == States.ADD) // this happens only once, at the beginning
             { 
-                m_initialTargets = new List<IGestureListener>(targets);
-                m_intersectionTargets = new List<IGestureListener>(targets);
+                m_initialTargets.AddRange(targets);
+                m_intersectionTargets.AddRange(targets);
             }
             else if (m_state == States.DEL)
             {
-                m_finalTargets = new List<IGestureListener>(targets);
+                m_finalTargets.AddRange(targets);
+            }
+            else if (m_state == States.RST)
+            {
+                m_finalTargets.Clear();
             }
 
             m_group.UpdateTargets(this);

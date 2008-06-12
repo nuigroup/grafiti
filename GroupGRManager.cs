@@ -159,15 +159,18 @@ namespace Grafiti
             }
         }
 
-        public void UpdateGGRHandlers(bool initial, bool final, bool entering, bool current, bool leaving, bool intersect, bool union)
+        public void UpdateGGRHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
+            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn)
         {
             foreach (GestureRecognizer gr in m_interpreting)
                 if (gr is GlobalGestureRecognizer)
-                    ((GlobalGestureRecognizer)gr).UpdateHandlers(initial, final, entering, current, leaving, intersect, union);
+                    ((GlobalGestureRecognizer)gr).UpdateHandlers(initial, final, entering, current, leaving, 
+                        intersect, union, newClosestEnt, newClosestCur, newClosestLvn);
             
             foreach (GestureRecognizer gr in m_grs)
                 if(gr is GlobalGestureRecognizer)
-                    ((GlobalGestureRecognizer)gr).UpdateHandlers(initial, final, entering, current, leaving, intersect, union);
+                    ((GlobalGestureRecognizer)gr).UpdateHandlers(initial, final, entering, current, leaving, 
+                        intersect, union, newClosestEnt, newClosestCur, newClosestLvn);
         }
 
 
@@ -220,10 +223,11 @@ namespace Grafiti
                         {
                             m_succedingGRs.Add(gr);
                             m_succedingResults.Add(rs);
-                            m_toRemove.Add(gr);
                         }
+                        if (gr is GlobalGestureRecognizer)
+                            m_toRemove.Add(gr);
                         else
-                            m_toRemove.AddRange(FindAllGRsLike(gr));
+                            m_toRemove.AddRange(FindAllLGRsOfType(gr.GetType()));
                     }
                     else
                         someIsRecognizing = true;
@@ -236,9 +240,10 @@ namespace Grafiti
                 //        m_targetLGRListTable
                 //    foreach (GestureRecognizer gr in m_succedingGRs)
                 //    {
-                //        // sono già in ordine di target list position (...)
-                //        // però se ce ne sono 2 vincenti nella stessa posizione
-                //        // bisogna vedere chi ha la probabilità maggiore
+                //        // sono già in ordine di target list position (riferito al momento
+                //        // della creazione della lista - l'ordine non si aggiorna),
+                //        // però se ce ne sono 2 vincenti nella stessa posizione bisogna vedere
+                //        // chi ha la probabilità maggiore
                 //    }
                 //}
 
@@ -267,7 +272,7 @@ namespace Grafiti
             }
 
 
-            if (!(m_grs.Count > 0 || m_interpreting.Count > 0) || !trace.Group.Alive) // ...
+            if (!(m_grs.Count > 0 || m_interpreting.Count > 0))// || !trace.Group.Alive) // ...
             {
                 m_grRegistry.Unsubscribe(this);
                 m_taskCompleted = true;
@@ -276,28 +281,12 @@ namespace Grafiti
             return m_taskCompleted;
         }
 
-        private List<GestureRecognizer> FindAllGRsLike(GestureRecognizer sample)
+        private List<GestureRecognizer> FindAllLGRsOfType(Type grType)
         {
             List<GestureRecognizer> list = new List<GestureRecognizer>();
-            Type sampleType = sample.GetType();
-            if (sample is LocalGestureRecognizer)
-                foreach (GestureRecognizer gr in m_grs)
-                {
-                    if (gr.GetType() == sampleType)
-                        list.Add(gr);
-                }
-            else
-            {
-                object sampleCtorParam = ((GlobalGestureRecognizer)sample).CtorParam;
-                foreach (GestureRecognizer gr in m_grs)
-                    if (gr is GlobalGestureRecognizer &&
-                         gr.GetType() == sampleType &&
-                         ((GlobalGestureRecognizer)gr).CtorParam == sampleCtorParam
-                       )
-                    {
-                        list.Add(gr);
-                    }
-            }
+            foreach (GestureRecognizer gr in m_grs)
+                if (gr.GetType() == grType)
+                    list.Add(gr);
             return list;
         }
 

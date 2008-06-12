@@ -38,16 +38,15 @@ namespace Grafiti
         private List<Trace> m_traces;
 		private float m_x0, m_y0, m_t0;
         private int m_nOfAliveTraces;
-        private bool m_alive;
+        private float m_centroidX, m_centroidY;
 
-        // The maximum time in milliseconds between cursors to determine the group's INITIAL and FINAL list
-        private const int GROUPING_TIMESPAN = 600; // to put in Surface
         private List<Trace> m_startingSequence;
-        private List<Trace> m_endingSequence;
+        private LinkedList<Trace> m_endingSequenceReversed;
 
         private List<IGestureListener> /*m_targets,*/ m_initialTargets, m_newInitialTargets, m_finalTargets;
         private List<IGestureListener> m_intersectionTargets, m_unionTargets;
         private List<IGestureListener> m_enteringTargets, m_currentTargets, m_leavingTargets;
+        private IGestureListener m_closestEnteringTarget, m_closestCurrentTarget, m_closestLeavingTarget;
 
 
         private SimmetricDoubleDictionary<Trace, float> m_traceSpaceCouplingTable;
@@ -65,12 +64,17 @@ namespace Grafiti
         public List<IGestureListener> EnteringTargets { get { return m_enteringTargets; } }
         public List<IGestureListener> CurrentTargets { get { return m_currentTargets; } }
         public List<IGestureListener> LeavingTargets { get { return m_leavingTargets; } }
+        public IGestureListener ClosestEnteringTarget { get { return m_closestEnteringTarget; } }
+        public IGestureListener ClosestCurrentTarget { get { return m_closestCurrentTarget; } }
+        public IGestureListener ClosestLeavingTarget { get { return m_closestLeavingTarget; } }
 
 
         //public List<IGestureListener> Targets {get { return m_targets; } }
         public List<Trace> Traces { get { return m_traces; } }
 
-        public bool Alive { get { return m_alive; } }
+        public int NOfAliveTraces { get { return m_nOfAliveTraces; } }
+
+        public bool Alive { get { return m_nOfAliveTraces > 0; } }
 
         public Group(bool intersectionMode, GRRegistry registry)
 		{
@@ -81,10 +85,12 @@ namespace Grafiti
             //m_targets = null;
             m_traces = new List<Trace>();
             m_nOfAliveTraces = 0;
-            m_alive = true;
+
+            m_centroidX = 0;
+            m_centroidY = 0;
 
             m_startingSequence = new List<Trace>();
-            m_endingSequence = new List<Trace>();
+            m_endingSequenceReversed = new LinkedList<Trace>();
 
             m_traceSpaceCouplingTable = new SimmetricDoubleDictionary<Trace, float>(10);
             m_traceTimeCouplingTable = new SimmetricDoubleDictionary<Trace, long>(10);
@@ -98,6 +104,9 @@ namespace Grafiti
             m_leavingTargets = new List<IGestureListener>();
             m_intersectionTargets = new List<IGestureListener>();
             m_unionTargets = new List<IGestureListener>();
+            m_closestEnteringTarget = null;
+            m_closestCurrentTarget = null;
+            m_closestLeavingTarget = null;
 		}
 
         public void StartTrace(Trace trace)
@@ -117,7 +126,7 @@ namespace Grafiti
             }
 
             // update starting sequence
-            if (firstPointTimeStamp - m_t0 < GROUPING_TIMESPAN)
+            if (firstPointTimeStamp - m_t0 < Surface.GROUPING_TIMESPAN)
                 m_startingSequence.Add(trace);
 
             // compute and index trace-couplings
@@ -134,28 +143,49 @@ namespace Grafiti
 		
         public void UpdateTrace(Trace trace)
         {
-            // nada?
+            if (trace.State == Trace.States.RST)
+            {
+                m_nOfAliveTraces++;
+                m_endingSequenceReversed.Remove(trace);
+            }
 		}
 
         public void EndTrace(Trace trace)
         {
             m_nOfAliveTraces--;
-            m_alive = m_nOfAliveTraces > 0;
 
             // update ending sequence
-            m_endingSequence.Add(trace);
+            m_endingSequenceReversed.AddFirst(trace);
+        }
 
-            if (!m_alive)
+        public void UpdateCentroid(long lastTimeStamp)
+        {
+            int count = 0;
+            float x = 0, y = 0;
+
+            foreach(Trace trace in m_traces)
+                if (trace.Alive)
+                {
+                    x += trace.Last.XPos;
+                    y += trace.Last.YPos;
+                    count++;
+                }
+
+            foreach (Trace recentlyDeadTrace in m_endingSequenceReversed)
             {
-                // remove not-recently-dead traces from endingSequence
-                long lastTimeStamp = trace.Last.TimeStamp;
-                int i;
-                for (i = 0; 
-                    i < m_endingSequence.Count - 1 && 
-                     lastTimeStamp - m_endingSequence[i].Last.TimeStamp > GROUPING_TIMESPAN;
-                    i++);
-                m_endingSequence.RemoveRange(0, i);
+                if (lastTimeStamp - recentlyDeadTrace.Last.TimeStamp > Surface.TRACE_RESURRECTION_TIME)
+                    break;
+                x += recentlyDeadTrace.Last.XPos;
+                y += recentlyDeadTrace.Last.YPos;
+                count++;
             }
+
+            if (count != 0)
+            {
+                m_centroidX = x / count;
+                m_centroidY = y / count;
+            }
+            //Console.WriteLine("Centroid: {0}; {1}", m_centroidX, m_centroidY);
         }
 
         public bool Process(Trace trace)
@@ -167,21 +197,41 @@ namespace Grafiti
         }
 
         // Return the distance between a given point and the nearest current finger.
-        public float SquareMinDist(float x, float y)
+        public float Candidate(TuioCursor cursor, out Trace candidateResurrectingTrace)
         {
+            candidateResurrectingTrace = null;
+
+            float x = cursor.XPos;
+            float y = cursor.YPos;
+
             float dist;
-            float mindist = 999;
+            float minDist = Surface.CLUSTERING_THRESHOLD * Surface.CLUSTERING_THRESHOLD + 1;
             foreach (Trace trace in m_traces)
             {
                 if (!trace.Alive)
-                    break;
+                    continue;
                 TuioCursor current = trace[trace.Count - 1];
                 float dx = x - current.XPos;
                 float dy = y - current.YPos;
                 dist = dx * dx + dy * dy;
-                mindist = Math.Min(dist, mindist);
+                minDist = Math.Min(dist, minDist);
             }
-            return mindist;
+
+            foreach (Trace trace in m_endingSequenceReversed)
+            {
+                if (cursor.TimeStamp - trace.Last.TimeStamp > Surface.TRACE_RESURRECTION_TIME)
+                    break;
+
+                // find the closest
+                dist = trace.Last.SquareDistance(cursor);
+                if (dist <= minDist && dist <= Surface.TRACE_RESURRECTION_SPACE * Surface.TRACE_RESURRECTION_SPACE)
+                {
+                    minDist = dist;
+                    candidateResurrectingTrace = trace;
+                }
+            }
+
+            return minDist;
         }
 
         // returns a normalized copy of the given TuioCursor 
@@ -201,6 +251,11 @@ namespace Grafiti
             bool newLeaving     = false;
             bool newUnion       = false;
             bool newIntersect   = false;
+            bool newClosestEnt  = false;
+            bool newClosestCur  = false;
+            bool newClosestLvn  = false;
+
+            UpdateCentroid(trace.Last.TimeStamp);
 
 
             #region ADD
@@ -217,7 +272,8 @@ namespace Grafiti
                     m_intersectionTargets.AddRange(traceInitialTargets);
                     foreach (IGestureListener lgrTarget in traceInitialTargets)
                         m_groupGRManager.AddLocalTarget(lgrTarget);
-                    newInitial = true;
+                    if (traceInitialTargets.Count > 0)
+                        newInitial = true;
                 }
                 else
                 {
@@ -275,11 +331,12 @@ namespace Grafiti
             #endregion
 
 
-            #region UPDATE
+            #region UPDATE (for any state)
+
             List<IGestureListener> traceEnteringTargets = trace.EnteringTargets;
             List<IGestureListener> traceLeavingTargets = trace.LeavingTargets;
 
-            if (m_newInitialTargets.Count > 0 && trace.State != (int)TuioCursor.States.add)
+            if (m_newInitialTargets.Count > 0 && trace.State != Trace.States.ADD)
             {
                 m_newInitialTargets.Clear();
                 newInitial = true;
@@ -327,7 +384,7 @@ namespace Grafiti
             }
 
             // Note: if the following condition is satisfied then traceLeavingTargets is empty
-            if (m_leavingTargets.Count > 0 && trace.State != (int)TuioCursor.States.add)
+            if (m_leavingTargets.Count > 0 && trace.State != Trace.States.ADD)
             {
                 m_leavingTargets.Clear();
                 newLeaving = true;
@@ -360,41 +417,66 @@ namespace Grafiti
                         //Console.WriteLine("Removed {0} from CURRENT", traceLeavingTarget.ToString());
                     }
                 }
-            } 
+            }
+
+            #region CLOSEST TARGET
+
+            float minDist = Surface.CLUSTERING_THRESHOLD * Surface.CLUSTERING_THRESHOLD + 1;
+            float tempDist;
+            IGestureListener closestTarget = null;
+
+            // Find closest target
+            foreach (IGestureListener target in m_currentTargets)
+            {
+                tempDist = target.GetSquareDistance(m_centroidX, m_centroidY);
+                if (tempDist < minDist)
+                {
+                    minDist = tempDist;
+                    closestTarget = target;
+                }
+            }
+
+            // Update entering/current/leaving
+            if (m_closestCurrentTarget != closestTarget)
+            {
+                if (m_closestCurrentTarget != null)
+                {
+                    m_closestLeavingTarget = m_closestCurrentTarget;
+                    newClosestLvn = true;
+                }
+
+                m_closestCurrentTarget = closestTarget;
+                m_closestEnteringTarget = closestTarget;
+                newClosestCur = true;
+                newClosestEnt = true;
+            }
+            else
+            {
+                if (m_closestEnteringTarget != null)
+                {
+                    m_closestEnteringTarget = null;
+                    newClosestEnt = true;
+                }
+                if (m_closestLeavingTarget != null)
+                {
+                    m_closestLeavingTarget = null;
+                    newClosestLvn = true;
+                }
+            }
+
             #endregion
 
 
-            #region DEL
+            #endregion
 
-            if (trace.State == Trace.States.DEL)
+
+            #region RST
+
+            if (trace.State == Trace.States.RST)
             {
-                List<IGestureListener> traceFinalTargets = trace.FinalTargets;
-
-                if (!m_alive)
+                if (m_finalTargets.Count > 0)
                 {
-                    m_finalTargets.AddRange(traceFinalTargets);
-
-                    for (int i = 0; i < m_endingSequence.Count - 1; i++)
-                    {
-                        if (m_intersectionMode)
-                        {
-                            // FINAL list if the instersection of the recently dead traces' FINAL lists.
-                            m_finalTargets.RemoveAll(delegate(IGestureListener finalTarget)
-                            {
-                                return !m_endingSequence[i].FinalTargets.Contains(finalTarget);
-                            });
-                        }
-                        else
-                        {
-                            // FINAL list if the union of the recently dead traces' FINAL lists.
-                            foreach (IGestureListener target in m_endingSequence[i].FinalTargets)
-                            {
-                                if (!m_finalTargets.Contains(target))
-                                    m_finalTargets.Add(target);
-                            }
-                        }
-                    }
-
+                    m_finalTargets.Clear();
                     newFinal = true;
                 }
             }
@@ -402,14 +484,61 @@ namespace Grafiti
             #endregion
 
 
-            if (newCurrent | newIntersect | newUnion | newInitial | newFinal | newEntering | newLeaving)
+            #region DEL
+
+            else if (trace.State == Trace.States.DEL)
             {
-                m_groupGRManager.UpdateGGRHandlers(newInitial, newFinal, newEntering, newCurrent, newLeaving, newIntersect, newUnion);
+                List<IGestureListener> traceFinalTargets = trace.FinalTargets;
+
+                if (!Alive)
+                {
+                    m_finalTargets.AddRange(traceFinalTargets);
+
+                    foreach(Trace recentlyDeadTrace in m_endingSequenceReversed)
+                    {
+                        if (recentlyDeadTrace == trace)
+                            continue;
+
+                        if (trace.Last.TimeStamp - recentlyDeadTrace.Last.TimeStamp > Surface.GROUPING_TIMESPAN)
+                            break;
+
+                        if (m_intersectionMode)
+                        {
+                            // FINAL list if the instersection of the recently dead traces' FINAL lists.
+                            m_finalTargets.RemoveAll(delegate(IGestureListener finalTarget)
+                            {
+                                return !recentlyDeadTrace.FinalTargets.Contains(finalTarget);
+                            });
+                        }
+                        else
+                        {
+                            // FINAL list if the union of the recently dead traces' FINAL lists.
+                            foreach (IGestureListener target in recentlyDeadTrace.FinalTargets)
+                            {
+                                if (!m_finalTargets.Contains(target))
+                                    m_finalTargets.Add(target);
+                            }
+                        }
+                    }
+
+                    if (m_finalTargets.Count > 0)
+                        newFinal = true;
+                }
+            }
+
+            #endregion
+
+
+            if (newCurrent | newIntersect | newUnion | newClosestCur | newClosestEnt | newClosestLvn |
+                newInitial | newFinal | newEntering | newLeaving)
+            {
+                m_groupGRManager.UpdateGGRHandlers(newInitial, newFinal, newEntering, newCurrent, newLeaving, 
+                    newIntersect, newUnion, newClosestEnt, newClosestCur, newClosestLvn);
                 //Console.WriteLine(Dump());
             }
         }
 
-        public bool AcceptNewTrace(float x, float y)
+        public bool AcceptNewCursor(TuioCursor cursor)
         {
             // 1. ask GR if is currently interpreting and accepting the new trace
 
@@ -459,6 +588,24 @@ namespace Grafiti
             sb.Append("\nFinal targets:");
             foreach (IGestureListener target in m_finalTargets)
                 sb.Append(target.ToString() + ", ");
+
+            sb.Append("\nClosest entering target:");
+            if (m_closestEnteringTarget != null)
+                sb.Append(m_closestEnteringTarget.ToString());
+            else
+                sb.Append("null");
+
+            sb.Append("\nClosest current target:");
+            if (m_closestCurrentTarget != null)
+                sb.Append(m_closestCurrentTarget.ToString());
+            else
+                sb.Append("null");
+
+            sb.Append("\nClosest leaving target:");
+            if (m_closestLeavingTarget != null)
+                sb.Append(m_closestLeavingTarget.ToString());
+            else
+                sb.Append("null");
 
             return sb.ToString();
 
