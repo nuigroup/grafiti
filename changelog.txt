@@ -4,8 +4,15 @@ by Alessandro De Nardi
 ======================
 
 
-Changelog and notes
--------------------
+History of major changes and notes
+----------------------------------
+
+r8 08-06-14
+- added LGR's constructor parameter 
+- in Group.cs fixed bug in group's targeting algorithm
+- in Group.cs added ProcessTerminated property
+- split GestureRecognizer.cs in three files (GR + auxiliar classes, LGR and GGR)
+Tuio client missing.
 
 r7 08-06-12
 - added GestureEventmanager.cs (forgot in last revision)

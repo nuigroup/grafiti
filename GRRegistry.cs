@@ -30,7 +30,7 @@ namespace Grafiti
     /// Provides global gesture recognizer instances for groups, and manage the registration 
     /// of event handlers.
     /// </summary>
-    public class GRRegistry
+    internal class GRRegistry
     {
         /// <summary>
         /// Represents a subscription of a gesture recognizer's event, by a listener that 
@@ -56,21 +56,14 @@ namespace Grafiti
             }
         }
 
-        // registries of listeners' registrations
+        // Registries of listeners' registrations
         private List<GRRegistrationInfo> m_ggrRegistry; // global
         private List<GRRegistrationInfo> m_lgrRegistry; // local
 
+        // List of GroupGRManager's to be updated when a new handler is registered
         private List<GroupGRManager> m_subscribedGRManagers;
 
-        // memory leaky
-        private DoubleDictionary<Type, object, GlobalGestureRecognizer> m_ggrPrototypes;
-        private Dictionary<Type, LocalGestureRecognizer> m_lgrPrototypes;
-
-
         internal List<GRRegistrationInfo> LGRRegistry { get { return m_lgrRegistry; } }
-
-        internal DoubleDictionary<Type, object, GlobalGestureRecognizer> GGRPrototypes { get { return m_ggrPrototypes; } }
-        internal Dictionary<Type, LocalGestureRecognizer> LGRPrototypes { get { return m_lgrPrototypes; } }
 
 
         internal GRRegistry()
@@ -78,8 +71,6 @@ namespace Grafiti
             m_ggrRegistry = new List<GRRegistrationInfo>();
             m_lgrRegistry = new List<GRRegistrationInfo>();
             m_subscribedGRManagers = new List<GroupGRManager>();
-            m_ggrPrototypes = new DoubleDictionary<Type, object, GlobalGestureRecognizer>();
-            m_lgrPrototypes = new Dictionary<Type, LocalGestureRecognizer>();
         }
 
         internal void RegisterHandler(Type grType, object grParam, int priorityNumber, Enum e, GestureEventHandler handler)
@@ -90,10 +81,6 @@ namespace Grafiti
             {
                 m_ggrRegistry.Add(grInfo);
 
-                // create prototype
-                if (!m_ggrPrototypes.ContainsKeys(grType, grParam))
-                    m_ggrPrototypes[grType, grParam] = (GlobalGestureRecognizer)grType.GetConstructor(new Type[] { typeof(object) }).Invoke(new Object[] { grParam });
-
                 // dinamically update subscribed GRManagers
                 List<GRRegistrationInfo> ggrInfoList = new List<GRRegistrationInfo>();
                 ggrInfoList.Add(grInfo);
@@ -103,11 +90,6 @@ namespace Grafiti
             else
             {
                 m_lgrRegistry.Add(grInfo);
-
-                // create prototype
-                if (!m_lgrPrototypes.ContainsKey(grType))
-                    m_lgrPrototypes[grType] = (LocalGestureRecognizer)grType.GetConstructor(new Type[] { }).Invoke(new Object[] { });
-
 
                 // if LGRs are associated to the group's FINAL target list then dynamic update should be done
             }

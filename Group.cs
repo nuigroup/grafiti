@@ -32,6 +32,7 @@ namespace Grafiti
 	public class Group
     {
         private GroupGRManager m_groupGRManager;
+        private bool m_processingTerminated;
         private readonly bool m_intersectionMode;
         private static int s_counter = 0;
 		private int m_id;
@@ -52,9 +53,8 @@ namespace Grafiti
         private SimmetricDoubleDictionary<Trace, float> m_traceSpaceCouplingTable;
         private SimmetricDoubleDictionary<Trace, long> m_traceTimeCouplingTable;
 
-
-
         public GroupGRManager GRManager { get { return m_groupGRManager; } }
+        internal bool ProcessingTerminated { get { return m_processingTerminated; } }
 
         public List<IGestureListener> IntialTargets { get { return m_initialTargets; } }
         public List<IGestureListener> NewIntialTargets { get { return m_newInitialTargets; } }
@@ -76,10 +76,11 @@ namespace Grafiti
 
         public bool Alive { get { return m_nOfAliveTraces > 0; } }
 
-        public Group(bool intersectionMode, GRRegistry registry)
+        public Group(bool intersectionMode, GestureEventManager gEvtMgr)
 		{
             m_intersectionMode = intersectionMode;
-            m_groupGRManager = new GroupGRManager(this, registry);
+            m_groupGRManager = new GroupGRManager(this, gEvtMgr);
+            m_processingTerminated = false;
 
             m_id = s_counter++;
             //m_targets = null;
@@ -188,9 +189,10 @@ namespace Grafiti
             //Console.WriteLine("Centroid: {0}; {1}", m_centroidX, m_centroidY);
         }
 
-        public bool Process(Trace trace)
+        public void Process(Trace trace)
         {
-            return m_groupGRManager.Process(trace);
+            if(!m_processingTerminated)
+                m_processingTerminated = m_groupGRManager.Process(trace);
 
             //if (!Alive)
             //   Console.WriteLine(Dump());
@@ -287,7 +289,11 @@ namespace Grafiti
                         if (m_intersectionMode)
                         {
                             // INITIAL list is the intersection of the recently born traces' INITIAL lists.
-                            m_leavingTargets.Clear();
+                            if (m_leavingTargets.Count > 0)
+                            {
+                                m_leavingTargets.Clear();
+                                newLeaving = true;
+                            }
                             foreach (IGestureListener target in m_initialTargets)
                             {
                                 if (!traceInitialTargets.Contains(target))
@@ -325,6 +331,35 @@ namespace Grafiti
                         }
 
                         //Console.WriteLine("INITIAL LIST CREATED (OR UPDATED)");
+                    }
+                    else
+                    {
+                        if (m_intersectionMode)
+                        {
+                            // Remove targets that don't appear in the new trace's list
+                            if (m_leavingTargets.Count > 0)
+                            {
+                                m_leavingTargets.Clear();
+                                newLeaving = true;
+                            }
+                            foreach (IGestureListener target in m_currentTargets)
+                            {
+                                if (!traceInitialTargets.Contains(target))
+                                    m_leavingTargets.Add(target);
+                            }
+                            foreach (IGestureListener target in m_leavingTargets)
+                            {
+                                m_currentTargets.Remove(target);
+                                if (m_intersectionTargets.Remove(target))
+                                    m_groupGRManager.RemoveLocalTarget(target);
+                            }
+                            if (m_leavingTargets.Count > 0)
+                            {
+                                newCurrent = true;
+                                newLeaving = true;
+                                newIntersect = true;
+                            }
+                        }
                     }
                 }
             }

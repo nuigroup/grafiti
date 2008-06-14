@@ -27,9 +27,13 @@ namespace Grafiti
 {
     public class GestureEventManager
     {
+        //private static GestureEventManager m_instance = null;
+
         private GRRegistry m_grRegistry;
         private object m_defaultGgrParam;
         private int m_grPriorityNumber;
+
+        internal GRRegistry GRRegistry { get { return m_grRegistry; } }
 
         public GestureEventManager()
         {
@@ -37,6 +41,16 @@ namespace Grafiti
             m_defaultGgrParam = new object();
             m_grPriorityNumber = 0;
         }
+
+        //public static GestureEventManager Instance
+        //{
+        //    get
+        //    {
+        //        if (m_instance == null)
+        //            m_instance = new GestureEventManager();
+        //        return m_instance;
+        //    }
+        //}
 
         public void SetPriorityNumber(int pn)
         {
@@ -72,11 +86,6 @@ namespace Grafiti
         internal void UnregisterAllHandlers(IGestureListener listener)
         {
             m_grRegistry.UnregisterAllHandlers(listener);
-        }
-
-        internal GRRegistry GetGRRegistry()
-        {
-            return m_grRegistry;
         }
     }
 }

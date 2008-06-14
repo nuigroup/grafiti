@@ -45,15 +45,14 @@ namespace Client
 
             // these will force the classes to compile
             new Basic1FingerGR(this);
-            new SimpleGR();
+            new SimpleGR(this);
             new MultiTraceGR(this);
 
             // LGRs
-            //m_surface.SetPriorityNumber(0);
-            //m_surface.RegisterHandler(typeof(SimpleGR), SimpleGR.Events.SimpleGesture, new GestureEventHandler(SimpleGestureEventHandler));
+            //m_gEvtMgr.SetPriorityNumber(0);
+            //m_gEvtMgr.RegisterHandler(typeof(SimpleGR), SimpleGR.Events.SimpleGesture, new GestureEventHandler(SimpleGestureEventHandler));
 
-            //// GGRs
-
+            // GGRs
             m_gEvtMgr.SetPriorityNumber(1);
             m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Tap, OnBasicSingleFingerEvent);
             m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.DoubleTap, OnBasicSingleFingerEvent);
@@ -77,13 +76,13 @@ namespace Client
 
         public void OnBasicSingleFingerEvent(object obj, GestureEventArgs args)
         {
-            BasicSingeFingerEventArgs arg = (BasicSingeFingerEventArgs)args;
+            Basic1FingerEventArgs arg = (Basic1FingerEventArgs)args;
             Console.WriteLine("{0} on {1} ({2};{3})", args.EventId, this, arg.X, arg.Y);
         }
 
         public void OnMultiTraceEvent(object MultiTraceGR, GestureEventArgs args)
         {
-            Console.WriteLine("{0} received the MultiTraceEvent {1}", ToString(), ((MultiTraceEventArgs)args).EventId);
+            Console.WriteLine("{0} received the MultiTraceEvent {1}, {2}", ToString(), ((MultiTraceEventArgs)args).EventId, ((MultiTraceEventArgs)args).NOfFingers);
         }
 
         public void SimpleGestureEventHandler(object source, GestureEventArgs args)

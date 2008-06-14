@@ -39,9 +39,6 @@ namespace Grafiti
             RST,
         }
         private States m_state;
-        private const int ADD = 0;
-        private const int SET = 1;
-        private const int DEL = 2;
 
         private List<TuioCursor> m_history;
         private TuioCursor m_first, m_last;
@@ -92,8 +89,6 @@ namespace Grafiti
         }
         public void UpdateCursor(TuioCursor cursor)
         {
-            //Debug.Assert(cursor.SessionId == m_sessionId); // check FingerId and time
-
             m_history.Add(cursor);
             if (m_state == States.DEL)
                 m_state = States.RST;
@@ -104,8 +99,6 @@ namespace Grafiti
         }
         public void RemoveCursor(TuioCursor cursor)
         {
-            //Debug.Assert(cursor.SessionId == m_sessionId);
-
             m_history.Add(cursor);
             m_state = States.DEL;
             m_last = cursor;
@@ -152,7 +145,8 @@ namespace Grafiti
             }
             else if (m_state == States.RST)
             {
-                m_finalTargets.Clear();
+                if (m_finalTargets.Count > 0)
+                    m_finalTargets.Clear();
             }
 
             m_group.UpdateTargets(this);
@@ -165,6 +159,7 @@ namespace Grafiti
         }
 
 
+        // Trace are compared by session id
         public int CompareTo(object obj)
         {
             return (int) (m_sessionId - ((Trace)obj).SessionId);

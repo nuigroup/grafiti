@@ -27,17 +27,19 @@ namespace Grafiti
 
     public class MultiTraceEventArgs : GestureEventArgs
     {
-        public MultiTraceEventArgs(Enum id) : base(id)
-        {
+        private int m_nOfFingers;
 
+        public int NOfFingers { get { return m_nOfFingers; } }
+
+        public MultiTraceEventArgs(Enum id, int nFingers) : base(id) 
+        {
+            m_nOfFingers = nFingers;
         }
     }
 
 
     public class MultiTraceGR : GlobalGestureRecognizer
     {
-        private object m_ctorParam;
-
         public enum Events
         {
             MultiTraceStarted,
@@ -49,7 +51,9 @@ namespace Grafiti
             MultiTraceEnd
         }
 
-        // These are public only to make reflection work.
+        private int m_nOfFingers;
+
+        // These are public only to make reflection to work.
         // They're not intended to be accessed directly from clients.
         public event GestureEventHandler MultiTraceStarted;
         public event GestureEventHandler MultiTraceDown;
@@ -61,7 +65,6 @@ namespace Grafiti
 
         public MultiTraceGR(object ctorParam) : base(ctorParam)
         {
-            m_ctorParam = ctorParam;
             NewInitialEvents = new Enum[] { Events.MultiTraceStarted };
             EnteringEvents = new Enum[] { Events.MultiTraceEnter };
             LeavingEvents = new Enum[] { Events.MultiTraceLeave };
@@ -69,41 +72,44 @@ namespace Grafiti
             FinalEvents = new Enum[] { Events.MultiTraceEnd };
 
             Exclusive = false;
+
+            m_nOfFingers = 0;
         }
 
         private void OnMultiTraceStart()
         {
-            AppendEvent(MultiTraceStarted, new MultiTraceEventArgs(Events.MultiTraceStarted));
+            AppendEvent(MultiTraceStarted, new MultiTraceEventArgs(Events.MultiTraceStarted, m_nOfFingers));
         }
         private void OnMultiTraceEnd()
         {
-            AppendEvent(MultiTraceEnd, new MultiTraceEventArgs(Events.MultiTraceEnd));
+            AppendEvent(MultiTraceEnd, new MultiTraceEventArgs(Events.MultiTraceEnd, m_nOfFingers));
         }
         private void OnMultiTraceGestureDown()
         {
-            AppendEvent(MultiTraceDown, new MultiTraceEventArgs(Events.MultiTraceDown));
+            AppendEvent(MultiTraceDown, new MultiTraceEventArgs(Events.MultiTraceDown, m_nOfFingers));
         }
         private void OnMultiTraceGestureMove()
         {
-            AppendEvent(MultiTraceMove, new MultiTraceEventArgs(Events.MultiTraceMove));
+            AppendEvent(MultiTraceMove, new MultiTraceEventArgs(Events.MultiTraceMove, m_nOfFingers));
         }
         private void OnMultiTraceGestureUp()
         {
-            AppendEvent(MultiTraceUp, new MultiTraceEventArgs(Events.MultiTraceUp));
+            AppendEvent(MultiTraceUp, new MultiTraceEventArgs(Events.MultiTraceUp, m_nOfFingers));
         }
-    
         private void OnMultiTraceGestureEnter()
         {
-            AppendEvent(MultiTraceEnter, new MultiTraceEventArgs(Events.MultiTraceEnter));
+            AppendEvent(MultiTraceEnter, new MultiTraceEventArgs(Events.MultiTraceEnter, m_nOfFingers));
         }
         private void OnMultiTraceGestureLeave()
         {
-            AppendEvent(MultiTraceLeave, new MultiTraceEventArgs(Events.MultiTraceLeave));
+            AppendEvent(MultiTraceLeave, new MultiTraceEventArgs(Events.MultiTraceLeave, m_nOfFingers));
         }
 
         public override GestureRecognitionResult Process(Trace trace)
         {
             GestureRecognitionResult result;
+
+            m_nOfFingers = Group.NOfAliveTraces;
 
             OnMultiTraceGestureEnter();
             OnMultiTraceStart();
@@ -133,11 +139,6 @@ namespace Grafiti
             OnMultiTraceGestureLeave();
 
             return result;
-        }
-
-        public override GestureRecognizer Copy()
-        {
-            return new MultiTraceGR(m_ctorParam);
         }
     }
 

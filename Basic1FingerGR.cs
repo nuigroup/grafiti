@@ -26,12 +26,12 @@ using TUIO;
 
 namespace Grafiti
 {
-    public class BasicSingeFingerEventArgs : GestureEventArgs
+    public class Basic1FingerEventArgs : GestureEventArgs
     {
         private float m_x, m_y;
         public float X { get { return m_x; } }
         public float Y { get { return m_y; } }
-        public BasicSingeFingerEventArgs(Enum id, float x, float y) : base(id)
+        public Basic1FingerEventArgs(Enum id, float x, float y) : base(id)
         {
             m_x = x;
             m_y = y;
@@ -56,9 +56,7 @@ namespace Grafiti
 
         private const float SPACE_THRESHOLD = 0.01f; // used for tap and hover
         private const long MULTI_TAP_TIME_THRESHOLD = 500;
-        private const long HOVER_TIME_THRESHOLD = 500;
-
-        private readonly object m_ctorParam;
+        private const long HOVER_TIME_THRESHOLD = 800;
 
         private TuioCursor m_lastCur;
         private bool m_terminated;
@@ -75,9 +73,8 @@ namespace Grafiti
         private GestureRecognitionResult m_defaultResult;
 
 
-        public Basic1FingerGR(object obj) : base(obj)
+        public Basic1FingerGR(object ctorParam) : base(ctorParam)
         {
-            m_ctorParam = obj;
             ClosestCurrentEvents = new Enum[] { Events.Down, Events.Up, Events.Tap, 
                 Events.DoubleTap, Events.TripleTap, Events.Hover, Events.Move };
             ClosestEnteringEvents = new Enum[] { Events.Enter };
@@ -103,39 +100,39 @@ namespace Grafiti
 
         protected virtual void OnEnter()
         {
-            AppendEvent(Enter, new BasicSingeFingerEventArgs(Events.Enter, m_lastCur.XPos, m_lastCur.YPos));
+            AppendEvent(Enter, new Basic1FingerEventArgs(Events.Enter, m_lastCur.XPos, m_lastCur.YPos));
         }
         protected virtual void OnLeave()
         {
-            AppendEvent(Leave, new BasicSingeFingerEventArgs(Events.Leave, m_lastCur.XPos, m_lastCur.YPos));
+            AppendEvent(Leave, new Basic1FingerEventArgs(Events.Leave, m_lastCur.XPos, m_lastCur.YPos));
         }
         protected virtual void OnDown()
         {
-            AppendEvent(Down, new BasicSingeFingerEventArgs(Events.Down, m_lastCur.XPos, m_lastCur.YPos));
+            AppendEvent(Down, new Basic1FingerEventArgs(Events.Down, m_lastCur.XPos, m_lastCur.YPos));
         }
         protected virtual void OnUp()
         {
-            AppendEvent(Up, new BasicSingeFingerEventArgs(Events.Up, m_lastCur.XPos, m_lastCur.YPos));
+            AppendEvent(Up, new Basic1FingerEventArgs(Events.Up, m_lastCur.XPos, m_lastCur.YPos));
         }
         protected virtual void OnTap()
         {
-            AppendEvent(Tap, new BasicSingeFingerEventArgs(Events.Tap, m_lastCur.XPos, m_lastCur.YPos));
+            AppendEvent(Tap, new Basic1FingerEventArgs(Events.Tap, m_lastCur.XPos, m_lastCur.YPos));
         }        
         protected virtual void OnDoubleTap()
         {
-            AppendEvent(DoubleTap, new BasicSingeFingerEventArgs(Events.DoubleTap, m_lastCur.XPos, m_lastCur.YPos));
+            AppendEvent(DoubleTap, new Basic1FingerEventArgs(Events.DoubleTap, m_lastCur.XPos, m_lastCur.YPos));
         }
         protected virtual void OnTripleTap()
         {
-            AppendEvent(TripleTap, new BasicSingeFingerEventArgs(Events.TripleTap, m_lastCur.XPos, m_lastCur.YPos));
+            AppendEvent(TripleTap, new Basic1FingerEventArgs(Events.TripleTap, m_lastCur.XPos, m_lastCur.YPos));
         }
         protected virtual void OnHover()
         {
-            AppendEvent(Hover, new BasicSingeFingerEventArgs(Events.Hover, m_lastCur.XPos, m_lastCur.YPos));
+            AppendEvent(Hover, new Basic1FingerEventArgs(Events.Hover, m_lastCur.XPos, m_lastCur.YPos));
         }
         protected virtual void OnMove()
         {
-            AppendEvent(Move, new BasicSingeFingerEventArgs(Events.Move, m_lastCur.XPos, m_lastCur.YPos));
+            AppendEvent(Move, new Basic1FingerEventArgs(Events.Move, m_lastCur.XPos, m_lastCur.YPos));
         }
 
 
@@ -281,12 +278,6 @@ namespace Grafiti
                 if (Group.ClosestCurrentTarget == null)
                     m_hoverEnabled = false;
             }
-        }
-
-
-        public override GestureRecognizer Copy()
-        {
-            return new Basic1FingerGR(m_ctorParam);
         }
     } 
 }

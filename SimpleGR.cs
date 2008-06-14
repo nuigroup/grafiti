@@ -32,7 +32,7 @@ namespace SimpleGRNS
             SimpleGesture
         }
 
-        public SimpleGR() : base()
+        public SimpleGR(object ctorParam) : base(ctorParam)
         {
             //Exclusive = false;
         }
@@ -54,11 +54,6 @@ namespace SimpleGRNS
             }
             else
                 return new GestureRecognitionResult(true, false, false);
-        }
-
-        public override GestureRecognizer Copy()
-        {
-            return new SimpleGR();
         }
     }
 }

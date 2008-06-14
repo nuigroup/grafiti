@@ -45,10 +45,6 @@ namespace Grafiti
 
         private GestureEventManager m_gestureEventManager;
 
-        //private GRRegistry m_grRegistry;
-        //private object m_defaultGgrParam;
-        //private int m_grPriorityNumber;
-
 
         public Surface()
 		{
@@ -57,12 +53,6 @@ namespace Grafiti
             m_listeners = new List<IGestureListener>();
 
             m_gestureEventManager = new GestureEventManager();
-            
-            //m_grRegistry = new GRRegistry();
-            //m_defaultGgrParam = new object();
-            //m_grPriorityNumber = 0;
-
-
 		}
 
         public void AddListener(IGestureListener listener)
@@ -107,13 +97,16 @@ namespace Grafiti
         {
             // determine belonging trace
             Trace trace = m_cursorTraceTable[cursor.SessionId];
-            
-            // update trace, its targets and its group's targets
-            trace.UpdateCursor(cursor);
-            trace.UpdateTargets(ListTargetsAt(cursor.XPos, cursor.YPos));
 
-            // processing
-            trace.Group.Process(trace);
+            if (!trace.Group.ProcessingTerminated)
+            {
+                // update trace, its targets and its group's targets
+                trace.UpdateCursor(cursor);
+                trace.UpdateTargets(ListTargetsAt(cursor.XPos, cursor.YPos));
+
+                // processing
+                trace.Group.Process(trace);
+            }
         }
 
         internal void RemoveCursor(TuioCursor cursor)
@@ -121,20 +114,21 @@ namespace Grafiti
             // determine trace
             Trace trace = m_cursorTraceTable[cursor.SessionId];
 
-            // update trace, its targets and its group's targets
-            trace.RemoveCursor(cursor);
-            trace.UpdateTargets(ListTargetsAt(cursor.XPos, cursor.YPos));
+            if (!trace.Group.ProcessingTerminated)
+            {
+                // update trace, its targets and its group's targets
+                trace.RemoveCursor(cursor);
+                trace.UpdateTargets(ListTargetsAt(cursor.XPos, cursor.YPos));
 
-            // processing
-            trace.Group.Process(trace);
-
+                // processing
+                trace.Group.Process(trace);
+            }
 
             // remove index
             m_cursorTraceTable.Remove(cursor.SessionId);
 
-            // TODO
-            // remove group if it has no more traces
-            //if (!trace.Group.Alive)
+            // if it's disposable, remove group
+            //if (!trace.Group.Disposable)
             //    RemoveGroup(trace.Group);
         }
 
@@ -178,7 +172,7 @@ namespace Grafiti
 
         private Group CreateGroup()
         {
-            Group group = new Group(INTERSECTION_MODE, m_gestureEventManager.GetGRRegistry());
+            Group group = new Group(INTERSECTION_MODE, m_gestureEventManager);
             m_groups.Add(group);
             return group;
         }
@@ -196,55 +190,16 @@ namespace Grafiti
                 if (listener.Contains(x, y))
                     targets.Add(listener);
             }
+
             // TODO: optimize
             targets.Sort(new Comparison<IGestureListener>(
                 delegate (IGestureListener a, IGestureListener b)
                 {
-                    return (int)((a.GetSquareDistance(x, y) - b.GetSquareDistance(x,y)) * 1000000000);
+                    return (int)((a.GetSquareDistance(x, y) - b.GetSquareDistance(x, y)) * 1000000000);
                 }
             ));
 
             return targets;
         }
-
-
-        /*
-        public void SetPriorityNumber(int pn)
-        {
-            m_grPriorityNumber = pn;
-        }
-
-
-        public void RegisterHandler(
-            Type grType,                    // gesture recognizer's type
-            Enum e,                         // gesture recognizer's event
-            GestureEventHandler handler     // listener's handler
-            )
-        {
-            RegisterHandler(grType, m_defaultGgrParam, e, handler);
-        }
-
-        /// <summary>
-        /// Clients can use this function to register a handler for a gesture event.
-        /// </summary>
-        /// <param name="grType">Type of the gesture recognizer.</param>
-        /// <param name="e">The event (as specified in the proper enumeration in the GR class).</param>
-        /// <param name="listener">The listener object.</param>
-        /// <param name="handler">The listener's function that serves as a handler.</param>
-        public void RegisterHandler(
-            Type grType,                    // gesture recognizer's type
-            object grParam,                 // gesture recognizer's ctor's param
-            Enum e,                         // gesture recognizer's event
-            GestureEventHandler handler     // listener's handler
-            )
-        {
-            m_grRegistry.RegisterHandler(grType, grParam, m_grPriorityNumber, e, handler);
-        }
-
-        private void UnregisterAllHandlers(IGestureListener listener)
-        {
-            m_grRegistry.UnregisterAllHandlers(listener);
-        }
-        */
     }
 }
