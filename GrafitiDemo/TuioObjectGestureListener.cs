@@ -1,5 +1,5 @@
 ﻿/*
-	Grafiti library
+	Grafiti Demo Application
 
     Copyright 2008  Alessandro De Nardi <alessandro.denardi@gmail.com>
 
@@ -23,37 +23,34 @@ using System.Text;
 using System.Collections.Generic;
 
 using Grafiti;
-using SimpleGRNS;
+using TUIO;
+using ClientNamespace;
 
 
-namespace Client
+namespace ClientNamespace
 {
-    public class TuioObjectGestureListener : IGestureListener
+    public class ClientGestureListener : IGestureListener
     {
         private const float INTERACTION_RANGE = 0.2f;
         private GestureEventManager m_gEvtMgr;
-        private readonly int m_sessionId, m_fId;
-        private float m_x, m_y;
+        private TuioObject m_tuioObject;
 
-        public TuioObjectGestureListener(GestureEventManager gestureEventManager, int sessionId, int fId, float x, float y)
+        public ClientGestureListener(TUIO.TuioObject tuioObject)
         {
-            m_gEvtMgr = gestureEventManager;
-            m_sessionId = sessionId;
-            m_fId = fId;
-            m_x = x;
-            m_y = y;
+            m_gEvtMgr = GestureEventManager.Instance;
+            m_tuioObject = tuioObject;
 
             // these will force the classes to compile
-            new Basic1FingerGR(this);
-            new SimpleGR(this);
-            new MultiTraceGR(this);
+            new Basic1FingerGR(new GRConfiguration());
+            new SimpleGR(new GRConfiguration());
+            new MultiTraceGR(new GRConfiguration());
 
             // LGRs
-            //m_gEvtMgr.SetPriorityNumber(0);
-            //m_gEvtMgr.RegisterHandler(typeof(SimpleGR), SimpleGR.Events.SimpleGesture, new GestureEventHandler(SimpleGestureEventHandler));
+            m_gEvtMgr.SetPriorityNumber(1);
+            m_gEvtMgr.RegisterHandler(typeof(SimpleGR), SimpleGR.Events.SimpleGesture, new GestureEventHandler(SimpleGestureEventHandler));
 
             // GGRs
-            m_gEvtMgr.SetPriorityNumber(1);
+            m_gEvtMgr.SetPriorityNumber(0);
             m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Tap, OnBasicSingleFingerEvent);
             m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.DoubleTap, OnBasicSingleFingerEvent);
             m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.TripleTap, OnBasicSingleFingerEvent);
@@ -64,7 +61,7 @@ namespace Client
             m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Hover, OnBasicSingleFingerEvent);
             //m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Move, OnBasicSingleFingerEvent);
 
-            //m_gEvtMgr.SetPriorityNumber(2);
+            //m_gEvtMgr.SetPriorityNumber(1);
             //m_gEvtMgr.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceStarted, OnMultiTraceEvent);
             //m_gEvtMgr.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceEnter, OnMultiTraceEvent);
             //m_gEvtMgr.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceLeave, OnMultiTraceEvent);
@@ -82,72 +79,40 @@ namespace Client
 
         public void OnMultiTraceEvent(object MultiTraceGR, GestureEventArgs args)
         {
-            Console.WriteLine("{0} received the MultiTraceEvent {1}, {2}", ToString(), ((MultiTraceEventArgs)args).EventId, ((MultiTraceEventArgs)args).NOfFingers);
+            Console.WriteLine("{0} on {1}, number of fingers: {2}", ((MultiTraceEventArgs)args).EventId, this, ((MultiTraceEventArgs)args).NOfFingers);
         }
 
         public void SimpleGestureEventHandler(object source, GestureEventArgs args)
         {
-            Console.WriteLine("{0} received the SimpleGestureEvent", ToString());
+            Console.WriteLine("SimpleGestureEvent on {0}", this);
         }
 
         public bool Contains(float x, float y)
         {
-            float dx = Math.Abs(x - m_x);
-            float dy = Math.Abs(y - m_y);
+            float dx = Math.Abs(x - m_tuioObject.X);
+            float dy = Math.Abs(y - m_tuioObject.Y);
             return (float)Math.Sqrt(dx * dx + dy * dy) <= INTERACTION_RANGE;
         }
 
         public float GetSquareDistance(float x, float y)
         {
-            float dx = x - m_x;
-            float dy = y - m_y;
+            float dx = x - m_tuioObject.X;
+            float dy = y - m_tuioObject.Y;
             return dx * dx + dy * dy;
-        }
-
-        public void UpdatePosition(float x, float y)
-        {
-            m_x = x;
-            m_y = y;
         }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
             sb.Append("TuioGL# ");
-            sb.Append(m_fId);
+            sb.Append(m_tuioObject.getFiducialID());
             sb.Append("(");
-            sb.Append(m_sessionId);
+            sb.Append(m_tuioObject.SessionId);
             sb.Append(")");
             return sb.ToString();
         }
 
 
         
-    } 
-
-    //public class RectGestureListener : IGestureListener
-    //{
-    //    private static int counter = 0;
-    //    private readonly int id;
-    //    private readonly float x, y, w, h;
-
-    //    public RectGestureListener(float x, float y, float w, float h)
-    //    {
-    //        this.x = x;
-    //        this.y = y;
-    //        this.w = w;
-    //        this.h = h;
-    //        this.id = counter++;
-    //    }
-
-    //    public bool Contains(float x, float y)
-    //    {
-    //        return x >= this.x && x < this.x + this.w && y >= this.y && y < this.y + this.h;
-    //    }
-
-    //    public override string ToString()
-    //    {
-    //        return "RGL n." + id;
-    //    }
-    //} 
+    }
 }

@@ -24,7 +24,6 @@ using Grafiti;
 
 namespace Grafiti
 {
-
     public class MultiTraceEventArgs : GestureEventArgs
     {
         private int m_nOfFingers;
@@ -36,7 +35,6 @@ namespace Grafiti
             m_nOfFingers = nFingers;
         }
     }
-
 
     public class MultiTraceGR : GlobalGestureRecognizer
     {
@@ -63,7 +61,7 @@ namespace Grafiti
         public event GestureEventHandler MultiTraceLeave;
         public event GestureEventHandler MultiTraceEnd;
 
-        public MultiTraceGR(object ctorParam) : base(ctorParam)
+        public MultiTraceGR(GRConfiguration configuration) : base(configuration)
         {
             NewInitialEvents = new Enum[] { Events.MultiTraceStarted };
             EnteringEvents = new Enum[] { Events.MultiTraceEnter };
@@ -71,69 +69,50 @@ namespace Grafiti
             CurrentEvents = new Enum[] { Events.MultiTraceDown, Events.MultiTraceMove, Events.MultiTraceUp };
             FinalEvents = new Enum[] { Events.MultiTraceEnd };
 
-            Exclusive = false;
-
             m_nOfFingers = 0;
         }
 
-        private void OnMultiTraceStart()
-        {
-            AppendEvent(MultiTraceStarted, new MultiTraceEventArgs(Events.MultiTraceStarted, m_nOfFingers));
-        }
-        private void OnMultiTraceEnd()
-        {
-            AppendEvent(MultiTraceEnd, new MultiTraceEventArgs(Events.MultiTraceEnd, m_nOfFingers));
-        }
-        private void OnMultiTraceGestureDown()
-        {
-            AppendEvent(MultiTraceDown, new MultiTraceEventArgs(Events.MultiTraceDown, m_nOfFingers));
-        }
-        private void OnMultiTraceGestureMove()
-        {
-            AppendEvent(MultiTraceMove, new MultiTraceEventArgs(Events.MultiTraceMove, m_nOfFingers));
-        }
-        private void OnMultiTraceGestureUp()
-        {
-            AppendEvent(MultiTraceUp, new MultiTraceEventArgs(Events.MultiTraceUp, m_nOfFingers));
-        }
-        private void OnMultiTraceGestureEnter()
-        {
-            AppendEvent(MultiTraceEnter, new MultiTraceEventArgs(Events.MultiTraceEnter, m_nOfFingers));
-        }
-        private void OnMultiTraceGestureLeave()
-        {
-            AppendEvent(MultiTraceLeave, new MultiTraceEventArgs(Events.MultiTraceLeave, m_nOfFingers));
-        }
+        private void OnMultiTraceStart()       { AppendEvent(MultiTraceStarted, new MultiTraceEventArgs(Events.MultiTraceStarted, m_nOfFingers)); }
+        private void OnMultiTraceEnd()         { AppendEvent(MultiTraceEnd,     new MultiTraceEventArgs(Events.MultiTraceEnd,     m_nOfFingers)); }
+        private void OnMultiTraceGestureDown() { AppendEvent(MultiTraceDown,    new MultiTraceEventArgs(Events.MultiTraceDown,    m_nOfFingers)); }
+        private void OnMultiTraceGestureMove() { AppendEvent(MultiTraceMove,    new MultiTraceEventArgs(Events.MultiTraceMove,    m_nOfFingers)); }
+        private void OnMultiTraceGestureUp()   { AppendEvent(MultiTraceUp,      new MultiTraceEventArgs(Events.MultiTraceUp,      m_nOfFingers)); }
+        private void OnMultiTraceGestureEnter(){ AppendEvent(MultiTraceEnter,   new MultiTraceEventArgs(Events.MultiTraceEnter,   m_nOfFingers)); }
+        private void OnMultiTraceGestureLeave(){ AppendEvent(MultiTraceLeave,   new MultiTraceEventArgs(Events.MultiTraceLeave,   m_nOfFingers)); }
 
-        public override GestureRecognitionResult Process(Trace trace)
+        public override GestureRecognitionResult Process(List<Trace> traces)
         {
-            GestureRecognitionResult result;
+            System.Diagnostics.Debug.Assert(traces.Count > 0);
 
+            GestureRecognitionResult result = null;
             m_nOfFingers = Group.NOfAliveTraces;
 
             OnMultiTraceGestureEnter();
             OnMultiTraceStart();
 
-            if (trace.Last.State == (int)TUIO.TuioCursor.States.set)
+            foreach (Trace trace in traces)
             {
-                OnMultiTraceGestureMove();
-                result = new GestureRecognitionResult(false, true, true);
-            }
-            else if (trace.Last.State == (int)TUIO.TuioCursor.States.add)
-            {
-                OnMultiTraceGestureDown();
-                result = new GestureRecognitionResult(false, true, true);
-            }
-            else
-            {
-                OnMultiTraceGestureUp();
-                if (!Group.Alive)
+                if (trace.Last.State == TUIO.TuioCursor.UPDATED)
                 {
-                    OnMultiTraceEnd();
-                    result = new GestureRecognitionResult(false, true, false);
+                    OnMultiTraceGestureMove();
+                    result = new GestureRecognitionResult(false, true, true);
+                }
+                else if (trace.Last.State == TUIO.TuioCursor.ADDED)
+                {
+                    OnMultiTraceGestureDown();
+                    result = new GestureRecognitionResult(false, true, true);
                 }
                 else
-                    result = new GestureRecognitionResult(false, true, true);
+                {
+                    OnMultiTraceGestureUp();
+                    if (!Group.Alive)
+                    {
+                        OnMultiTraceEnd();
+                        result = new GestureRecognitionResult(false, true, false);
+                    }
+                    else
+                        result = new GestureRecognitionResult(false, true, true);
+                }
             }
 
             OnMultiTraceGestureLeave();

@@ -1,7 +1,12 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 10.00
 # Visual C# Express 2008
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grafiti", "Grafiti.csproj", "{9098BF46-CB05-421B-B6D2-177941BB5278}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grafiti", "GrafitiFramework\Grafiti.csproj", "{9098BF46-CB05-421B-B6D2-177941BB5278}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrafitiDemo", "GrafitiDemo\GrafitiDemo.csproj", "{977EA655-4EBE-4E84-8F91-946F727DF7DB}"
+	ProjectSection(ProjectDependencies) = postProject
+		{9098BF46-CB05-421B-B6D2-177941BB5278} = {9098BF46-CB05-421B-B6D2-177941BB5278}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,6 +18,10 @@ Global
 		{9098BF46-CB05-421B-B6D2-177941BB5278}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9098BF46-CB05-421B-B6D2-177941BB5278}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9098BF46-CB05-421B-B6D2-177941BB5278}.Release|Any CPU.Build.0 = Release|Any CPU
+		{977EA655-4EBE-4E84-8F91-946F727DF7DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{977EA655-4EBE-4E84-8F91-946F727DF7DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{977EA655-4EBE-4E84-8F91-946F727DF7DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{977EA655-4EBE-4E84-8F91-946F727DF7DB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

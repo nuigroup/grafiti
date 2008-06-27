@@ -78,14 +78,13 @@ namespace Grafiti
             get { return m_handlerTable; }
         }
 
-        public GlobalGestureRecognizer(object ctorParam) : base(ctorParam)
+        public GlobalGestureRecognizer(GRConfiguration configuration) : base(configuration)
         {
             m_handlerTable = new DoubleDictionary<EventInfo, object, List<GestureEventHandler>>();
             m_temporaryHandlerTable = new DoubleDictionary<TargetList, EventInfo, List<GestureEventHandler>>();
         }
 
-        // This is called by GGRProvider
-        internal override sealed void AddHandler(Enum e, object listener, GestureEventHandler handler)
+        internal override sealed void AddHandler(Enum e, GestureEventHandler handler)
         {
             // Check id it's a default event
             bool isDefaultEvent = false;
@@ -99,6 +98,7 @@ namespace Grafiti
             }
 
             EventInfo eventInfo = GetEventInfo(e);
+            object listener = handler.Target;
 
             if (isDefaultEvent)
                 eventInfo.AddEventHandler(this, handler);
@@ -170,7 +170,7 @@ namespace Grafiti
             }
             else if (targetList == TargetList.INITIAL)
             {
-                groupTargetList = Group.IntialTargets;
+                groupTargetList = Group.InitialTargets;
                 eventList = InitialEvents;
             }
             else if (targetList == TargetList.NEWINITIAL)

@@ -1,5 +1,5 @@
 ﻿/*
-	Grafiti library
+	Grafiti Demo Application
 
     Copyright 2008  Alessandro De Nardi <alessandro.denardi@gmail.com>
 
@@ -20,10 +20,11 @@
 
 using System;
 using System.Collections.Generic;
+
 using Grafiti;
 using TUIO;
 
-namespace SimpleGRNS
+namespace ClientNamespace
 {
     public class SimpleGR : LocalGestureRecognizer
     {
@@ -32,22 +33,16 @@ namespace SimpleGRNS
             SimpleGesture
         }
 
-        public SimpleGR(object ctorParam) : base(ctorParam)
-        {
-            //Exclusive = false;
-        }
+        public SimpleGR(GRConfiguration configuration) : base(configuration) { }
 
         public event GestureEventHandler SimpleGesture;
 
-        protected virtual void OnSimpleGesture()
-        {
-            AppendEvent(SimpleGesture, new GestureEventArgs());
-        }
+        protected virtual void OnSimpleGesture() { AppendEvent(SimpleGesture, new GestureEventArgs()); }
 
-        public override GestureRecognitionResult Process(Trace trace)
+        public override GestureRecognitionResult Process(List<Trace> traces)
         {
             // if the gesture has been alive for 2 seconds (and is moving)
-            if (trace.Last.TimeStamp - trace.First.TimeStamp >= 2000)
+            if (traces[0].Last.TimeStamp - traces[0].First.TimeStamp >= 2000)
             {
                 OnSimpleGesture();
                 return new GestureRecognitionResult(false, true, false);

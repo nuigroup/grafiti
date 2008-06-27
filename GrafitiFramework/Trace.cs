@@ -33,10 +33,10 @@ namespace Grafiti
         private readonly Group m_group; // belonging group
         internal enum States
         {
-            ADD,
-            SET,
-            DEL,
-            RST,
+            ADDED,   // cursor added, the trace has born
+            UPDATED, // cursor updated
+            REMOVED, // cursor removed
+            RESET,   // cursor added, the trace has resurrected
         }
         private States m_state;
 
@@ -67,17 +67,14 @@ namespace Grafiti
         public List<IGestureListener> IntersectionTargets { get { return m_intersectionTargets; } }
         public List<IGestureListener> UnionTargets { get { return m_unionTargets; } }
 
-        public Trace(TuioCursor cursor, Group group)
+        public Trace(TuioCursor cursor, Group group, List<IGestureListener> targets)
         {
             m_sessionId = cursor.SessionId;
             m_history = new List<TuioCursor>();
             m_history.Add(cursor);
-            m_state = States.ADD;
+            m_state = States.ADDED;
             m_first = m_last = cursor;
             m_alive = true;
-
-            m_group = group;
-            m_group.StartTrace(this);
 
             m_initialTargets = new List<IGestureListener>();
             m_finalTargets = new List<IGestureListener>();
@@ -86,26 +83,38 @@ namespace Grafiti
             m_leavingTargets = new List<IGestureListener>();
             m_intersectionTargets = new List<IGestureListener>();
             m_unionTargets = new List<IGestureListener>();
+
+            m_group = group;
+
+            m_group.StartTrace(this);
+
+            UpdateTargets(targets);
         }
-        public void UpdateCursor(TuioCursor cursor)
+        public void UpdateCursor(TuioCursor cursor, List<IGestureListener> targets)
         {
             m_history.Add(cursor);
-            if (m_state == States.DEL)
-                m_state = States.RST;
+            if (m_state == States.REMOVED)
+                m_state = States.RESET;
             else
-                m_state = States.SET;
+                m_state = States.UPDATED;
             m_last = cursor;
+
             m_group.UpdateTrace(this);
+
+            UpdateTargets(targets);
         }
-        public void RemoveCursor(TuioCursor cursor)
+        public void RemoveCursor(TuioCursor cursor, List<IGestureListener> targets)
         {
             m_history.Add(cursor);
-            m_state = States.DEL;
+            m_state = States.REMOVED;
             m_last = cursor;
             m_alive = false;
+
             m_group.EndTrace(this);
+
+            UpdateTargets(targets);
         }
-        public void UpdateTargets(List<IGestureListener> targets)
+        private void UpdateTargets(List<IGestureListener> targets)
         {
             m_enteringTargets.Clear();
             foreach (IGestureListener target in targets)
@@ -134,23 +143,20 @@ namespace Grafiti
             m_currentTargets.AddRange(m_enteringTargets); // current +
 
             
-            if (m_state == States.ADD) // this happens only once, at the beginning
+            if (m_state == States.ADDED) // this happens only once, at the beginning
             { 
                 m_initialTargets.AddRange(targets);
                 m_intersectionTargets.AddRange(targets);
             }
-            else if (m_state == States.DEL)
+            else if (m_state == States.REMOVED)
             {
                 m_finalTargets.AddRange(targets);
             }
-            else if (m_state == States.RST)
+            else if (m_state == States.RESET)
             {
                 if (m_finalTargets.Count > 0)
                     m_finalTargets.Clear();
             }
-
-            m_group.UpdateTargets(this);
-
 
             //Console.Write("Trace current targets:");
             //foreach (IGestureListener target in m_currentTargets)
@@ -159,7 +165,7 @@ namespace Grafiti
         }
 
 
-        // Trace are compared by session id
+        // Traces are compared by session id
         public int CompareTo(object obj)
         {
             return (int) (m_sessionId - ((Trace)obj).SessionId);

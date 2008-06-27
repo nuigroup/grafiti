@@ -36,11 +36,16 @@ namespace Grafiti
             m_table1 = new Dictionary<TKey1, Dictionary<TKey2, TValue>>(m_initialCapacity);
         }
 
-        public void Remove(TKey1 key1, TKey2 key2)
+        public bool Remove(TKey1 key1, TKey2 key2)
         {
-            m_table1[key1].Remove(key2);
-            if (m_table1[key1].Count == 0)
-                m_table1.Remove(key1);
+            bool elementHasBeenRemoved = false;
+            if (m_table1.ContainsKey(key1))
+            {
+                elementHasBeenRemoved = m_table1[key1].Remove(key2);
+                if (m_table1[key1].Count == 0)
+                    m_table1.Remove(key1);
+            }
+            return elementHasBeenRemoved;
         }
 
         public TValue this[TKey1 key1, TKey2 key2]
@@ -99,14 +104,18 @@ namespace Grafiti
             m_table1 = new Dictionary<TKey, Dictionary<TKey, TValue>>(m_initialCapacity);
         }
 
-        public void Remove(TKey key)
+        public bool Remove(TKey key)
         {
+            bool elementHasBeenRemoved = false;
             foreach (TKey key1 in m_table1.Keys)
             {
                 if (key1.CompareTo(key) <= 0)
-                    m_table1[key1].Remove(key);
+                    if (m_table1[key1].Remove(key))
+                        elementHasBeenRemoved = true;
             }
-            m_table1.Remove(key);
+            if (m_table1.Remove(key))
+                elementHasBeenRemoved = true;
+            return elementHasBeenRemoved;
         }
 
         public TValue this[TKey key1, TKey key2]

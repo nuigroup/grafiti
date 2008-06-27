@@ -7,6 +7,12 @@ by Alessandro De Nardi
 History of major changes and notes
 ----------------------------------
 
+r9 08-06-27
+Due to the large amount of changes the files have been reuploaded and not only updated.
+- changed tuio client version, now it's 1.5 prerelease, modified. It's still missing but I'll upload it soon
+- improved group's targeting algorithm. Now tuio messages are processed in "parallel" after each refresh()
+- reorganized classes and solution's structure 
+
 r8 08-06-14
 - added LGR's constructor parameter 
 - in Group.cs fixed bug in group's targeting algorithm

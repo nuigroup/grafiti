@@ -18,18 +18,21 @@
 
 */
 
+using System;
+using System.Diagnostics;
 using System.Collections.Generic;
+using System.Reflection;
+using TUIO;
 
 namespace Grafiti
 {
-    public interface IGestureListener
+    public abstract class LocalGestureRecognizer : GestureRecognizer
     {
-        // Must return true if the interaction area contains the point given by the coordinates
-        // false otherwise
-        bool Contains(float x, float y);
+        public LocalGestureRecognizer(GRConfiguration configuration) : base(configuration) { }
 
-        // Must return the square distance to a conventional point (e.g. the center or the point
-        // on the border closest to the given coordinates), coherently with the client application
-        float GetSquareDistance(float x, float y);
-    }
+        internal override sealed void AddHandler(Enum e, GestureEventHandler handler)
+        {
+            GetEventInfo(e).AddEventHandler(this, handler);
+        }
+    } 
 }

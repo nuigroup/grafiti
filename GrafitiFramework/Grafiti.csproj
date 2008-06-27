@@ -6,12 +6,29 @@
     <ProductVersion>9.0.21022</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{9098BF46-CB05-421B-B6D2-177941BB5278}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Grafiti</RootNamespace>
     <AssemblyName>Grafiti</AssemblyName>
     <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+    <StartupObject>
+    </StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -39,7 +56,7 @@
   </Target>
   -->
   <ItemGroup>
-    <Compile Include="Basic1FingerGR.cs" />
+    <Compile Include="GRs\Basic1FingerGR.cs" />
     <Compile Include="DoubleDictionaries.cs" />
     <Compile Include="GestureEventManager.cs" />
     <Compile Include="GestureRecognizer.cs" />
@@ -48,25 +65,44 @@
     <Compile Include="GroupGRManager.cs" />
     <Compile Include="GRRegistry.cs" />
     <Compile Include="IGestureListener.cs" />
-    <Compile Include="ITuioListener.cs" />
     <Compile Include="LocalGestureRecognizer.cs" />
-    <Compile Include="Main.cs" />
-    <Compile Include="MultiTraceGR.cs" />
+    <Compile Include="GRs\MultiTraceGR.cs" />
     <Compile Include="OSC.NET\OSCBundle.cs" />
     <Compile Include="OSC.NET\OSCMessage.cs" />
     <Compile Include="OSC.NET\OSCPacket.cs" />
     <Compile Include="OSC.NET\OSCReceiver.cs" />
     <Compile Include="OSC.NET\OSCTransmitter.cs" />
-    <Compile Include="SimpleGR.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Surface.cs" />
     <Compile Include="Trace.cs" />
-    <Compile Include="TuioClient.cs" />
-    <Compile Include="TuioCursor.cs" />
-    <Compile Include="TuioObject.cs" />
-    <Compile Include="TuioObjectGestureListener.cs" />
-    <Compile Include="TuioPoint.cs" />
+    <Compile Include="TuioClient\TuioClient.cs" />
+    <Compile Include="TuioClient\TuioContainer.cs" />
+    <Compile Include="TuioClient\TuioCursor.cs" />
+    <Compile Include="TuioClient\TuioListener.cs" />
+    <Compile Include="TuioClient\TuioObject.cs" />
+    <Compile Include="TuioClient\TuioPoint.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PostBuildEvent>copy $(TargetPath) Y:\temp\$(TargetName)</PostBuildEvent>
+  </PropertyGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.2.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 2.0 %28x86%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.0">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.0 %28x86%29</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
   </ItemGroup>
 </Project>

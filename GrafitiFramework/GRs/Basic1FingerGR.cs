@@ -38,9 +38,45 @@ namespace Grafiti
         }
     }
 
+    public class Basic1FingerGRConfiguration : GRConfiguration
+    {
+        // spacial tollerance for single/double/triple tap
+        public readonly float TAP_SIZE;
+        public const float DEFAULT_TAP_SIZE = 0.02f;
+
+        // time range for double/triple tap
+        public readonly long TAP_TIME;
+        public const long DEFAULT_TAP_TIME = 500;
+
+        // spatial tollerance for hover (radius defining a circle area within which 
+        // the finger has to stay in order to raise a hover)
+        public readonly float HOVER_SIZE;
+        public const float DEFAULT_HOVER_SIZE = 0.02f;
+
+        // the pause required to raise a hover
+        public readonly long HOVER_TIME;
+        public const long DEFAULT_HOVER_TIME = 800;
+
+
+        public Basic1FingerGRConfiguration()
+            : this(false) { }
+
+        public Basic1FingerGRConfiguration(bool exclusive)
+            : this(DEFAULT_TAP_SIZE, DEFAULT_TAP_TIME, DEFAULT_HOVER_SIZE, DEFAULT_HOVER_TIME, exclusive) { }
+        
+        public Basic1FingerGRConfiguration(float tapSize, long tapTime, float hoverSize, long hoverTime, bool exclusive)
+            : base(exclusive)
+        {
+            TAP_SIZE = tapSize;
+            TAP_TIME = tapTime;
+            HOVER_SIZE = hoverSize;
+            HOVER_TIME = hoverTime;
+        }
+
+    }
+
     public class Basic1FingerGR : GlobalGestureRecognizer
     {
-
         public enum Events
         {
             Enter,
@@ -54,12 +90,15 @@ namespace Grafiti
             Hover
         }
 
-        private const float SPACE_THRESHOLD = 0.01f; // used for tap and hover
-        private const long MULTI_TAP_TIME_THRESHOLD = 500;
-        private const long HOVER_TIME_THRESHOLD = 800;
+        // Configuration parameters
+        private readonly float TAP_SIZE;
+        private readonly long TAP_TIME;
+        private readonly float HOVER_SIZE;
+        private readonly long HOVER_TIME;
 
         private TuioCursor m_lastCur;
         private bool m_terminated;
+        private bool m_newClosestCurrentTarget;
 
         private float m_x0, m_y0;
         private long m_t0;
@@ -72,19 +111,26 @@ namespace Grafiti
 
         private GestureRecognitionResult m_defaultResult;
 
-
-        public Basic1FingerGR(object ctorParam) : base(ctorParam)
+        public Basic1FingerGR(GRConfiguration configuration) : base(configuration)
         {
+            if (!(configuration is Basic1FingerGRConfiguration))
+                Configuration = new Basic1FingerGRConfiguration();
+
+            Basic1FingerGRConfiguration conf = (Basic1FingerGRConfiguration)Configuration;
+            TAP_SIZE = conf.TAP_SIZE;
+            TAP_TIME = conf.TAP_TIME;
+            HOVER_SIZE = conf.HOVER_SIZE;
+            HOVER_TIME = conf.HOVER_TIME;
+
             ClosestCurrentEvents = new Enum[] { Events.Down, Events.Up, Events.Tap, 
                 Events.DoubleTap, Events.TripleTap, Events.Hover, Events.Move };
             ClosestEnteringEvents = new Enum[] { Events.Enter };
             ClosestLeavingEvents = new Enum[] { Events.Leave };
 
-
-            Exclusive = false;
             m_hoverThread = new Thread(new ThreadStart(HoverLoop));
             m_defaultResult = new GestureRecognitionResult(false, true, true);
             m_terminated = false;
+            m_newClosestCurrentTarget = false;
         }
 
         public event GestureEventHandler Enter;
@@ -97,46 +143,17 @@ namespace Grafiti
         public event GestureEventHandler Hover;
         public event GestureEventHandler Move;
 
+        protected void OnEnter()     { AppendEvent(Enter,     new Basic1FingerEventArgs(Events.Enter,     m_lastCur.X, m_lastCur.Y)); }
+        protected void OnLeave()     { AppendEvent(Leave,     new Basic1FingerEventArgs(Events.Leave,     m_lastCur.X, m_lastCur.Y)); }
+        protected void OnDown()      { AppendEvent(Down,      new Basic1FingerEventArgs(Events.Down,      m_lastCur.X, m_lastCur.Y)); }
+        protected void OnUp()        { AppendEvent(Up,        new Basic1FingerEventArgs(Events.Up,        m_lastCur.X, m_lastCur.Y)); }
+        protected void OnTap()       { AppendEvent(Tap,       new Basic1FingerEventArgs(Events.Tap,       m_lastCur.X, m_lastCur.Y)); }
+        protected void OnDoubleTap() { AppendEvent(DoubleTap, new Basic1FingerEventArgs(Events.DoubleTap, m_lastCur.X, m_lastCur.Y)); }
+        protected void OnTripleTap() { AppendEvent(TripleTap, new Basic1FingerEventArgs(Events.TripleTap, m_lastCur.X, m_lastCur.Y)); }
+        protected void OnHover()     { AppendEvent(Hover,     new Basic1FingerEventArgs(Events.Hover,     m_lastCur.X, m_lastCur.Y)); }
+        protected void OnMove()      { AppendEvent(Move,      new Basic1FingerEventArgs(Events.Move,      m_lastCur.X, m_lastCur.Y)); }
 
-        protected virtual void OnEnter()
-        {
-            AppendEvent(Enter, new Basic1FingerEventArgs(Events.Enter, m_lastCur.XPos, m_lastCur.YPos));
-        }
-        protected virtual void OnLeave()
-        {
-            AppendEvent(Leave, new Basic1FingerEventArgs(Events.Leave, m_lastCur.XPos, m_lastCur.YPos));
-        }
-        protected virtual void OnDown()
-        {
-            AppendEvent(Down, new Basic1FingerEventArgs(Events.Down, m_lastCur.XPos, m_lastCur.YPos));
-        }
-        protected virtual void OnUp()
-        {
-            AppendEvent(Up, new Basic1FingerEventArgs(Events.Up, m_lastCur.XPos, m_lastCur.YPos));
-        }
-        protected virtual void OnTap()
-        {
-            AppendEvent(Tap, new Basic1FingerEventArgs(Events.Tap, m_lastCur.XPos, m_lastCur.YPos));
-        }        
-        protected virtual void OnDoubleTap()
-        {
-            AppendEvent(DoubleTap, new Basic1FingerEventArgs(Events.DoubleTap, m_lastCur.XPos, m_lastCur.YPos));
-        }
-        protected virtual void OnTripleTap()
-        {
-            AppendEvent(TripleTap, new Basic1FingerEventArgs(Events.TripleTap, m_lastCur.XPos, m_lastCur.YPos));
-        }
-        protected virtual void OnHover()
-        {
-            AppendEvent(Hover, new Basic1FingerEventArgs(Events.Hover, m_lastCur.XPos, m_lastCur.YPos));
-        }
-        protected virtual void OnMove()
-        {
-            AppendEvent(Move, new Basic1FingerEventArgs(Events.Move, m_lastCur.XPos, m_lastCur.YPos));
-        }
-
-
-        public override GestureRecognitionResult Process(Trace trace)
+        public override GestureRecognitionResult Process(List<Trace> traces)
         {
             if (Group.NOfAliveTraces > 1)
             {
@@ -147,13 +164,23 @@ namespace Grafiti
             if(m_terminated)
                 return m_defaultResult;
 
+            Trace trace = traces[0];
             m_lastCur = trace.Last;
+
+            if(m_newClosestCurrentTarget)
+            {
+                m_newClosestCurrentTarget = false;
+                ResetTap();
+                ResetHover();
+                if (Group.ClosestCurrentTarget == null)
+                    m_hoverEnabled = false;
+            }
 
             OnLeave();
             OnEnter();
             
             /*** ADD ***/
-            if (trace.State == Trace.States.ADD)
+            if (trace.State == Trace.States.ADDED)
             {
                 ResetTap();
                 OnDown();
@@ -162,27 +189,27 @@ namespace Grafiti
             }
 
             /*** SET ***/
-            else if (trace.State == Trace.States.SET)
+            else if (trace.State == Trace.States.UPDATED)
             {
                 OnMove();
-                if (Group.ClosestCurrentTarget != null && !CheckHoverSpace())
+                if (Group.ClosestCurrentTarget != null && !CheckHoverSize())
                     ResetHover();
             }
 
             /*** DEL ***/
-            else if (trace.State == Trace.States.DEL)
+            else if (trace.State == Trace.States.REMOVED)
             {
                 m_hoverEnabled = false;
                 OnUp();
 
-                if (CheckTapSpace())
+                if (CheckTapSize())
                     if (!m_haveSingleTapped)
                     {
                         OnTap();
                         m_haveSingleTapped = true;
                     }
                     else
-                        if (CheckMultiTapTime())
+                        if (CheckTapTime())
                             if (!m_haveDoubleTapped)
                             {
                                 OnDoubleTap();
@@ -202,7 +229,7 @@ namespace Grafiti
             /*** RST ***/
             else
             {
-                if (!CheckMultiTapTime() || m_resetTap)
+                if (!CheckTapTime() || m_resetTap)
                     ResetTap();
                 OnDown();
                 ResetHover();
@@ -216,21 +243,21 @@ namespace Grafiti
 
         private void ResetTap()
         {
-            m_x0 = m_lastCur.XPos;
-            m_y0 = m_lastCur.YPos;
+            m_x0 = m_lastCur.X;
+            m_y0 = m_lastCur.Y;
             m_t0 = m_lastCur.TimeStamp;
             m_haveSingleTapped = false;
             m_haveDoubleTapped = false;
             m_resetTap = false;
         }
-        private bool CheckTapSpace()
+        private bool CheckTapSize()
         {
-            return Math.Abs(m_lastCur.XPos - m_x0) <= SPACE_THRESHOLD && 
-                   Math.Abs(m_lastCur.YPos - m_y0) <= SPACE_THRESHOLD;
+            return Math.Abs(m_lastCur.X - m_x0) <= TAP_SIZE && 
+                   Math.Abs(m_lastCur.Y - m_y0) <= TAP_SIZE;
         }
-        private bool CheckMultiTapTime()
+        private bool CheckTapTime()
         {
-            return m_lastCur.TimeStamp - m_t0 <= MULTI_TAP_TIME_THRESHOLD;
+            return m_lastCur.TimeStamp - m_t0 <= TAP_TIME;
         }
 
         #endregion
@@ -240,22 +267,22 @@ namespace Grafiti
 
         private void ResetHover()
         {
-            m_hoverXRef = m_lastCur.XPos;
-            m_hoverYRef = m_lastCur.YPos;
+            m_hoverXRef = m_lastCur.X;
+            m_hoverYRef = m_lastCur.Y;
             m_hoverTimeRef = DateTime.Now;
             m_hoverEnabled = true;
         }
-        private bool CheckHoverSpace()
+        private bool CheckHoverSize()
         {
-            return Math.Abs(m_lastCur.XPos - m_hoverXRef) <= SPACE_THRESHOLD &&
-                   Math.Abs(m_lastCur.YPos - m_hoverYRef) <= SPACE_THRESHOLD;
+            return Math.Abs(m_lastCur.X - m_hoverXRef) <= HOVER_SIZE &&
+                   Math.Abs(m_lastCur.Y - m_hoverYRef) <= HOVER_SIZE;
         }
         private void HoverLoop()
         {
             while (true)
             {
                 if (m_hoverEnabled && 
-                    DateTime.Now.Subtract(m_hoverTimeRef).TotalMilliseconds >= HOVER_TIME_THRESHOLD)
+                    DateTime.Now.Subtract(m_hoverTimeRef).TotalMilliseconds >= HOVER_TIME)
                 {
                     OnHover();
                     ResetHover();
@@ -268,16 +295,13 @@ namespace Grafiti
         #endregion
 
 
-        protected override void OnUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving, bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn)
+        protected override void OnUpdateHandlers(
+            bool initial, bool final, 
+            bool entering, bool current, bool leaving, 
+            bool intersect, bool union, 
+            bool newClosestEnt, bool newClosestCur, bool newClosestLvn)
         {
-            if (newClosestCur)
-            {
-                ResetTap();
-                ResetHover();
-
-                if (Group.ClosestCurrentTarget == null)
-                    m_hoverEnabled = false;
-            }
+            m_newClosestCurrentTarget = newClosestCur;
         }
     } 
 }
