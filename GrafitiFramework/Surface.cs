@@ -153,7 +153,7 @@ namespace Grafiti
             ProcessCurrentRemovingCursors();
 
             foreach (Group group in m_currentUpdatingGroups)
-                group.Process();
+                group.Process(timeStamp);
 
             m_currentAddingCursors.Clear();
             m_currentUpdatingCursors.Clear();
@@ -184,15 +184,15 @@ namespace Grafiti
                 Trace trace;
 
                 // try finding a resurrecting trace
-                // TODO: don't give priority to the first added cursor
+                // TODO: don't give priority to the first added cursors
                 trace = TryResurrectTrace(cursor);
 
-                if (trace != null) // a trace has resurrected
+                if (trace != null) // resurrect the trace
                 {
                     group = trace.Group;
                     trace.UpdateCursor(cursor, ListTargetsAt(cursor.X, cursor.Y));
                 }
-                else
+                else // create a new trace
                 {
                     group = GetMatchingGroup(cursor);
                     trace = new Trace(cursor, group, ListTargetsAt(cursor.X, cursor.Y));
