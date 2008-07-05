@@ -92,12 +92,12 @@ namespace Grafiti
 
             foreach (Trace trace in traces)
             {
-                if (trace.Last.State == TUIO.TuioCursor.UPDATED)
+                if (trace.State == Trace.States.UPDATED)
                 {
                     OnMultiTraceGestureMove();
                     result = new GestureRecognitionResult(false, true, true);
                 }
-                else if (trace.Last.State == TUIO.TuioCursor.ADDED)
+                else if (trace.State == Trace.States.ADDED)
                 {
                     OnMultiTraceGestureDown();
                     result = new GestureRecognitionResult(false, true, true);

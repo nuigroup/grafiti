@@ -75,8 +75,12 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Surface.cs" />
     <Compile Include="Trace.cs" />
-    <Compile Include="TuioClient\TuioClient.cs" />
-    <Compile Include="TuioClient\TuioContainer.cs" />
+    <Compile Include="TuioClient\TuioClient.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="TuioClient\TuioContainer.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="TuioClient\TuioCursor.cs" />
     <Compile Include="TuioClient\TuioListener.cs" />
     <Compile Include="TuioClient\TuioObject.cs" />

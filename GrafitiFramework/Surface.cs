@@ -136,6 +136,7 @@ namespace Grafiti
             //m_currentRemovingCursors.RemoveAll(delegate(TuioCursor cur) { return cur.SessionId == cursor.SessionId; });
             
             m_currentRemovingCursors.Add(cursor);
+            cursor.State = TuioCursor.REMOVED;  // fixes a bug in tuio client
         }
         void TuioListener.refresh(long timeStamp)
         {
@@ -148,9 +149,9 @@ namespace Grafiti
             RemoveNonResurrectableTraces(timeStamp);
             RemoveNonResurrectableGroups(timeStamp);
 
-            ProcessCurrentAddingCursors();
-            ProcessCurrentUpdatingCursors();
-            ProcessCurrentRemovingCursors();
+            ProcessCurrentAddingCursors(timeStamp);
+            ProcessCurrentUpdatingCursors(timeStamp);
+            ProcessCurrentRemovingCursors(timeStamp);
 
             foreach (Group group in m_currentUpdatingGroups)
                 group.Process(timeStamp);
@@ -176,10 +177,12 @@ namespace Grafiti
                 return (!group.Alive && timeStamp - group.LastTimeStamp > TRACE_RESURRECTION_TIME);
             });
         }
-        private void ProcessCurrentAddingCursors()
+        private void ProcessCurrentAddingCursors(long timeStamp)
         {
             foreach (TuioCursor cursor in m_currentAddingCursors)
             {
+                //Console.WriteLine(timeStamp + " add: " + cursor.TimeStamp);
+                
                 Group group;
                 Trace trace;
 
@@ -206,10 +209,12 @@ namespace Grafiti
                     m_currentUpdatingGroups.Add(group);
             }
         }
-        private void ProcessCurrentUpdatingCursors()
+        private void ProcessCurrentUpdatingCursors(long timeStamp)
         {
             foreach (TuioCursor cursor in m_currentUpdatingCursors)
             {
+                //Console.WriteLine(timeStamp + " update: " + cursor.TimeStamp);
+                
                 // determine belonging trace
                 Trace trace = m_cursorTraceTable[cursor.SessionId];
 
@@ -221,10 +226,13 @@ namespace Grafiti
                     m_currentUpdatingGroups.Add(trace.Group); 
             }
         }
-        private void ProcessCurrentRemovingCursors()
+        private void ProcessCurrentRemovingCursors(long timeStamp)
         {
             foreach (TuioCursor cursor in m_currentRemovingCursors)
             {
+                cursor.setUpdateTime(timeStamp); // fixes a bug in tuio client
+                //Console.WriteLine(timeStamp + " remove: " + cursor.TimeStamp);
+
                 // determine trace
                 Trace trace = m_cursorTraceTable[cursor.SessionId];
 

@@ -7,6 +7,9 @@ by Alessandro De Nardi
 History of major changes and notes
 ----------------------------------
 
+08-07-05
+- Fixed bug of tuio client regarding removed cursors
+
 r9,r10,r11 08-06-27
 Due to the large amount of changes the files have been reuploaded and not only updated.
 - changed tuio client version, now it's 1.5 prerelease, modified. It's still missing but I'll upload it soon
