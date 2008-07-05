@@ -29,7 +29,7 @@ namespace Grafiti
         #region Configuration parameters
         // TODO: make them settable via xml
 
-        // Group's targeting method
+        // Group's targeting method 
         internal static readonly bool INTERSECTION_MODE = false;
 
         // The maximum time in milliseconds between cursors to determine the group's INITIAL and FINAL lists

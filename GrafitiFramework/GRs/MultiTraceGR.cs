@@ -51,7 +51,7 @@ namespace Grafiti
 
         private int m_nOfFingers;
 
-        // These are public only to make reflection to work.
+        // These are public only to make reflection to work. 
         // They're not intended to be accessed directly from clients.
         public event GestureEventHandler MultiTraceStarted;
         public event GestureEventHandler MultiTraceDown;
