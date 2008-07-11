@@ -75,8 +75,7 @@ namespace Grafiti
         }
         
         /// <summary>
-        /// Register a handler for a gesture event. The GR will be will be associated with the default 
-        /// configuration.
+        /// Register a handler for a gesture event. The GR will be will be configured by default.
         /// </summary>
         /// <param name="grType">Type of the gesture recognizer.</param>
         /// <param name="e">The event (as specified in the proper enumeration in the GR class).</param>
@@ -87,10 +86,10 @@ namespace Grafiti
             RegisterHandler(grType, GestureRecognizer.DefaultConfiguration, e, handler);
         }
         /// <summary>
-        /// Register a handler for a gesture event. A configuration for the GR can be specified.
+        /// Register a handler for a gesture event. The GR will be configured with the given configuration.
         /// </summary>
         /// <param name="grType">Type of the gesture recognizer.</param>
-        /// <param name="grParam">The GR's configuration.</param>
+        /// <param name="grConf">The GR's configuration.</param>
         /// <param name="e">The event (as specified in the proper enumeration in the GR class).</param>
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
         public void RegisterHandler(Type grType, GRConfiguration grConf, Enum e, GestureEventHandler handler)

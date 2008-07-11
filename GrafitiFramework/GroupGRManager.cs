@@ -96,10 +96,10 @@ namespace Grafiti
             if (!m_targetLGRListTable.ContainsKey(localTarget))
                 m_targetLGRListTable[localTarget] = new List<GestureRecognizer>();
 
-            UpdateLGRs(localTarget);
+            AddOrUpdateLGRs(localTarget);
         }
 
-        private void UpdateLGRs(IGestureListener localTarget)
+        private void AddOrUpdateLGRs(IGestureListener localTarget)
         {
             Type grType;
             object grConf;
@@ -113,7 +113,7 @@ namespace Grafiti
 
                 if (lgrInfo.Handler.Target == localTarget)
                 {
-                    if (!m_lgrInstanceTable.TryGetValue(grType, localTarget, out lgrDict)) //localTarget, out lgr))
+                    if (!m_lgrInstanceTable.TryGetValue(grType, localTarget, out lgrDict))
                     {
                         lgrDict = new Dictionary<object, LocalGestureRecognizer>();
                         m_lgrInstanceTable[grType, localTarget] = lgrDict;
@@ -145,6 +145,7 @@ namespace Grafiti
                 foreach (GestureRecognizer lgr in m_targetLGRListTable[localTarget])
                 {
                     m_grs.Remove(lgr);
+                    m_interpreting.Remove(lgr);
                     m_lgrInstanceTable.Remove(lgr.GetType(), localTarget);
                 }
                 m_targetLGRListTable.Remove(localTarget);
@@ -158,7 +159,7 @@ namespace Grafiti
         /// by registering new handlers, or creates new instances with handlers.
         /// </summary>
         /// <param name="ggrInfos">The informations of the registrations of the GGRs.</param>
-        internal void UpdateGGRs(List<GestureEventRegistry.RegistrationInfo> ggrInfos)
+        internal void AddOrUpdateUpdateGGRs(List<GestureEventRegistry.RegistrationInfo> ggrInfos)
         {
             Type grType;
             object grParam;
@@ -308,7 +309,7 @@ namespace Grafiti
 
         private void AddGR(GestureRecognizer gr)
         {
-            // insert gr in a position such that
+            // insert gr in the position such that
             // 1. the list is ordered by priority number (decreasing)
             // 2. if same priority, LGRs come before GGRs
             // 3. if two GRs, belonging to the same supertype (LGR or GGR), have the same PN, the first added comes before the second

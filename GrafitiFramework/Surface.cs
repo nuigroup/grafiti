@@ -29,27 +29,29 @@ namespace Grafiti
         #region Configuration parameters
         // TODO: make them settable via xml
 
-        // Group's targeting method 
-        internal static readonly bool INTERSECTION_MODE = false;
+        // Group's targeting method
+        internal static readonly bool INTERSECTION_MODE = true;
 
         // The maximum time in milliseconds between cursors to determine the group's INITIAL and FINAL lists
-        internal static readonly int GROUPING_SYNCH_TIME = 200;
+        internal static readonly int GROUPING_SYNCH_TIME = 2000;//200;
 
         // Maximum space between traces to be grouped together
         internal static readonly float GROUPING_SPACE = 0.2f;
 
-        // Maximum time in millisecond for a trace to resurrect (e.g. for double tap)
-        internal static readonly int TRACE_RESURRECTION_TIME = 200;
+        // Maximum time in millisecond between a 'remove' of a cursor and an 'add' of another cursor, to
+        // associate the cursors to the same (discontinuous) trace.
+        internal static readonly int TRACE_TIME_GAP = 2000; //200;
 
-        // Maximum time in millisecond for a trace to resurrect
-        internal static readonly float TRACE_RESURRECTION_SPACE = 0.05f;
+        // Maximum space between a 'remove' of a cursor and an 'add' of another cursor, to
+        // associate the cursors to the same (discontinuous) trace.
+        internal static readonly float TRACE_SPACE_GAP = 0.01f;
 
         // Group's target lists used to determine which LGRs will be called
         internal enum LGRTargetLists
         {
             INITIAL_TARGET_LIST = 0,
             INTERSECTION_TARGET_LIST = 1,
-            FINAL_TARGET_LIST = 2
+            //FINAL_TARGET_LIST = 2
         }
         internal static readonly LGRTargetLists LGR_TARGET_LIST = LGRTargetLists.INTERSECTION_TARGET_LIST;
         #endregion
@@ -143,8 +145,52 @@ namespace Grafiti
             // only for debug
             //if (timeStamp - lastProcessedRefreshTimeStamp < 2000)
             //    return;
-            //lastProcessedRefreshTimeStamp = timeStamp;
             //Console.WriteLine("Refresh");
+
+            #region workaround for a tuio client issue about timestamp
+            // Sometimes two (at least) refresh calls share the same timestamp value
+            // This workaround will skip the calls that follow the first one with the same a timestamp value,
+            // maintaining the cursor lists consistent.
+            if (timeStamp == m_lastProcessedRefreshTimeStamp)
+                return;
+
+            Console.WriteLine(timeStamp - m_lastProcessedRefreshTimeStamp);
+            m_lastProcessedRefreshTimeStamp = timeStamp;
+
+            // Remove updating that are included also in adding or removing (considering the same session id)
+            m_currentUpdatingCursors.RemoveAll(delegate(TuioCursor cursor)
+                {
+                    long updatingCursorId = cursor.SessionId;
+                    foreach(TuioCursor addingCursor in m_currentAddingCursors)
+                    {
+                        if(addingCursor.SessionId == updatingCursorId)
+                            return true;
+                    }
+                    foreach(TuioCursor removingCursor in m_currentRemovingCursors)
+                    {
+                        if(removingCursor.SessionId == updatingCursorId)
+                            return true;
+                    }
+                    return false;
+                }
+            );
+            // Remove cursors that appear both in adding and removing (considering the same session id)
+            m_currentAddingCursors.RemoveAll(delegate(TuioCursor cursor)
+            {
+                long addingCursorId = cursor.SessionId;
+                foreach (TuioCursor removingCursor in m_currentRemovingCursors)
+                {
+                    if (removingCursor.SessionId == addingCursorId)
+                    {
+                        m_currentRemovingCursors.Remove(removingCursor);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            );
+            #endregion
+
 
             RemoveNonResurrectableTraces(timeStamp);
             RemoveNonResurrectableGroups(timeStamp);
@@ -167,14 +213,14 @@ namespace Grafiti
         private void RemoveNonResurrectableTraces(long timeStamp)
         {
             int i;
-            for (i = 0; i < m_resurrectableTraces.Count && timeStamp - m_resurrectableTraces[i].Last.TimeStamp <= TRACE_RESURRECTION_TIME; i++) ;
+            for (i = 0; i < m_resurrectableTraces.Count && timeStamp - m_resurrectableTraces[i].Last.TimeStamp <= TRACE_TIME_GAP; i++) ;
             m_resurrectableTraces.RemoveRange(i, m_resurrectableTraces.Count - i);
         }
         private void RemoveNonResurrectableGroups(long timeStamp)
         {
             m_joinableGroups.RemoveAll(delegate(Group group)
             {
-                return (!group.Alive && timeStamp - group.LastTimeStamp > TRACE_RESURRECTION_TIME);
+                return (!group.Alive && timeStamp - group.LastTimeStamp > TRACE_TIME_GAP);
             });
         }
         private void ProcessCurrentAddingCursors(long timeStamp)
@@ -252,7 +298,7 @@ namespace Grafiti
         private Trace TryResurrectTrace(TuioCursor cursor)
         {
             Trace resurrectingTrace = null;
-            float minDist = TRACE_RESURRECTION_SPACE * TRACE_RESURRECTION_SPACE;
+            float minDist = TRACE_SPACE_GAP * TRACE_SPACE_GAP;
             float dist;
             foreach (Trace trace in m_resurrectableTraces)
             {

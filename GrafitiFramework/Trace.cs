@@ -29,17 +29,10 @@ namespace Grafiti
 {
     public class Trace : IComparable
     {
-        private readonly long m_sessionId;
+        private static int m_idCounter = 0;
+        private readonly long m_id;
         private readonly Group m_group; // belonging group
-        internal enum States
-        {
-            ADDED,   // cursor added, the trace has born
-            UPDATED, // cursor updated
-            REMOVED, // cursor removed
-            RESET,   // cursor added, the trace has resurrected
-        }
         private States m_state;
-
         private List<TuioCursor> m_history;
         private TuioCursor m_first, m_last;
         private bool m_alive;
@@ -49,31 +42,38 @@ namespace Grafiti
         private List<IGestureListener> m_intersectionTargets, m_unionTargets;
 
 
-        public long SessionId { get { return m_sessionId; } }
-        public Group Group { get { return m_group; } }
-        internal States State { get { return m_state; } }
-        public List<TuioCursor> History { get { return m_history; } }
-        public TuioCursor First { get { return m_first; } }
-        public TuioCursor Last { get { return m_last; } }
-        public TuioCursor this[int index] { get { return m_history[index]; } }
-        public int Count { get { return m_history.Count; } }
-        public bool Alive { get { return m_alive; } }
+        public enum States
+        {
+            ADDED,   // cursor added, the trace has born
+            UPDATED, // cursor updated
+            REMOVED, // cursor removed
+            RESET,   // cursor added, the trace has resurrected
+        }
+        public long Id                   { get { return m_id; } }
+        public Group Group               { get { return m_group; } }
+        public States State              { get { return m_state; } }
+        public List<TuioCursor> History  { get { return m_history; } }
+        public TuioCursor First          { get { return m_first; } }
+        public TuioCursor Last           { get { return m_last; } }
+        public TuioCursor this[int index]{ get { return m_history[index]; } }
+        public int Count                 { get { return m_history.Count; } }
+        public bool Alive                { get { return m_alive; } }
 
-        public List<IGestureListener> InitialTargets { get { return m_initialTargets; } }
-        public List<IGestureListener> FinalTargets { get { return m_finalTargets; } }
-        public List<IGestureListener> EnteringTargets { get { return m_enteringTargets; } }
-        public List<IGestureListener> CurrentTargets { get { return m_currentTargets; } }
-        public List<IGestureListener> LeavingTargets { get { return m_leavingTargets; } }
+        public List<IGestureListener> InitialTargets      { get { return m_initialTargets; } }
+        public List<IGestureListener> FinalTargets        { get { return m_finalTargets; } }
+        public List<IGestureListener> EnteringTargets     { get { return m_enteringTargets; } }
+        public List<IGestureListener> CurrentTargets      { get { return m_currentTargets; } }
+        public List<IGestureListener> LeavingTargets      { get { return m_leavingTargets; } }
         public List<IGestureListener> IntersectionTargets { get { return m_intersectionTargets; } }
-        public List<IGestureListener> UnionTargets { get { return m_unionTargets; } }
+        public List<IGestureListener> UnionTargets        { get { return m_unionTargets; } }
 
         public Trace(TuioCursor cursor, Group group, List<IGestureListener> targets)
         {
-            m_sessionId = cursor.SessionId;
+            m_id = m_idCounter++;
             m_history = new List<TuioCursor>();
             m_history.Add(cursor);
-            m_state = States.ADDED;
             m_first = m_last = cursor;
+            m_state = States.ADDED;
             m_alive = true;
 
             m_initialTargets = new List<IGestureListener>();
@@ -93,11 +93,15 @@ namespace Grafiti
         public void UpdateCursor(TuioCursor cursor, List<IGestureListener> targets)
         {
             m_history.Add(cursor);
+            m_last = cursor;
+
             if (m_state == States.REMOVED)
+            {
                 m_state = States.RESET;
+                m_alive = true;
+            }
             else
                 m_state = States.UPDATED;
-            m_last = cursor;
 
             m_group.UpdateTrace(this);
 
@@ -106,9 +110,10 @@ namespace Grafiti
         public void RemoveCursor(TuioCursor cursor, List<IGestureListener> targets)
         {
             m_history.Add(cursor);
-            m_state = States.REMOVED;
             m_last = cursor;
             m_alive = false;
+
+            m_state = States.REMOVED;
 
             m_group.EndTrace(this);
 
@@ -168,7 +173,7 @@ namespace Grafiti
         // Traces are compared by session id
         public int CompareTo(object obj)
         {
-            return (int) (m_sessionId - ((Trace)obj).SessionId);
+            return (int) (m_id - ((Trace)obj).Id);
         }
     } 
 }

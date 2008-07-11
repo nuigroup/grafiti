@@ -30,7 +30,8 @@ namespace Grafiti
 
         public int NOfFingers { get { return m_nOfFingers; } }
 
-        public MultiTraceEventArgs(Enum id, int nFingers) : base(id) 
+        public MultiTraceEventArgs(Enum eventId, int groupId, int nFingers)
+            : base(eventId, groupId) 
         {
             m_nOfFingers = nFingers;
         }
@@ -51,7 +52,7 @@ namespace Grafiti
 
         private int m_nOfFingers;
 
-        // These are public only to make reflection to work. 
+        // These are public only to make reflection to work.
         // They're not intended to be accessed directly from clients.
         public event GestureEventHandler MultiTraceStarted;
         public event GestureEventHandler MultiTraceDown;
@@ -72,13 +73,13 @@ namespace Grafiti
             m_nOfFingers = 0;
         }
 
-        private void OnMultiTraceStart()       { AppendEvent(MultiTraceStarted, new MultiTraceEventArgs(Events.MultiTraceStarted, m_nOfFingers)); }
-        private void OnMultiTraceEnd()         { AppendEvent(MultiTraceEnd,     new MultiTraceEventArgs(Events.MultiTraceEnd,     m_nOfFingers)); }
-        private void OnMultiTraceGestureDown() { AppendEvent(MultiTraceDown,    new MultiTraceEventArgs(Events.MultiTraceDown,    m_nOfFingers)); }
-        private void OnMultiTraceGestureMove() { AppendEvent(MultiTraceMove,    new MultiTraceEventArgs(Events.MultiTraceMove,    m_nOfFingers)); }
-        private void OnMultiTraceGestureUp()   { AppendEvent(MultiTraceUp,      new MultiTraceEventArgs(Events.MultiTraceUp,      m_nOfFingers)); }
-        private void OnMultiTraceGestureEnter(){ AppendEvent(MultiTraceEnter,   new MultiTraceEventArgs(Events.MultiTraceEnter,   m_nOfFingers)); }
-        private void OnMultiTraceGestureLeave(){ AppendEvent(MultiTraceLeave,   new MultiTraceEventArgs(Events.MultiTraceLeave,   m_nOfFingers)); }
+        private void OnMultiTraceStart()       { AppendEvent(MultiTraceStarted, new MultiTraceEventArgs(Events.MultiTraceStarted, Group.Id, m_nOfFingers)); }
+        private void OnMultiTraceEnd()         { AppendEvent(MultiTraceEnd,     new MultiTraceEventArgs(Events.MultiTraceEnd,     Group.Id, m_nOfFingers)); }
+        private void OnMultiTraceGestureDown() { AppendEvent(MultiTraceDown,    new MultiTraceEventArgs(Events.MultiTraceDown,    Group.Id, m_nOfFingers)); }
+        private void OnMultiTraceGestureMove() { AppendEvent(MultiTraceMove,    new MultiTraceEventArgs(Events.MultiTraceMove,    Group.Id, m_nOfFingers)); }
+        private void OnMultiTraceGestureUp()   { AppendEvent(MultiTraceUp,      new MultiTraceEventArgs(Events.MultiTraceUp,      Group.Id, m_nOfFingers)); }
+        private void OnMultiTraceGestureEnter(){ AppendEvent(MultiTraceEnter,   new MultiTraceEventArgs(Events.MultiTraceEnter,   Group.Id, m_nOfFingers)); }
+        private void OnMultiTraceGestureLeave(){ AppendEvent(MultiTraceLeave,   new MultiTraceEventArgs(Events.MultiTraceLeave,   Group.Id, m_nOfFingers)); }
 
         public override GestureRecognitionResult Process(List<Trace> traces)
         {

@@ -106,7 +106,7 @@ namespace Grafiti
                 List<RegistrationInfo> ggrInfoList = new List<RegistrationInfo>();
                 ggrInfoList.Add(grInfo);
                 foreach (GroupGRManager grManager in m_subscribedGRManagers)
-                    grManager.UpdateGGRs(ggrInfoList);
+                    grManager.AddOrUpdateUpdateGGRs(ggrInfoList);
             }
             else
             {
@@ -126,7 +126,7 @@ namespace Grafiti
         internal void Subscribe(GroupGRManager grManager)
         {
             m_subscribedGRManagers.Add(grManager);
-            grManager.UpdateGGRs(m_ggrRegistry);
+            grManager.AddOrUpdateUpdateGGRs(m_ggrRegistry);
         }
 
         internal void Unsubscribe(GroupGRManager grManager)

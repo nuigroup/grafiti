@@ -7,6 +7,15 @@ by Alessandro De Nardi
 History of major changes and notes
 ----------------------------------
 
+08-07-11
+- Added 2 multitouch GRs:
+  BasicMultiFingerGR.cs for basic tasks and
+  PinchingGR.cs for classic image gestures
+- In Group.cs, fixed some bugs in targeting algorithm;
+- Fixed some bugs here and there
+- In GestureEventArgs class, added group id field
+- In Trace.cs, added trace id
+
 08-07-05
 - Fixed bug of tuio client regarding removed cursors
 

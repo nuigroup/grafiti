@@ -76,7 +76,7 @@ namespace Grafiti
         private float m_x0, m_y0;                   // initial coordinates of the first added trace
         private long m_t0, m_currentTimeStamp;      // initial and last time stamp
         private float m_centroidX, m_centroidY;     // centroid coordinates, calculated on the last points of the
-        // traces (including the recently dead ones, that can resurrect)
+        private float m_centroidLivingX, m_centroidLivingY;
 
         private GroupGRManager m_groupGRManager;    // gesture recognition manager
         private bool m_initializing;
@@ -85,8 +85,9 @@ namespace Grafiti
         private List<Trace> m_startingSequence;       // traces listed in order of adding
         private List<Trace> m_endingSequenceReversed; // traces listed in reversed order of dying
 
-        private List<Trace> m_currentStartingTraces, m_currentInitialTraces,    // temp volatile (changing 
-            m_currentUpdatingTraces, m_currentEndingTraces, m_allCurrentTraces; // at every refresh) lists
+        private List<Trace> m_currentStartingTraces, m_currentInitialTraces,// temp volatile (changing 
+            m_currentUpdatingTraces, m_currentResettingTraces,
+            m_currentEndingTraces, m_allCurrentTraces;                      // at every refresh) lists
 
         // Target lists
         private TargetList m_initialTargets, m_newInitialTargets, m_finalTargets;
@@ -98,10 +99,32 @@ namespace Grafiti
         private SimmetricDoubleDictionary<Trace, long> m_traceTimeCouplingTable;
 
         internal GroupGRManager GRManager { get { return m_groupGRManager; } }
-        internal bool ProcessingTerminated { get { return m_processingTerminated; } } 
+        internal bool ProcessingTerminated { get { return m_processingTerminated; } }
         #endregion
 
         #region Public properties
+        // Id
+        public int Id { get { return m_id; } }
+        
+        // Traces of which the group is composed
+        public List<Trace> Traces { get { return m_traces; } }
+
+        // Number of alive traces
+        public int NOfAliveTraces { get { return m_nOfAliveTraces; } }
+
+        // Flag indicating iff the group is alive, i.e. at least one trace is alive (a cursor is on the surface)
+        public bool Alive { get { return m_nOfAliveTraces > 0; } }
+
+        // Last time stamp, that is the current, corresponding to when the last refresh was called
+        public long LastTimeStamp { get { return m_currentTimeStamp; } }
+
+        // Centroid coordinates (calculated on the last point of the living and the resurrectable traces)
+        public float CentroidX { get { return m_centroidX; } }
+        public float CentroidY { get { return m_centroidY; } }
+        // Centroid coordinates (calculated on the last point of the living traces)
+        public float CentroidLivingX { get { return m_centroidLivingX; } }
+        public float CentroidLivingY { get { return m_centroidLivingY; } }
+
         // Target lists
         public List<IGestureListener> InitialTargets { get { return (List<IGestureListener>)m_initialTargets; } }
         public List<IGestureListener> NewIntialTargets { get { return (List<IGestureListener>)m_newInitialTargets; } }
@@ -114,18 +137,6 @@ namespace Grafiti
         public IGestureListener ClosestEnteringTarget { get { return m_closestEnteringTarget; } }
         public IGestureListener ClosestCurrentTarget { get { return m_closestCurrentTarget; } }
         public IGestureListener ClosestLeavingTarget { get { return m_closestLeavingTarget; } }
-
-        // Traces of which the group is composed
-        public List<Trace> Traces { get { return m_traces; } }
-
-        // Number of alive traces
-        public int NOfAliveTraces { get { return m_nOfAliveTraces; } }
-
-        // Flag indicating iff the group is alive, i.e. at least one trace is alive (a cursor is on the surface)
-        public bool Alive { get { return m_nOfAliveTraces > 0; } }
-
-        // Last time stamp, that is the current, corresponding to when the last refresh was called
-        public long LastTimeStamp { get { return m_currentTimeStamp; } } 
         #endregion
 
         #region Internal constructor
@@ -139,8 +150,8 @@ namespace Grafiti
             m_nOfAliveTraces = 0;
             m_initializing = true;
 
-            m_centroidX = 0;
-            m_centroidY = 0;
+            m_centroidX = m_centroidY = 0;
+            m_centroidLivingX = m_centroidLivingY = 0;
             m_currentTimeStamp = -1;
 
             m_startingSequence = new List<Trace>();
@@ -150,6 +161,7 @@ namespace Grafiti
             m_currentInitialTraces = new List<Trace>();
             m_currentUpdatingTraces = new List<Trace>();
             m_currentEndingTraces = new List<Trace>();
+            m_currentResettingTraces = new List<Trace>();
             m_allCurrentTraces = new List<Trace>();
 
             m_traceSpaceCouplingTable = new SimmetricDoubleDictionary<Trace, float>(10);
@@ -171,8 +183,8 @@ namespace Grafiti
                 m_initialTargets = new TargetList(m_groupGRManager);
             else if (Surface.LGR_TARGET_LIST == Surface.LGRTargetLists.INTERSECTION_TARGET_LIST)
                 m_intersectionTargets = new TargetList(m_groupGRManager);
-            else if (Surface.LGR_TARGET_LIST == Surface.LGRTargetLists.FINAL_TARGET_LIST)
-                m_finalTargets = new TargetList(m_groupGRManager);
+            //else if (Surface.LGR_TARGET_LIST == Surface.LGRTargetLists.FINAL_TARGET_LIST)
+            //    m_finalTargets = new TargetList(m_groupGRManager);
         } 
         #endregion
 
@@ -223,6 +235,7 @@ namespace Grafiti
             {
                 m_nOfAliveTraces++;
                 m_endingSequenceReversed.Remove(trace);
+                m_currentResettingTraces.Add(trace);
             }
 
             m_currentUpdatingTraces.Add(trace);
@@ -244,7 +257,7 @@ namespace Grafiti
             m_currentTimeStamp = timeStamp;
 
             // update centroid
-            UpdateCentroid();
+            UpdateCentroids();
 
             // update target lists and gesture event handlers
             UpdateTargetsAndHandlers();
@@ -260,7 +273,7 @@ namespace Grafiti
             m_currentEndingTraces.Clear();
             m_allCurrentTraces.Clear();
         }
-        private void UpdateCentroid()
+        private void UpdateCentroids()
         {
             int n = 0;            // element counter
             float sx = 0, sy = 0; // coordinate accumulators
@@ -274,6 +287,11 @@ namespace Grafiti
                     n++;
                 }
 
+            if (n != 0)
+            {
+                m_centroidLivingX = sx / n;
+                m_centroidLivingY = sy / n;
+            }
 
             // Died yet resurrectable traces
             // TODO: make parametrizable (enable/disable + time threshold switchable between
@@ -334,7 +352,7 @@ namespace Grafiti
             }
 
 
-            #region ADD
+            #region added and reset traces
 
             List<List<IGestureListener>> currentInitialTargetLists = new List<List<IGestureListener>>();
             foreach (Trace t in m_currentInitialTraces)
@@ -342,11 +360,13 @@ namespace Grafiti
             List<IGestureListener> intersectionInitialList = Intersect(currentInitialTargetLists);
             List<IGestureListener> unionInitialList = Union(currentInitialTargetLists);
 
-            List<List<IGestureListener>> currentStartingTargetLists = new List<List<IGestureListener>>();
+            List<List<IGestureListener>> currentStartingAndResettingTargetLists = new List<List<IGestureListener>>();
             foreach (Trace t in m_currentStartingTraces)
-                currentStartingTargetLists.Add(t.InitialTargets);
-            List<IGestureListener> intersectionStartingList = Intersect(currentStartingTargetLists);
-            List<IGestureListener> unionStartingList = Union(currentStartingTargetLists);
+                currentStartingAndResettingTargetLists.Add(t.InitialTargets);
+            foreach (Trace t in m_currentResettingTraces)
+                currentStartingAndResettingTargetLists.Add(t.CurrentTargets);
+            List<IGestureListener> intersectionStartingAndResettingList = Intersect(currentStartingAndResettingTargetLists);
+            List<IGestureListener> unionStartingAndResettingList = Union(currentStartingAndResettingTargetLists);
 
 
             if (m_initializing)
@@ -354,7 +374,6 @@ namespace Grafiti
                 m_initializing = false;
 
                 // The first added traces determine INITIAL, NEWINITIAL and INTERSECTION lists
-
                 if (Surface.INTERSECTION_MODE)
                 {
                     m_initialTargets.AddRange(intersectionInitialList);
@@ -377,9 +396,9 @@ namespace Grafiti
             {
                 if (Surface.INTERSECTION_MODE)
                 {
-                    if (intersectionInitialList.Count > 0)
+                    // INITIAL list is the intersection of the recently born traces' INITIAL lists.
+                    if (currentInitialTargetLists.Count > 0)
                     {
-                        // INITIAL list is the intersection of the recently born traces' INITIAL lists.
                         foreach (IGestureListener target in m_initialTargets)
                             if (!intersectionInitialList.Contains(target))
                                 m_leavingTargets.Add(target);
@@ -399,12 +418,12 @@ namespace Grafiti
                         }
                     }
 
-                    if (intersectionStartingList.Count > 0)
+                    // Remove targets that don't appear in the added/reset traces' lists
+                    if (m_currentStartingTraces.Count + m_currentResettingTraces.Count > 0)
                     {
-                        // Remove targets that don't appear in the new traces' lists
                         foreach (IGestureListener target in m_currentTargets)
                         {
-                            if (!intersectionStartingList.Contains(target))
+                            if (!intersectionStartingAndResettingList.Contains(target))
                                 m_leavingTargets.Add(target);
                         }
                         foreach (IGestureListener target in m_leavingTargets)
@@ -436,7 +455,7 @@ namespace Grafiti
                     // update INTERSECTION list
                     m_intersectionTargets.RemoveAll(delegate(IGestureListener target)
                     {
-                        if (!intersectionStartingList.Contains(target))
+                        if (!intersectionStartingAndResettingList.Contains(target))
                         {
                             newIntersect = true;
                             return true;
@@ -449,7 +468,7 @@ namespace Grafiti
             #endregion
 
 
-            #region UPDATE (for all updating traces)
+            #region all modified traces
 
             List<List<IGestureListener>> currentEnteringTargetLists = new List<List<IGestureListener>>();
             foreach (Trace t in m_allCurrentTraces)
@@ -472,11 +491,13 @@ namespace Grafiti
                     if (Surface.INTERSECTION_MODE)
                     {
                         foreach (Trace t in m_traces)
-                            if (!t.CurrentTargets.Contains(enteringTarget))
+                        {
+                            if (t.Alive && !t.CurrentTargets.Contains(enteringTarget))
                             {
                                 trueForAll = false;
                                 break;
                             }
+                        }
                     }
                     if (trueForAll)
                     {
@@ -510,7 +531,7 @@ namespace Grafiti
                     if (!Surface.INTERSECTION_MODE)
                     {
                         foreach (Trace t in m_traces)
-                            if (t.CurrentTargets.Contains(leavingTarget))
+                            if (t.Alive && t.CurrentTargets.Contains(leavingTarget))
                             {
                                 falseForAll = false;
                                 break;
@@ -528,7 +549,59 @@ namespace Grafiti
                 }
             }
 
-            #region CLOSEST TARGET
+            #endregion
+
+
+            #region removed traces
+
+            if (!Alive) // if all traces have been removed then compute FINAL targets
+            {
+                long finalTimeStamp = m_allCurrentTraces[0].Last.TimeStamp;
+                List<List<IGestureListener>> finalTargetLists = new List<List<IGestureListener>>();
+                foreach (Trace deadTrace in m_endingSequenceReversed)
+                {
+                    if (finalTimeStamp - deadTrace.Last.TimeStamp > Surface.GROUPING_SYNCH_TIME)
+                        break;
+                    finalTargetLists.Add(deadTrace.FinalTargets);
+                }
+
+                if (Surface.INTERSECTION_MODE)
+                    m_finalTargets.AddRange(Intersect(finalTargetLists));
+                else
+                    m_finalTargets.AddRange(Union(finalTargetLists));
+
+                if (m_finalTargets.Count > 0)
+                    newFinal = true;
+            }
+            else
+            {
+                // In INTERSECTION mode, if any trace has been removed 
+                // then some target may be added to the CURRENT (and ENTERING) list
+                if (m_currentEndingTraces.Count > 0 && Surface.INTERSECTION_MODE)
+                {
+                    List<List<IGestureListener>> currentCurrentTargetLists = new List<List<IGestureListener>>();
+                    foreach (Trace t in m_traces)
+                        if (t.Alive)
+                            currentCurrentTargetLists.Add(t.CurrentTargets);
+                    List<IGestureListener> currentTargets = Intersect(currentCurrentTargetLists);
+
+                    foreach (IGestureListener currentTarget in currentTargets)
+                    {
+                        if (!m_currentTargets.Contains(currentTarget))
+                        {
+                            m_enteringTargets.Add(currentTarget);
+                            m_currentTargets.Add(currentTarget);
+                            newEntering = true;
+                            newCurrent = true;
+                        }
+                    }
+                }
+            }
+
+            #endregion
+
+
+            #region closest target
 
             float minDist = Surface.GROUPING_SPACE * Surface.GROUPING_SPACE + 1;
             float tempDist;
@@ -553,6 +626,12 @@ namespace Grafiti
                     m_closestLeavingTarget = m_closestCurrentTarget;
                     newClosestLvn = true;
                 }
+                else
+                    if (m_closestLeavingTarget != null)
+                    {
+                        m_closestLeavingTarget = null;
+                        newClosestLvn = true;
+                    }
 
                 m_closestCurrentTarget = closestTarget;
                 m_closestEnteringTarget = closestTarget;
@@ -571,34 +650,6 @@ namespace Grafiti
                     m_closestLeavingTarget = null;
                     newClosestLvn = true;
                 }
-            }
-
-            #endregion
-
-
-            #endregion
-
-
-            #region DEL
-
-            if (!Alive)
-            {
-                long finalTimeStamp = m_allCurrentTraces[0].Last.TimeStamp;
-                List<List<IGestureListener>> finalTargetLists = new List<List<IGestureListener>>();
-                foreach (Trace deadTrace in m_endingSequenceReversed)
-                {
-                    if (finalTimeStamp - deadTrace.Last.TimeStamp > Surface.GROUPING_SYNCH_TIME)
-                        break;
-                    finalTargetLists.Add(deadTrace.FinalTargets);
-                }
-
-                if (Surface.INTERSECTION_MODE)
-                    m_finalTargets.AddRange(Intersect(finalTargetLists));
-                else
-                    m_finalTargets.AddRange(Union(finalTargetLists));
-
-                if (m_finalTargets.Count > 0)
-                    newFinal = true;
             }
 
             #endregion
@@ -672,9 +723,8 @@ namespace Grafiti
             float minDist = Surface.GROUPING_SPACE * Surface.GROUPING_SPACE + 1;
             foreach (Trace trace in m_traces)
             {
-                if (!trace.Alive)
-                    continue;
-                minDist = Math.Min(trace.Last.SquareDistance(cursor), minDist);
+                if (trace.Alive)
+                    minDist = Math.Min(trace.Last.SquareDistance(cursor), minDist);
             }
 
             return minDist;

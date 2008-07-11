@@ -42,24 +42,33 @@ namespace ClientNamespace
 
             // these will force the classes to compile
             new Basic1FingerGR(new GRConfiguration());
+            new BasicMultiFingerGR(new GRConfiguration());
+            new PinchingGR(new GRConfiguration());
             new SimpleGR(new GRConfiguration());
             new MultiTraceGR(new GRConfiguration());
 
             // LGRs
-            m_gEvtMgr.SetPriorityNumber(1);
-            m_gEvtMgr.RegisterHandler(typeof(SimpleGR), SimpleGR.Events.SimpleGesture, new GestureEventHandler(SimpleGestureEventHandler));
+            //m_gEvtMgr.SetPriorityNumber(1);
+            //m_gEvtMgr.RegisterHandler(typeof(SimpleGR), SimpleGR.Events.SimpleGesture, new GestureEventHandler(SimpleGestureEventHandler));
+            
+            m_gEvtMgr.SetPriorityNumber(0);
+            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), PinchingGR.Events.Pinch, OnPinchingEvent);
+            //m_gEvtMgr.RegisterHandler(typeof(PinchingGR), PinchingGR.Events.Down, OnPinchingFingerEvent);
+            //m_gEvtMgr.RegisterHandler(typeof(PinchingGR), PinchingGR.Events.Up, OnPinchingFingerEvent);
+            //m_gEvtMgr.RegisterHandler(typeof(PinchingGR), PinchingGR.Events.Move, OnPinchingFingerEvent);
+
 
             // GGRs
             m_gEvtMgr.SetPriorityNumber(0);
-            m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Tap, OnBasicSingleFingerEvent);
-            m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.DoubleTap, OnBasicSingleFingerEvent);
-            m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.TripleTap, OnBasicSingleFingerEvent);
-            m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Down, OnBasicSingleFingerEvent);
-            m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Up, OnBasicSingleFingerEvent);
-            m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Enter, OnBasicSingleFingerEvent);
-            m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Leave, OnBasicSingleFingerEvent);
-            m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Hover, OnBasicSingleFingerEvent);
-            //m_gEvtMgr.RegisterHandler(typeof(Basic1FingerGR), Basic1FingerGR.Events.Move, OnBasicSingleFingerEvent);
+            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), BasicMultiFingerGR.Events.Tap, OnBasicFingerEvent);
+            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), BasicMultiFingerGR.Events.DoubleTap, OnBasicFingerEvent);
+            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), BasicMultiFingerGR.Events.TripleTap, OnBasicFingerEvent);
+            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), BasicMultiFingerGR.Events.Enter, OnBasicFingerEvent);
+            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), BasicMultiFingerGR.Events.Leave, OnBasicFingerEvent);
+            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), BasicMultiFingerGR.Events.Hover, OnBasicFingerEvent);
+            ////m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), BasicMultiFingerGR.Events.Down, OnBasicFingerEvent);
+            ////m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), BasicMultiFingerGR.Events.Up, OnBasicFingerEvent);
+            ////m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), Basic1FingerGR.Events.Move, OnBasicFingerEvent);
 
             //m_gEvtMgr.SetPriorityNumber(1);
             //m_gEvtMgr.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceStarted, OnMultiTraceEvent);
@@ -70,19 +79,32 @@ namespace ClientNamespace
             //m_gEvtMgr.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceUp, OnMultiTraceEvent);
             //m_gEvtMgr.RegisterHandler(typeof(MultiTraceGR), MultiTraceGR.Events.MultiTraceEnd, OnMultiTraceEvent);
         }
-
-        public void OnBasicSingleFingerEvent(object obj, GestureEventArgs args)
+        
+        
+        public void OnBasicFingerEvent(object obj, GestureEventArgs args)
         {
-            Basic1FingerEventArgs arg = (Basic1FingerEventArgs)args;
-            Console.WriteLine("{0} on {1} ({2};{3})", args.EventId, this, arg.X, arg.Y);
+            BasicMultiFingerEventArgs cArgs = (BasicMultiFingerEventArgs)args;
+            Console.WriteLine("{0} on {1} ({2};{3}), n fingers: {4}", args.EventId, this, cArgs.X, cArgs.Y, cArgs.NFingers);
         }
 
-        public void OnMultiTraceEvent(object MultiTraceGR, GestureEventArgs args)
+        public void OnPinchingFingerEvent(object obj, GestureEventArgs args)
+        {
+            FingerEventArgs cArgs = (FingerEventArgs)args;
+            Console.WriteLine("{4}:{0} on {1} ({2};{3})", args.EventId, this, cArgs.X, cArgs.Y, cArgs.SessionId);
+        }
+        public void OnPinchingEvent(object obj, GestureEventArgs args)
+        {
+            PinchEventArgs cArgs = (PinchEventArgs)args;
+            Console.WriteLine("PINCH: scl: {0}; sclSpeed: {1}, trl: {2};{3}",//, rot: {4}",
+                cArgs.Scaling, cArgs.ScalingSpeed, cArgs.TraslationX, cArgs.TraslationY);//, arg.Rotation);
+        }
+
+        public void OnMultiTraceEvent(object obj, GestureEventArgs args)
         {
             Console.WriteLine("{0} on {1}, number of fingers: {2}", ((MultiTraceEventArgs)args).EventId, this, ((MultiTraceEventArgs)args).NOfFingers);
         }
 
-        public void SimpleGestureEventHandler(object source, GestureEventArgs args)
+        public void SimpleGestureEventHandler(object obj, GestureEventArgs args)
         {
             Console.WriteLine("SimpleGestureEvent on {0}", this);
         }

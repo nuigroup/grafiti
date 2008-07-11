@@ -32,16 +32,20 @@ namespace Grafiti
     public class GestureEventArgs : EventArgs
     {
         private Enum m_eventId;
+        private int m_groupId;
 
         public Enum EventId { get { return m_eventId; } }
+        public int GroupId { get { return m_groupId; } }
 
         public GestureEventArgs()
         {
             m_eventId = null;
+            m_groupId = -1;
         }
-        public GestureEventArgs(Enum id)
+        public GestureEventArgs(Enum eventId, int groupId)
         {
-            m_eventId = id;
+            m_eventId = eventId;
+            m_groupId = groupId;
         }
 
         // public abstract Clone() ?
