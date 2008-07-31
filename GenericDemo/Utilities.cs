@@ -1,5 +1,5 @@
-﻿/*
-	Grafiti library
+/*
+	GenericDemo, Grafiti demo application
 
     Copyright 2008  Alessandro De Nardi <alessandro.denardi@gmail.com>
 
@@ -15,30 +15,22 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 using System;
-using System.Diagnostics;
 using System.Collections.Generic;
-using System.Reflection;
-using TUIO;
+using System.Drawing;
+using System.Text;
 
-namespace Grafiti
+using Grafiti;
+
+namespace GenericDemo
 {
-    public abstract class LocalGestureRecognizer : GestureRecognizer
+    class Utilities
     {
-        private ITuioObjectGestureListener m_target;
-        private float m_squareDistanceFromTarget;
-
-        public ITuioObjectGestureListener Target { get { return m_target; } internal set { m_target = value; } }
-        internal float SquareDistanceFromTarget { get { return m_squareDistanceFromTarget; } set { m_squareDistanceFromTarget = value; } }
-
-        public LocalGestureRecognizer(GRConfiguration configuration) : base(configuration) { }
-
-        internal override sealed void AddHandler(string ev, GestureEventHandler handler)
+        public static PointF GetScreenPoint(Cursor cursor)
         {
-            GetEventInfo(ev).AddEventHandler(this, handler);
+            return new PointF(cursor.X * MainForm.height, cursor.Y * MainForm.height);    
         }
-    } 
+    }
 }

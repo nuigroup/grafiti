@@ -41,16 +41,16 @@ namespace Grafiti
             private readonly Type m_grType;                 // type of the GR
             private readonly GRConfiguration m_grConf;      // configuration of the GR
             private readonly int m_priorityNumber;          // priority number of the GR
-            private readonly Enum m_event;                  // event as declared in an enumeration in the GR class
+            private readonly string m_event;                // event as string
             private readonly GestureEventHandler m_handler; // listener's handler
 
             internal Type GRType { get { return m_grType; } }
             internal GRConfiguration GRConfiguration { get { return m_grConf; } }
             internal int PriorityNumber { get { return m_priorityNumber; } }
-            internal Enum Event { get { return m_event; } }
+            internal string Event { get { return m_event; } }
             internal GestureEventHandler Handler { get { return m_handler; } }
 
-            public RegistrationInfo(Type grType, GRConfiguration grConf, int pn, Enum ev, GestureEventHandler handler)
+            public RegistrationInfo(Type grType, GRConfiguration grConf, int pn, string ev, GestureEventHandler handler)
             {
                 m_grType = grType;
                 m_grConf = grConf;
@@ -94,7 +94,7 @@ namespace Grafiti
             }
         }
 
-        internal void RegisterHandler(Type grType, GRConfiguration grConf, int priorityNumber, Enum ev, GestureEventHandler handler)
+        internal void RegisterHandler(Type grType, GRConfiguration grConf, int priorityNumber, string ev, GestureEventHandler handler)
         {
             RegistrationInfo grInfo = new RegistrationInfo(grType, grConf, priorityNumber, ev, handler);
             

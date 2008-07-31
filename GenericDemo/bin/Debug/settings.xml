@@ -1,0 +1,17 @@
+<!--
+Global settings for grafiti framework.
+
+For LGR_TARGET_LIST attribute, refer to the following enumeration:
+INITIAL_TARGET_LIST      = 0
+INTERSECTION_TARGET_LIST = 1
+-->
+
+<settings 
+	SCREEN_RATIO        = "1.333333"
+	INTERSECTION_MODE   = "true"
+	GROUPING_SYNCH_TIME = "1000"
+	GROUPING_SPACE      = "0.2"
+	TRACE_TIME_GAP      = "200"
+	TRACE_SPACE_GAP     = "0.02"
+	LGR_TARGET_LIST     = "1"
+/>

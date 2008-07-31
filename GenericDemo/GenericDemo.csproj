@@ -5,13 +5,11 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProductVersion>8.0.50727</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{51B4EDB6-E849-4CDE-A7F8-E3E33C3A9828}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{B6DEC592-34C3-4EF7-9DED-B7008A151357}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Grafiti</RootNamespace>
-    <AssemblyName>Grafiti</AssemblyName>
-    <StartupObject>
-    </StartupObject>
+    <RootNamespace>GenericDemo</RootNamespace>
+    <AssemblyName>GenericDemo</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -39,39 +37,33 @@
   </Target>
   -->
   <ItemGroup>
-    <Compile Include="Cursor.cs" />
-    <Compile Include="DoubleDictionaries.cs" />
-    <Compile Include="GestureEventManager.cs" />
-    <Compile Include="GestureRecognizer.cs" />
-    <Compile Include="GlobalGestureRecognizer.cs" />
-    <Compile Include="Group.cs" />
-    <Compile Include="GroupGRManager.cs" />
-    <Compile Include="GRRegistry.cs" />
-    <Compile Include="GRs\Basic1FingerGR.cs" />
-    <Compile Include="GRs\BasicMultiFingerGR.cs" />
-    <Compile Include="GRs\MultiTraceGR.cs" />
-    <Compile Include="GRs\PinchingGR.cs" />
-    <Compile Include="IGestureListener.cs" />
-    <Compile Include="LocalGestureRecognizer.cs" />
-    <Compile Include="OSC.NET\OSCBundle.cs" />
-    <Compile Include="OSC.NET\OSCMessage.cs" />
-    <Compile Include="OSC.NET\OSCPacket.cs" />
-    <Compile Include="OSC.NET\OSCReceiver.cs" />
-    <Compile Include="OSC.NET\OSCTransmitter.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Settings.cs" />
-    <Compile Include="Surface.cs" />
-    <Compile Include="Trace.cs" />
-    <Compile Include="TuioClient\TuioClient.cs" />
-    <Compile Include="TuioClient\TuioContainer.cs" />
-    <Compile Include="TuioClient\TuioCursor.cs" />
-    <Compile Include="TuioClient\TuioListener.cs" />
-    <Compile Include="TuioClient\TuioObject.cs" />
-    <Compile Include="TuioClient\TuioPoint.cs" />
+    <EmbeddedResource Include="Main.resx">
+      <DependentUpon>Main.cs</DependentUpon>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="DemoGroup.cs" />
+    <Compile Include="DemoObject.cs" />
+    <Compile Include="DemoTrace.cs" />
+    <Compile Include="Main.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="DemoObjectManager.cs">
+    </Compile>
+    <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Data" />
-    <Reference Include="System.XML" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GrafitiFramework\Grafiti.csproj">
+      <Project>{51B4EDB6-E849-4CDE-A7F8-E3E33C3A9828}</Project>
+      <Name>Grafiti</Name>
+    </ProjectReference>
   </ItemGroup>
 </Project>

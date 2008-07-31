@@ -22,7 +22,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Grafiti;
-using TUIO;
 
 namespace Grafiti
 {
@@ -38,7 +37,7 @@ namespace Grafiti
         public float CentroidX { get { return m_centroidX; } }
         public float CentroidY { get { return m_centroidY; } }
 
-        public FingerEventArgs(Enum eventId, int groupId, long sessionId, float x, float y,
+        public FingerEventArgs(string eventId, int groupId, long sessionId, float x, float y,
             float centroidX, float centroidY)
             : base(eventId, groupId)
         {
@@ -48,6 +47,11 @@ namespace Grafiti
             m_centroidX = centroidX;
             m_centroidY = centroidY;
         }
+    }
+    public class PinchBeginEventArgs : GestureEventArgs
+    {
+        public PinchBeginEventArgs(string eventId, int groupId)
+            : base(eventId, groupId) { }
     }
     public class PinchEventArgs : GestureEventArgs
     {
@@ -72,16 +76,16 @@ namespace Grafiti
         public float CentroidX { get { return m_centroidX; } }
         public float CentroidY { get { return m_centroidY; } }
 
-        public PinchEventArgs(Enum eventId, int groupId, float value, float speed,
+        public PinchEventArgs(string eventId, int groupId, float value, float speed,
             float centroidX, float centroidY, List<long> ids)
             : base(eventId, groupId)
         {
-            if ((PinchingGR.Events)eventId == PinchingGR.Events.Scale)
+            if (eventId == "Scale")
             {
                 m_scale = value;
                 m_scaleSpeed = speed;
             } 
-            else if ((PinchingGR.Events)eventId == PinchingGR.Events.Rotate)
+            else if (eventId == "Rotate")
             {
                 m_rotation = value;
                 m_rotationSpeed = speed;
@@ -94,11 +98,11 @@ namespace Grafiti
             m_centroidY = centroidY;
             m_ids = ids;
         }
-        public PinchEventArgs(Enum eventId, int groupId, float valueX, float valueY, float speedX, float speedY,
+        public PinchEventArgs(string eventId, int groupId, float valueX, float valueY, float speedX, float speedY,
             float centroidX, float centroidY, List<long> ids)
             : base(eventId, groupId)
         {
-            if ((PinchingGR.Events)eventId == PinchingGR.Events.Translate)
+            if (eventId == "Translate")
             {
                 m_traslationX = valueX;
                 m_traslationY = valueY;
@@ -113,7 +117,7 @@ namespace Grafiti
             m_centroidY = centroidY;
             m_ids = ids;
         }
-        public PinchEventArgs(Enum eventId, int groupId, float scale, float scaleSpeed,
+        public PinchEventArgs(string eventId, int groupId, float scale, float scaleSpeed,
             float traslationX, float traslationY, float traslationXSpeed, float traslationYSpeed,
             float rotation, float rotationSpeed, float centroidX, float centroidY, List<long> ids)
             : base(eventId, groupId)
@@ -134,14 +138,14 @@ namespace Grafiti
 
     public class PinchingGRConfiguration : GRConfiguration
     {
-        public readonly float SCALE_FACTOR;
-        public const float DEFAULT_SCALE_FACTOR = 1000;
+        public readonly float SCALE_FACTOR; // no
+        public const float DEFAULT_SCALE_FACTOR = 1;
 
-        public readonly float TRASLATE_FACTOR;
-        public const float DEFAULT_TRASLATE_FACTOR = 1000;
+        public readonly float TRASLATE_FACTOR; // no
+        public const float DEFAULT_TRASLATE_FACTOR = 1;
 
         public PinchingGRConfiguration()
-            : this(false) { }
+            : this(true) { } // Exclusive by default
 
         public PinchingGRConfiguration(bool exclusive)
             : this(DEFAULT_SCALE_FACTOR, DEFAULT_TRASLATE_FACTOR, exclusive) { }
@@ -157,17 +161,6 @@ namespace Grafiti
 
     public class PinchingGR : LocalGestureRecognizer
     {
-        public enum Events
-        {
-            Down,
-            Up,
-            Move,
-            Scale,
-            Translate,
-            Rotate,
-            Pinch // scale + translate + rotate  altogether
-        }
-
         // Configuration parameters
         private readonly float SCALE_FACTOR;
         private readonly float TRASLATE_FACTOR;
@@ -183,7 +176,7 @@ namespace Grafiti
         
         // Centroid of living traces (last cursors): reference for traslation
         private float m_centroidXRef, m_centroidYRef;
-
+        
         // Angle between two fingers: reference for rotation
         private float m_angleRef;
         
@@ -203,7 +196,6 @@ namespace Grafiti
         private float m_rotationSpeed;
 
         private GestureRecognitionResult m_defaultResult;
-
 
         public PinchingGR(GRConfiguration configuration)
             : base(configuration)
@@ -240,44 +232,54 @@ namespace Grafiti
         public event GestureEventHandler Rotate;
         public event GestureEventHandler Translate;
         public event GestureEventHandler Pinch;
+        public event GestureEventHandler TranslateOrScaleBegin;
+        public event GestureEventHandler RotateBegin;
 
         protected void OnDown(long sessionId, float x, float y)
         {
             AppendEvent(Down, new FingerEventArgs(
-                Events.Down, Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
+                "Down", Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
         }
         protected void OnUp(long sessionId, float x, float y)
         {
             AppendEvent(Up, new FingerEventArgs(
-                Events.Up, Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
+                "Up", Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
         }
         protected void OnMove(long sessionId, float x, float y)
         {
             AppendEvent(Move, new FingerEventArgs(
-                Events.Move, Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
+                "Move", Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
+        }
+        protected void OnTranslateOrScaleBegin()
+        {
+            AppendEvent(TranslateOrScaleBegin, new PinchBeginEventArgs("TranslateOrScaleBegin", Group.Id));
+        }
+        protected void OnRotateBegin()
+        {
+            AppendEvent(RotateBegin, new PinchBeginEventArgs("RotateBegin", Group.Id));
         }
         protected void OnScale()
         {
             AppendEvent(Scale, new PinchEventArgs(
-                Events.Scale, Group.Id, m_scale, m_scaleSpeed,
+                "Scale", Group.Id, m_scale, m_scaleSpeed,
                 Group.CentroidLivingX, Group.CentroidLivingY, m_ids)); 
         }
         protected void OnTranslate() 
         {
             AppendEvent(Translate, new PinchEventArgs(
-                Events.Translate, Group.Id, m_translateX, m_translateY, m_translateXSpeed, m_translateYSpeed,
+                "Translate", Group.Id, m_translateX, m_translateY, m_translateXSpeed, m_translateYSpeed,
                 Group.CentroidLivingX, Group.CentroidLivingY, m_ids));
         }
         protected void OnRotate() 
         {
             AppendEvent(Rotate, new PinchEventArgs(
-                Events.Rotate, Group.Id, m_rotation, m_rotationSpeed,
+                "Rotate", Group.Id, m_rotation, m_rotationSpeed,
                 Group.CentroidLivingX, Group.CentroidLivingY, m_ids)); 
         }
         protected void OnPinch()
         {
             AppendEvent(Pinch, new PinchEventArgs(
-                Events.Pinch, Group.Id, m_scale, m_scaleSpeed,
+                "Pinch", Group.Id, m_scale, m_scaleSpeed,
                 m_translateX, m_translateY, m_translateXSpeed, m_translateYSpeed, m_rotation, m_rotationSpeed,
                 Group.CentroidLivingX, Group.CentroidLivingY, m_ids));
         }
@@ -289,15 +291,15 @@ namespace Grafiti
             // are updated
             bool allFingersHaveBeenUpdated = true;
 
-            TuioCursor cursor;
+            Cursor cursor;
 
             // Update list of cursor ids.
             foreach (Trace trace in traces)
             {
                 cursor = trace.Last;
-                if (cursor.State == TuioCursor.ADDED)
+                if (cursor.State == Cursor.States.ADDED)
                     m_ids.Add(cursor.SessionId);
-                else if (cursor.State == TuioCursor.REMOVED)
+                else if (cursor.State == Cursor.States.REMOVED)
                     m_ids.Remove(cursor.SessionId);
             }
 
@@ -306,14 +308,14 @@ namespace Grafiti
             foreach (Trace trace in traces)
             {
                 cursor = trace.Last;
-                if (cursor.State == TuioCursor.UPDATED)
+                if (cursor.State == Cursor.States.UPDATED)
                     OnMove(cursor.SessionId, cursor.X, cursor.Y);
                 else
                 {
                     allFingersHaveBeenUpdated = false;
-                    if (cursor.State == TuioCursor.ADDED)
+                    if (cursor.State == Cursor.States.ADDED)
                         OnDown(cursor.SessionId, cursor.X, cursor.Y);
-                    else if (cursor.State == TuioCursor.REMOVED)
+                    else if (cursor.State == Cursor.States.REMOVED)
                         OnUp(cursor.SessionId, cursor.X, cursor.Y);
                 }
             }
@@ -328,10 +330,14 @@ namespace Grafiti
             {
                 UpdateCentroidRef();
                 UpdateDistanceFromCentroidRef();
+                OnTranslateOrScaleBegin();
 
                 // If there are two fingers then recalculate reference angle for rotation
                 if (Group.NOfAliveTraces == 2)
+                {
                     UpdateAngleRef();
+                    OnRotateBegin();
+                }
                 
                 return m_defaultResult;
             }

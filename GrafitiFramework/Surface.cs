@@ -18,6 +18,7 @@
 */
 
 using System;
+using System.Xml;
 using System.Collections.Generic;
 using TUIO;
 using Grafiti;
@@ -26,64 +27,71 @@ namespace Grafiti
 {
     public class Surface : TuioListener
     {
-        #region Configuration parameters
-        // TODO: make them settable via xml
-
-        // Group's targeting method
-        internal static readonly bool INTERSECTION_MODE = true;
-
-        // The maximum time in milliseconds between cursors to determine the group's INITIAL and FINAL lists
-        internal static readonly int GROUPING_SYNCH_TIME = 2000;//200;
-
-        // Maximum space between traces to be grouped together
-        internal static readonly float GROUPING_SPACE = 0.2f;
-
-        // Maximum time in millisecond between a 'remove' of a cursor and an 'add' of another cursor, to
-        // associate the cursors to the same (discontinuous) trace.
-        internal static readonly int TRACE_TIME_GAP = 2000; //200;
-
-        // Maximum space between a 'remove' of a cursor and an 'add' of another cursor, to
-        // associate the cursors to the same (discontinuous) trace.
-        internal static readonly float TRACE_SPACE_GAP = 0.01f;
-
-        // Group's target lists used to determine which LGRs will be called
-        internal enum LGRTargetLists
-        {
-            INITIAL_TARGET_LIST = 0,
-            INTERSECTION_TARGET_LIST = 1,
-            //FINAL_TARGET_LIST = 2
-        }
-        internal static readonly LGRTargetLists LGR_TARGET_LIST = LGRTargetLists.INTERSECTION_TARGET_LIST;
-        #endregion
-
         #region Private members
+
+        // The instance object
         private static Surface m_instance = null;
+        // Locking object
         private static readonly object m_lock = new object();
 
-        private List<IGestureListener> m_listeners;
+        // List of gesture listeners associated to tuio objects.
+        private List<ITuioObjectGestureListener> m_gListeners;
 
-        private List<TuioCursor> m_currentAddingCursors, m_currentUpdatingCursors, m_currentRemovingCursors;
-        private List<Group> m_currentUpdatingGroups;
-        private List<Group> m_joinableGroups;
+        // Accumulators for adding, updating and removing cursors.
+        // These lists will be cleared at the end of every TuioListener.refresh() call,
+        // thus their purpose is merely private to this class
+        private List<Cursor> m_addingCursors, m_updatingCursors, m_removingCursors;
+
+        // List of recently died traces. A trace dies when a REMOVED cursor is added to their path,
+        // (that is when the user lifts the finger from the table). Within a time specified by
+        // Settings.TRACE_TIME_GAP and a space specified by Settings.TRACE_SPACE_GAP the trace can resurrect,
+        // that is a new cursor can be added to the path of the trace so that this reborns.
         private List<Trace> m_resurrectableTraces;
-        private Dictionary<long, Trace> m_cursorTraceTable;
-        private long m_lastProcessedRefreshTimeStamp; // only for debug
-        private DateTime m_startTime; // only for debug
+
+        // List of alive groups. A group is alive when it contains alive or resurrectable traces.
+        private List<Group> m_aliveGroups;
+
+        // Accumulators for added, removed or modified alive groups (this includes also adding and removing).
+        // These lists will be cleared at the beginning of every TuioListener.refresh() call, so
+        // that they will be accessible by the client through the relative properties.
+        private List<Group> m_addedGroups, m_removedGroups, m_touchedGroups;
+
+        // A dictionary to associate tuio cursors' ids with the relative trace
+        private Dictionary<int, Trace> m_cursorTraceTable;
+
+        // Debugging variables
+        private int m_lastProcessedRefreshTimeStamp;
+        private DateTime m_startTime;
+        #endregion
+
+        #region Public properties
+
+        // Ratio of the input screen.
+        public const float SCREEN_RATIO = 4f / 3f;
+
+        public List<Group> AddingGroups { get { return m_addedGroups; } }
+        public List<Group> RemovingGroups { get { return m_removedGroups; } }
+        public List<Group> TouchedGroups { get { return m_touchedGroups; } }
+        public List<Group> AliveGroups { get { return m_aliveGroups; } } 
         #endregion
 
         #region Private constructor
         private Surface()
 		{
-            m_listeners = new List<IGestureListener>();
-            m_currentAddingCursors = new List<TuioCursor>();
-            m_currentUpdatingCursors = new List<TuioCursor>();
-            m_currentRemovingCursors = new List<TuioCursor>();
+            m_gListeners = new List<ITuioObjectGestureListener>();
+            m_addingCursors = new List<Cursor>();
+            m_updatingCursors = new List<Cursor>();
+            m_removingCursors = new List<Cursor>();
             m_resurrectableTraces = new List<Trace>();
-            m_joinableGroups = new List<Group>();
-            m_currentUpdatingGroups = new List<Group>();
-            m_cursorTraceTable = new Dictionary<long, Trace>();
+            m_aliveGroups = new List<Group>();
+            m_addedGroups = new List<Group>();
+            m_removedGroups = new List<Group>();
+            m_touchedGroups = new List<Group>();
+            m_cursorTraceTable = new Dictionary<int, Trace>();
             m_lastProcessedRefreshTimeStamp = 0;
             m_startTime = DateTime.Now;
+
+            Settings.Initialize();
         }
         #endregion
 
@@ -103,13 +111,13 @@ namespace Grafiti
         #endregion
 
         #region Client's interface methods
-        public void AddListener(IGestureListener listener)
+        public void AddListener(ITuioObjectGestureListener listener)
         {
-            m_listeners.Add(listener);
+            m_gListeners.Add(listener);
         }
-        public void RemoveListener(IGestureListener listener)
+        public void RemoveListener(ITuioObjectGestureListener listener)
         {
-            m_listeners.Remove(listener);
+            m_gListeners.Remove(listener);
             GestureEventManager.Instance.UnregisterAllHandlersOf(listener);
         }
         #endregion
@@ -118,116 +126,70 @@ namespace Grafiti
         void TuioListener.addTuioObject(TuioObject obj) { }
         void TuioListener.updateTuioObject(TuioObject obj) { }
         void TuioListener.removeTuioObject(TuioObject obj) { }
-        void TuioListener.addTuioCursor(TuioCursor cursor)
+        void TuioListener.addTuioCursor(TuioCursor c)
         {
-            // only for debug
-            //m_currentAddingCursors.RemoveAll(delegate(TuioCursor cur) { return cur.SessionId == cursor.SessionId; }); 
-            
-            m_currentAddingCursors.Add(cursor);
+            m_addingCursors.Add(new Cursor((int)(c.SessionId), c.X * SCREEN_RATIO, c.Y, Cursor.States.ADDED));
         }
-        void TuioListener.updateTuioCursor(TuioCursor cursor)
+        void TuioListener.updateTuioCursor(TuioCursor c)
         {
-            // only for debug
-            //m_currentUpdatingCursors.RemoveAll(delegate(TuioCursor cur) { return cur.SessionId == cursor.SessionId; });
-            
-            m_currentUpdatingCursors.Add(cursor);
+            m_updatingCursors.Add(new Cursor((int)(c.SessionId), c.X * SCREEN_RATIO, c.Y, Cursor.States.UPDATED));
         }
-        void TuioListener.removeTuioCursor(TuioCursor cursor)
+        void TuioListener.removeTuioCursor(TuioCursor c)
         {
-            // only for debug
-            //m_currentRemovingCursors.RemoveAll(delegate(TuioCursor cur) { return cur.SessionId == cursor.SessionId; });
-            
-            m_currentRemovingCursors.Add(cursor);
-            cursor.State = TuioCursor.REMOVED;  // fixes a bug in tuio client
+            m_removingCursors.Add(new Cursor((int)(c.SessionId), c.X * SCREEN_RATIO, c.Y, Cursor.States.REMOVED));
         }
-        void TuioListener.refresh(long timeStamp)
+        void TuioListener.refresh(long timeStampAsLong)
         {
-            // only for debug
-            //if (timeStamp - lastProcessedRefreshTimeStamp < 2000)
-            //    return;
-            //Console.WriteLine("Refresh");
+            m_addedGroups.Clear();
+            m_removedGroups.Clear();
+            m_touchedGroups.Clear();
 
-            #region workaround for a tuio client issue about timestamp
-            // Sometimes two (at least) refresh calls share the same timestamp value
-            // This workaround will skip the calls that follow the first one with the same a timestamp value,
-            // maintaining the cursor lists consistent.
-            if (timeStamp == m_lastProcessedRefreshTimeStamp)
-                return;
-
-            Console.WriteLine(timeStamp - m_lastProcessedRefreshTimeStamp);
-            m_lastProcessedRefreshTimeStamp = timeStamp;
-
-            // Remove updating that are included also in adding or removing (considering the same session id)
-            m_currentUpdatingCursors.RemoveAll(delegate(TuioCursor cursor)
-                {
-                    long updatingCursorId = cursor.SessionId;
-                    foreach(TuioCursor addingCursor in m_currentAddingCursors)
-                    {
-                        if(addingCursor.SessionId == updatingCursorId)
-                            return true;
-                    }
-                    foreach(TuioCursor removingCursor in m_currentRemovingCursors)
-                    {
-                        if(removingCursor.SessionId == updatingCursorId)
-                            return true;
-                    }
-                    return false;
-                }
-            );
-            // Remove cursors that appear both in adding and removing (considering the same session id)
-            m_currentAddingCursors.RemoveAll(delegate(TuioCursor cursor)
-            {
-                long addingCursorId = cursor.SessionId;
-                foreach (TuioCursor removingCursor in m_currentRemovingCursors)
-                {
-                    if (removingCursor.SessionId == addingCursorId)
-                    {
-                        m_currentRemovingCursors.Remove(removingCursor);
-                        return true;
-                    }
-                }
-                return false;
-            }
-            );
-            #endregion
-
+            int timeStamp = (int)timeStampAsLong;
 
             RemoveNonResurrectableTraces(timeStamp);
             RemoveNonResurrectableGroups(timeStamp);
 
-            ProcessCurrentAddingCursors(timeStamp);
-            ProcessCurrentUpdatingCursors(timeStamp);
             ProcessCurrentRemovingCursors(timeStamp);
+            ProcessCurrentUpdatingCursors(timeStamp);
+            ProcessCurrentAddingCursors(timeStamp);
 
-            foreach (Group group in m_currentUpdatingGroups)
+            foreach (Group group in m_touchedGroups)
                 group.Process(timeStamp);
 
-            m_currentAddingCursors.Clear();
-            m_currentUpdatingCursors.Clear();
-            m_currentRemovingCursors.Clear();
-            m_currentUpdatingGroups.Clear();
+            m_addingCursors.Clear();
+            m_updatingCursors.Clear();
+            m_removingCursors.Clear();
         }
         #endregion
 
         #region Private methods
-        private void RemoveNonResurrectableTraces(long timeStamp)
+        private void RemoveNonResurrectableTraces(int timeStamp)
         {
             int i;
-            for (i = 0; i < m_resurrectableTraces.Count && timeStamp - m_resurrectableTraces[i].Last.TimeStamp <= TRACE_TIME_GAP; i++) ;
+            for (i = 0; i < m_resurrectableTraces.Count && timeStamp - m_resurrectableTraces[i].Last.TimeStamp <= Settings.TRACE_TIME_GAP; i++) ;
+            //Console.WriteLine("Removing {0} non resurrectable traces", m_resurrectableTraces.Count - i);
             m_resurrectableTraces.RemoveRange(i, m_resurrectableTraces.Count - i);
         }
-        private void RemoveNonResurrectableGroups(long timeStamp)
+        private void RemoveNonResurrectableGroups(int timeStamp)
         {
-            m_joinableGroups.RemoveAll(delegate(Group group)
+            m_aliveGroups.RemoveAll(delegate(Group group)
             {
-                return (!group.Alive && timeStamp - group.LastTimeStamp > TRACE_TIME_GAP);
+                if (!group.Alive && timeStamp - group.LastTimeStamp > Settings.TRACE_TIME_GAP)
+                {
+                    m_removedGroups.Add(group);
+                    //Console.WriteLine("Removed non resurrectable group");
+                    return true;
+                }
+                else
+                    return false;
             });
         }
-        private void ProcessCurrentAddingCursors(long timeStamp)
+        private void ProcessCurrentAddingCursors(int timeStamp)
         {
-            foreach (TuioCursor cursor in m_currentAddingCursors)
+            foreach (Cursor cursor in m_addingCursors)
             {
-                //Console.WriteLine(timeStamp + " add: " + cursor.TimeStamp);
+                // set timestamp
+                cursor.TimeStamp = timeStamp;
                 
                 Group group;
                 Trace trace;
@@ -236,13 +198,15 @@ namespace Grafiti
                 // TODO: don't give priority to the first added cursors
                 trace = TryResurrectTrace(cursor);
 
-                if (trace != null) // resurrect the trace
+                if (trace != null)
                 {
+                    // resurrect the trace
                     group = trace.Group;
                     trace.UpdateCursor(cursor, ListTargetsAt(cursor.X, cursor.Y));
                 }
-                else // create a new trace
+                else
                 {
+                    // create a new trace
                     group = GetMatchingGroup(cursor);
                     trace = new Trace(cursor, group, ListTargetsAt(cursor.X, cursor.Y));
                 }
@@ -250,16 +214,17 @@ namespace Grafiti
                 // index the cursor
                 m_cursorTraceTable[cursor.SessionId] = trace;
 
-                // refresh updated group list
-                if (!m_currentUpdatingGroups.Contains(group))
-                    m_currentUpdatingGroups.Add(group);
+                // refresh touched group list
+                if (!m_touchedGroups.Contains(group))
+                    m_touchedGroups.Add(group);
             }
         }
-        private void ProcessCurrentUpdatingCursors(long timeStamp)
+        private void ProcessCurrentUpdatingCursors(int timeStamp)
         {
-            foreach (TuioCursor cursor in m_currentUpdatingCursors)
+            foreach (Cursor cursor in m_updatingCursors)
             {
-                //Console.WriteLine(timeStamp + " update: " + cursor.TimeStamp);
+                // set timestamp
+                cursor.TimeStamp = timeStamp;
                 
                 // determine belonging trace
                 Trace trace = m_cursorTraceTable[cursor.SessionId];
@@ -267,17 +232,17 @@ namespace Grafiti
                 // update trace
                 trace.UpdateCursor(cursor, ListTargetsAt(cursor.X, cursor.Y));
 
-                // refresh updated group list
-                if (!m_currentUpdatingGroups.Contains(trace.Group))
-                    m_currentUpdatingGroups.Add(trace.Group); 
+                // refresh touched group list
+                if (!m_touchedGroups.Contains(trace.Group))
+                    m_touchedGroups.Add(trace.Group); 
             }
         }
-        private void ProcessCurrentRemovingCursors(long timeStamp)
+        private void ProcessCurrentRemovingCursors(int timeStamp)
         {
-            foreach (TuioCursor cursor in m_currentRemovingCursors)
+            foreach (Cursor cursor in m_removingCursors)
             {
-                cursor.setUpdateTime(timeStamp); // fixes a bug in tuio client
-                //Console.WriteLine(timeStamp + " remove: " + cursor.TimeStamp);
+                // set timestamp
+                cursor.TimeStamp = timeStamp;
 
                 // determine trace
                 Trace trace = m_cursorTraceTable[cursor.SessionId];
@@ -285,20 +250,21 @@ namespace Grafiti
                 // update trace
                 trace.RemoveCursor(cursor, ListTargetsAt(cursor.X, cursor.Y));
 
+                // add trace to resurrectable traces list
+                m_resurrectableTraces.Insert(0, trace);
+
                 // remove index
                 m_cursorTraceTable.Remove(cursor.SessionId);
 
-                // refresh updated group list
-                if (!m_currentUpdatingGroups.Contains(trace.Group))
-                    m_currentUpdatingGroups.Add(trace.Group);
-
-                m_resurrectableTraces.Insert(0,trace);
+                // refresh touched group list
+                if (!m_touchedGroups.Contains(trace.Group))
+                    m_touchedGroups.Add(trace.Group);
             }
         }
-        private Trace TryResurrectTrace(TuioCursor cursor)
+        private Trace TryResurrectTrace(Cursor cursor)
         {
             Trace resurrectingTrace = null;
-            float minDist = TRACE_SPACE_GAP * TRACE_SPACE_GAP;
+            float minDist = Settings.TRACE_SPACE_GAP * Settings.TRACE_SPACE_GAP;
             float dist;
             foreach (Trace trace in m_resurrectableTraces)
             {
@@ -315,13 +281,13 @@ namespace Grafiti
             } 
             return resurrectingTrace;
         }
-        private Group GetMatchingGroup(TuioCursor cursor)
+        private Group GetMatchingGroup(Cursor cursor)
         {
             Group matchingGroup = null;
-            float minDist = GROUPING_SPACE * GROUPING_SPACE;
+            float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE;
             float tempDist;
 
-            foreach (Group group in m_joinableGroups)
+            foreach (Group group in m_aliveGroups)
             {
                 // filter out groups that don't accept the trace
                 if (!group.AcceptNewCursor(cursor))
@@ -345,26 +311,27 @@ namespace Grafiti
         private Group CreateGroup()
         {
             Group group = new Group();
-            m_joinableGroups.Add(group);
+            m_addedGroups.Add(group);
+            m_aliveGroups.Add(group);
             return group;
         }
-        private List<IGestureListener> ListTargetsAt(float x, float y)
+        private List<ITuioObjectGestureListener> ListTargetsAt(float x, float y)
         {
-            List<IGestureListener> targets = new List<IGestureListener>();
-            foreach (IGestureListener listener in m_listeners)
+            List<ITuioObjectGestureListener> targets = new List<ITuioObjectGestureListener>();
+            foreach (ITuioObjectGestureListener listener in m_gListeners)
             {
                 if (listener.Contains(x, y))
                     targets.Add(listener);
             }
 
             // TODO: optimize
-            targets.Sort(new Comparison<IGestureListener>(
-                delegate(IGestureListener a, IGestureListener b)
+            targets.Sort(new Comparison<ITuioObjectGestureListener>(
+                delegate(ITuioObjectGestureListener a, ITuioObjectGestureListener b)
                 {
                     // BUG: objects updated during statement execution (?)
                     int d = (int)((a.GetSquareDistance(x, y) - b.GetSquareDistance(x, y)) * 1000000000);
                     if (a == b && d != 0)
-                        Console.WriteLine(d); // breakpoint
+                        Console.WriteLine("List<ITuioObjectGestureListener> Surface.ListTargetsAt(float, float) {0}", d); // breakpoint
                     return d;
                 }
             ));

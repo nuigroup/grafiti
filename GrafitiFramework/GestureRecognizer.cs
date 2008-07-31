@@ -31,10 +31,10 @@ namespace Grafiti
     /// </summary>
     public class GestureEventArgs : EventArgs
     {
-        private Enum m_eventId;
+        private string m_eventId;
         private int m_groupId;
 
-        public Enum EventId { get { return m_eventId; } }
+        public string EventId { get { return m_eventId; } }
         public int GroupId { get { return m_groupId; } }
 
         public GestureEventArgs()
@@ -42,7 +42,7 @@ namespace Grafiti
             m_eventId = null;
             m_groupId = -1;
         }
-        public GestureEventArgs(Enum eventId, int groupId)
+        public GestureEventArgs(string eventId, int groupId)
         {
             m_eventId = eventId;
             m_groupId = groupId;
@@ -148,16 +148,16 @@ namespace Grafiti
             m_bufferedArgs = new List<GestureEventArgs>();
         }
 
-        internal abstract void AddHandler(Enum e, GestureEventHandler handler);
+        internal abstract void AddHandler(string ev, GestureEventHandler handler);
 
-        internal System.Reflection.EventInfo GetEventInfo(Enum e)
+        internal System.Reflection.EventInfo GetEventInfo(string ev)
         {
-            Debug.Assert(GetType().GetEvent(e.ToString()) != null);
-            return GetType().GetEvent(e.ToString());
+            Debug.Assert(GetType().GetEvent(ev) != null);
+            return GetType().GetEvent(ev);
         }
 
         /// <summary>
-        /// The main function that will process the user input. It will be called on every update
+        /// The main function that will process the user input. It will be called on every refresh
         /// of the TUIO messages.
         /// </summary>
         /// <param name="traces">The list of the updated traces, to which one element has been added to their cursor list.</param>

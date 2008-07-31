@@ -36,7 +36,7 @@ namespace Grafiti
         public float X { get { return m_x; } }
         public float Y { get { return m_y; } }
         
-        public Basic1FingerEventArgs(Enum eventId, int groupId, float x, float y)
+        public Basic1FingerEventArgs(string eventId, int groupId, float x, float y)
             : base(eventId, groupId)
         {
             m_x = x;
@@ -83,26 +83,13 @@ namespace Grafiti
 
     public class Basic1FingerGR : GlobalGestureRecognizer
     {
-        public enum Events
-        {
-            Enter,
-            Leave,
-            Down,
-            Up,
-            Tap,
-            DoubleTap,
-            TripleTap,
-            Move,
-            Hover
-        }
-
         // Configuration parameters
         private readonly float TAP_SIZE;
         private readonly long TAP_TIME;
         private readonly float HOVER_SIZE;
         private readonly long HOVER_TIME;
 
-        private TuioCursor m_currentProcessingCursor;
+        private Cursor m_currentProcessingCursor;
         private bool m_terminated;
         private bool m_newClosestCurrentTarget;
 
@@ -128,10 +115,9 @@ namespace Grafiti
             HOVER_SIZE = conf.HOVER_SIZE;
             HOVER_TIME = conf.HOVER_TIME;
 
-            ClosestCurrentEvents = new Enum[] { Events.Down, Events.Up, Events.Tap, 
-                Events.DoubleTap, Events.TripleTap, Events.Hover, Events.Move };
-            ClosestEnteringEvents = new Enum[] { Events.Enter };
-            ClosestLeavingEvents = new Enum[] { Events.Leave };
+            ClosestCurrentEvents = new string[] { "Down", "Up", "Tap", "DoubleTap", "TripleTap", "Hover", "Move" };
+            ClosestEnteringEvents = new string[] { "Enter" };
+            ClosestLeavingEvents = new string[] { "Leave" };
 
             m_hoverThread = new Thread(new ThreadStart(HoverLoop));
             m_defaultResult = new GestureRecognitionResult(false, true, true);
@@ -149,15 +135,15 @@ namespace Grafiti
         public event GestureEventHandler Hover;
         public event GestureEventHandler Move;
 
-        protected void OnEnter()     { AppendEvent(Enter,     new Basic1FingerEventArgs(Events.Enter,     Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
-        protected void OnLeave()     { AppendEvent(Leave,     new Basic1FingerEventArgs(Events.Leave,     Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
-        protected void OnDown()      { AppendEvent(Down,      new Basic1FingerEventArgs(Events.Down,      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
-        protected void OnUp()        { AppendEvent(Up,        new Basic1FingerEventArgs(Events.Up,        Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
-        protected void OnTap()       { AppendEvent(Tap,       new Basic1FingerEventArgs(Events.Tap,       Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
-        protected void OnDoubleTap() { AppendEvent(DoubleTap, new Basic1FingerEventArgs(Events.DoubleTap, Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
-        protected void OnTripleTap() { AppendEvent(TripleTap, new Basic1FingerEventArgs(Events.TripleTap, Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
-        protected void OnHover()     { AppendEvent(Hover,     new Basic1FingerEventArgs(Events.Hover,     Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
-        protected void OnMove()      { AppendEvent(Move,      new Basic1FingerEventArgs(Events.Move,      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
+        protected void OnEnter()     { AppendEvent(Enter,     new Basic1FingerEventArgs("Enter",     Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
+        protected void OnLeave()     { AppendEvent(Leave,     new Basic1FingerEventArgs("Leave",     Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
+        protected void OnDown()      { AppendEvent(Down,      new Basic1FingerEventArgs("Down",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
+        protected void OnUp()        { AppendEvent(Up,        new Basic1FingerEventArgs("Up",        Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
+        protected void OnTap()       { AppendEvent(Tap,       new Basic1FingerEventArgs("Tap",       Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
+        protected void OnDoubleTap() { AppendEvent(DoubleTap, new Basic1FingerEventArgs("DoubleTap", Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
+        protected void OnTripleTap() { AppendEvent(TripleTap, new Basic1FingerEventArgs("TripleTap", Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
+        protected void OnHover()     { AppendEvent(Hover,     new Basic1FingerEventArgs("Hover",     Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
+        protected void OnMove()      { AppendEvent(Move,      new Basic1FingerEventArgs("Move",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
 
         public override GestureRecognitionResult Process(List<Trace> traces)
         {

@@ -78,28 +78,28 @@ namespace Grafiti
         /// Register a handler for a gesture event. The GR will be will be configured by default.
         /// </summary>
         /// <param name="grType">Type of the gesture recognizer.</param>
-        /// <param name="e">The event (as specified in the proper enumeration in the GR class).</param>
+        /// <param name="e">The event as string.</param>
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
-        
-        public void RegisterHandler(Type grType, Enum e, GestureEventHandler handler)
+        public void RegisterHandler(Type grType, string ev, GestureEventHandler handler)
         {
-            RegisterHandler(grType, GestureRecognizer.DefaultConfiguration, e, handler);
+            RegisterHandler(grType, GestureRecognizer.DefaultConfiguration, ev, handler);
         }
+
         /// <summary>
         /// Register a handler for a gesture event. The GR will be configured with the given configuration.
         /// </summary>
         /// <param name="grType">Type of the gesture recognizer.</param>
         /// <param name="grConf">The GR's configuration.</param>
-        /// <param name="e">The event (as specified in the proper enumeration in the GR class).</param>
+        /// <param name="e">The event as string.</param>
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
-        public void RegisterHandler(Type grType, GRConfiguration grConf, Enum e, GestureEventHandler handler)
+        public void RegisterHandler(Type grType, GRConfiguration grConf, string ev, GestureEventHandler handler)
         {
-            s_grRegistry.RegisterHandler(grType, grConf, m_grPriorityNumber, e, handler);
+            s_grRegistry.RegisterHandler(grType, grConf, m_grPriorityNumber, ev, handler);
         }
         #endregion
 
         #region Private or internal methods
-        internal void UnregisterAllHandlersOf(IGestureListener listener)
+        internal void UnregisterAllHandlersOf(ITuioObjectGestureListener listener)
         {
             s_grRegistry.UnregisterAllHandlers(listener);
         }

@@ -48,7 +48,7 @@ public abstract class TuioContainer:TuioPoint {
     public float YSpeed { get { return y_speed; } }
     public float MotionSpeed { get { return motion_speed; } }
     public float MotionAcceleration { get { return motion_accel; } }
-    public int State { get { return state; } }
+    public int State { get { return state; } set { state = value; } }
     public long SessionId { get { return session_id; } }
     public long TimeStamp { get { return timestamp; } }
 	#endregion

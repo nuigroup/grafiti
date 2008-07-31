@@ -38,7 +38,7 @@ namespace Grafiti
         public float Y { get { return m_y; } }
         public int NFingers { get { return m_nFingers; } }
 
-        public BasicMultiFingerEventArgs(Enum eventId, int groupId, float x, float y, int nFingers)
+        public BasicMultiFingerEventArgs(string eventId, int groupId, float x, float y, int nFingers)
             : base(eventId, groupId)
         {
             m_x = x;
@@ -49,11 +49,11 @@ namespace Grafiti
 
     public class BasicMultiFingerGRConfiguration : GRConfiguration
     {
-        // the spatial tollerance for TAP is Surface.TRACE_TIME_GAP
+        // the spatial tollerance for TAP is Settings.TRACE_TIME_GAP
 
         // time range for double/triple tap
         public readonly long TAP_TIME;
-        public const long DEFAULT_TAP_TIME = 5000;
+        public const long DEFAULT_TAP_TIME = 1000;
 
         // spatial tollerance for hover (radius defining a circle area within which 
         // the finger has to stay in order to raise a hover)
@@ -62,7 +62,7 @@ namespace Grafiti
 
         // the pause required to raise a hover
         public readonly long HOVER_TIME;
-        public const long DEFAULT_HOVER_TIME = 8000;
+        public const long DEFAULT_HOVER_TIME = 2000;
 
         // flag enabling/disabling triple tap
         public readonly bool IS_TRIPLE_TAP_ENABLED;
@@ -82,35 +82,22 @@ namespace Grafiti
             HOVER_TIME = hoverTime;
             IS_TRIPLE_TAP_ENABLED = isTripleTapEnabled;
         }
-
     }
 
     public class BasicMultiFingerGR : GlobalGestureRecognizer
     {
-        public enum Events
-        {
-            Enter,
-            Leave,
-            Down,
-            Up,
-            Tap,
-            DoubleTap,
-            TripleTap,
-            Move,
-            Hover
-        }
-
         // Configuration parameters
         private readonly long TAP_TIME;
         private readonly float HOVER_SIZE;
         private readonly long HOVER_TIME;
         private readonly bool IS_TRIPLE_TAP_ENABLED;
 
-        private TuioCursor m_currentProcessingCursor;
+        private const int HOVER_THREAD_SLEEP_TIME = 5;
+        private Cursor m_currentProcessingCursor;
         private bool m_tapSizeOk;
         private bool m_newClosestCurrentTarget;
         private Dictionary<Trace, int> m_traceDownTimesDict;
-        private Dictionary<Trace, TuioPoint> m_traceLastDownCurDict;
+        private Dictionary<Trace, Cursor> m_traceLastDownCurDict;
         private long m_t0;
         private bool m_haveSingleTapped, m_haveDoubleTapped, m_needResetTap;
         private int m_numberOfAliveFingers;
@@ -135,13 +122,12 @@ namespace Grafiti
             HOVER_TIME = conf.HOVER_TIME;
             IS_TRIPLE_TAP_ENABLED = conf.IS_TRIPLE_TAP_ENABLED;
 
-            ClosestCurrentEvents = new Enum[] { Events.Down, Events.Up, Events.Tap, 
-                Events.DoubleTap, Events.TripleTap, Events.Hover, Events.Move };
-            ClosestEnteringEvents = new Enum[] { Events.Enter };
-            ClosestLeavingEvents = new Enum[] { Events.Leave };
+            ClosestCurrentEvents = new string[] { "Down", "Up", "Tap", "DoubleTap", "TripleTap", "Hover", "Move" };
+            ClosestEnteringEvents = new string[] { "Enter" };
+            ClosestLeavingEvents = new string[] { "Leave" };
 
             m_traceDownTimesDict = new Dictionary<Trace, int>();
-            m_traceLastDownCurDict = new Dictionary<Trace, TuioPoint>();
+            m_traceLastDownCurDict = new Dictionary<Trace, Cursor>();
 
             m_hoverThread = new Thread(new ThreadStart(HoverLoop));
             m_defaultResult = new GestureRecognitionResult(false, true, true);
@@ -151,25 +137,26 @@ namespace Grafiti
             m_maxNumberOfAliveFingers = 0;
         }
 
-        public event GestureEventHandler Enter;
-        public event GestureEventHandler Leave;
         public event GestureEventHandler Down;
         public event GestureEventHandler Up;
+        public event GestureEventHandler Move;
+        public event GestureEventHandler Enter;
+        public event GestureEventHandler Leave;
         public event GestureEventHandler Tap;
         public event GestureEventHandler DoubleTap;
         public event GestureEventHandler TripleTap;
         public event GestureEventHandler Hover;
-        public event GestureEventHandler Move;
 
-        protected void OnEnter()     { AppendEvent(Enter,    new BasicMultiFingerEventArgs(Events.Enter,     Group.Id, Group.CentroidX, Group.CentroidY, Group.NOfAliveTraces)); }
-        protected void OnLeave()     { AppendEvent(Leave,    new BasicMultiFingerEventArgs(Events.Leave,     Group.Id, Group.CentroidX, Group.CentroidY, Group.NOfAliveTraces)); }
-        protected void OnDown()      { AppendEvent(Down,     new BasicMultiFingerEventArgs(Events.Down,      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers)); }
-        protected void OnUp()        { AppendEvent(Up,       new BasicMultiFingerEventArgs(Events.Up,        Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers)); }
-        protected void OnTap()       { AppendEvent(Tap,      new BasicMultiFingerEventArgs(Events.Tap,       Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
-        protected void OnDoubleTap() { AppendEvent(DoubleTap,new BasicMultiFingerEventArgs(Events.DoubleTap, Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
-        protected void OnTripleTap() { AppendEvent(TripleTap,new BasicMultiFingerEventArgs(Events.TripleTap, Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
-        protected void OnHover()     { AppendEvent(Hover,    new BasicMultiFingerEventArgs(Events.Hover,     Group.Id, Group.CentroidX, Group.CentroidY, m_numberOfAliveFingers)); }
-        protected void OnMove()      { AppendEvent(Move,     new BasicMultiFingerEventArgs(Events.Move,      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, Group.NOfAliveTraces)); }
+
+        protected void OnDown()      { AppendEvent(Down,     new BasicMultiFingerEventArgs("Down",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers)); }
+        protected void OnUp()        { AppendEvent(Up,       new BasicMultiFingerEventArgs("Up",        Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers)); }
+        protected void OnMove()      { AppendEvent(Move,     new BasicMultiFingerEventArgs("Move",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, Group.NOfAliveTraces)); }
+        protected void OnEnter()     { AppendEvent(Enter,    new BasicMultiFingerEventArgs("Enter",     Group.Id, Group.CentroidX, Group.CentroidY, Group.NOfAliveTraces)); }
+        protected void OnLeave()     { AppendEvent(Leave,    new BasicMultiFingerEventArgs("Leave",     Group.Id, Group.CentroidX, Group.CentroidY, Group.NOfAliveTraces)); }
+        protected void OnTap()       { AppendEvent(Tap,      new BasicMultiFingerEventArgs("Tap",       Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
+        protected void OnDoubleTap() { AppendEvent(DoubleTap,new BasicMultiFingerEventArgs("DoubleTap", Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
+        protected void OnTripleTap() { AppendEvent(TripleTap,new BasicMultiFingerEventArgs("TripleTap", Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
+        protected void OnHover()     { AppendEvent(Hover,    new BasicMultiFingerEventArgs("Hover",     Group.Id, Group.CentroidX, Group.CentroidY, m_numberOfAliveFingers)); }
 
         public override GestureRecognitionResult Process(List<Trace> traces)
         {
@@ -179,6 +166,7 @@ namespace Grafiti
             foreach (Trace trace in traces)
                 if (trace.State == Trace.States.UPDATED)
                 {
+                    m_currentProcessingCursor = trace.Last;
                     OnMove();
                     break;
                 }
@@ -305,7 +293,7 @@ namespace Grafiti
         private bool CheckTapSize(Trace trace)
         {
             return (trace.Last.SquareDistance(m_traceLastDownCurDict[trace]) <=
-                Surface.TRACE_SPACE_GAP * Surface.TRACE_SPACE_GAP);
+                Settings.TRACE_SPACE_GAP * Settings.TRACE_SPACE_GAP);
         }
         private bool CheckTapTime()
         {
@@ -345,7 +333,7 @@ namespace Grafiti
                     ResetHover();
                     m_hoverEnabled = false;
                 }
-                Thread.Sleep(1);
+                Thread.Sleep(HOVER_THREAD_SLEEP_TIME);
             }
         }
         #endregion

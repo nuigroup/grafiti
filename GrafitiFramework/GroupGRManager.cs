@@ -38,8 +38,8 @@ namespace Grafiti
 
         // Tables used to instantiate new GRs.
         private DoubleDictionary<Type, object, GlobalGestureRecognizer> m_ggrInstanceTable;
-        private DoubleDictionary<Type, IGestureListener, Dictionary<object, LocalGestureRecognizer>> m_lgrInstanceTable;
-        private Dictionary<IGestureListener, List<GestureRecognizer>> m_targetLGRListTable;
+        private DoubleDictionary<Type, ITuioObjectGestureListener, Dictionary<object, LocalGestureRecognizer>> m_lgrInstanceTable;
+        private Dictionary<ITuioObjectGestureListener, List<GestureRecognizer>> m_targetLGRListTable;
 
         // Registered GRs that haven't recognized a gesture yet
         private List<GestureRecognizer> m_grs;
@@ -55,7 +55,7 @@ namespace Grafiti
         private List<GestureRecognizer> m_succedingGRs;
         private List<GestureRecognitionResult> m_succedingResults;
 
-        // Current PN. It determines the current GRs to be processed.
+        // Current priority number. It determines the current GRs to be processed.
         private int m_currentPN;
 
         // Flag indicating if there are no more GRs to process.
@@ -63,7 +63,7 @@ namespace Grafiti
 
 
         internal DoubleDictionary<Type, object, GlobalGestureRecognizer> GGRInstanceTable { get { return m_ggrInstanceTable; } }
-        internal DoubleDictionary<Type, IGestureListener, Dictionary<object, LocalGestureRecognizer>> LGRInstanceTable { get { return m_lgrInstanceTable; } }
+        internal DoubleDictionary<Type, ITuioObjectGestureListener, Dictionary<object, LocalGestureRecognizer>> LGRInstanceTable { get { return m_lgrInstanceTable; } }
 
         internal bool TaskCompleted { get { return m_taskCompleted; } }
 
@@ -74,8 +74,8 @@ namespace Grafiti
             m_grRegistry = GestureEventManager.Instance.GRRegistry;
 
             m_ggrInstanceTable = new DoubleDictionary<Type, object, GlobalGestureRecognizer>();
-            m_lgrInstanceTable = new DoubleDictionary<Type, IGestureListener, Dictionary<object, LocalGestureRecognizer>>();
-            m_targetLGRListTable = new Dictionary<IGestureListener, List<GestureRecognizer>>();
+            m_lgrInstanceTable = new DoubleDictionary<Type, ITuioObjectGestureListener, Dictionary<object, LocalGestureRecognizer>>();
+            m_targetLGRListTable = new Dictionary<ITuioObjectGestureListener, List<GestureRecognizer>>();
             
             m_grs = new List<GestureRecognizer>();
             m_currentGRs = new List<GestureRecognizer>();
@@ -91,7 +91,7 @@ namespace Grafiti
             m_grRegistry.Subscribe(this);
         }
 
-        public void AddLocalTarget(IGestureListener localTarget)
+        public void AddLocalTarget(ITuioObjectGestureListener localTarget)
         {
             if (!m_targetLGRListTable.ContainsKey(localTarget))
                 m_targetLGRListTable[localTarget] = new List<GestureRecognizer>();
@@ -99,7 +99,7 @@ namespace Grafiti
             AddOrUpdateLGRs(localTarget);
         }
 
-        private void AddOrUpdateLGRs(IGestureListener localTarget)
+        private void AddOrUpdateLGRs(ITuioObjectGestureListener localTarget)
         {
             Type grType;
             object grConf;
@@ -129,6 +129,7 @@ namespace Grafiti
                         // Add LGR
                         lgr.Group = m_group;
                         lgr.PriorityNumber = lgrInfo.PriorityNumber;
+                        lgr.Target = (ITuioObjectGestureListener)lgrInfo.Handler.Target;
                         AddGR(lgr);
                         // end Add
                     }
@@ -138,7 +139,7 @@ namespace Grafiti
             }
         }
 
-        public void RemoveLocalTarget(IGestureListener localTarget)
+        public void RemoveLocalTarget(ITuioObjectGestureListener localTarget)
         {
             if (m_targetLGRListTable.ContainsKey(localTarget))
             {
@@ -252,16 +253,14 @@ namespace Grafiti
                         if (gr is GlobalGestureRecognizer)
                             m_toRemove.Add(gr);
                         else
-                            m_toRemove.AddRange(FindAllLGRsOfType(gr.GetType()));
+                            m_toRemove.AddRange(FindAllEquivalentLGRs(gr.GetType(), gr.Configuration));
                     }
                     else
                         someIsRecognizing = true;
                 }
 
                 // TODO: sort m_succedingGRs
-                // they're already ordered by distance of the relative target regarding the LGR list (by now it's
-                // referred at the time of the creation of that list: the order is not the actual one
-                // since it's not updated!), but if there are two GRs with the same target, we must see 
+                // if there are two GRs with the same target, we must see 
                 // which has the higher probability of success.
 
                 for (int i = 0; i < m_succedingGRs.Count; i++)
@@ -273,6 +272,8 @@ namespace Grafiti
                     if (m_succedingGRs[i].Configuration.Exclusive)
                     {
                         exclusiveWinner = true;
+                        if (m_succedingGRs[i] is LocalGestureRecognizer)
+                            m_group.ExclusiveLocalTarget = ((LocalGestureRecognizer)m_succedingGRs[i]).Target;
                         break;
                     }
                 }
@@ -286,6 +287,9 @@ namespace Grafiti
 
                 if (someIsRecognizing || exclusiveWinner)
                     break;
+
+                // If all current GR failed in the recognition or succeded but were not exclusive,
+                // then loop and recalculate current GRs with the next priority number
             }
 
 
@@ -298,21 +302,21 @@ namespace Grafiti
             return m_taskCompleted;
         }
 
-        private List<GestureRecognizer> FindAllLGRsOfType(Type grType)
+        private List<GestureRecognizer> FindAllEquivalentLGRs(Type grType, GRConfiguration conf)
         {
             List<GestureRecognizer> list = new List<GestureRecognizer>();
             foreach (GestureRecognizer gr in m_grs)
-                if (gr.GetType() == grType)
+                if (gr.GetType() == grType && gr.Configuration == conf)
                     list.Add(gr);
             return list;
         }
 
         private void AddGR(GestureRecognizer gr)
         {
-            // insert gr in the position such that
-            // 1. the list is ordered by priority number (decreasing)
-            // 2. if same priority, LGRs come before GGRs
-            // 3. if two GRs, belonging to the same supertype (LGR or GGR), have the same PN, the first added comes before the second
+            // Insert gr in the position such that
+            // 1. the list is ordered by (decreasing) priority number.
+            // 2. if same priority, LGRs come before GGRs. (not necessary)
+            // 3. if two GRs belonging to the same supertype (LGR or GGR) have the same PN, the first added comes before the second. (irrilevant)
             int i;
             if (gr is GlobalGestureRecognizer)
                 for (i = m_grs.Count - 1; i >= 0 && gr.PriorityNumber < m_grs[i].PriorityNumber; i--) ;
@@ -324,16 +328,52 @@ namespace Grafiti
             m_grs.Insert(i + 1, gr);
         }
 
+        /// <summary>
+        /// Generate the list of the current priority number GRs.
+        /// LGRs come before GGRs (TODO maybe: parametrize).
+        /// LGRs are ordered by distance of the group's centroid from target.
+        /// GGRs are not reordered: it will always be followed the order of the executed 
+        /// declarations of the handler registrations.
+        /// </summary>
+        /// <returns>true iff the generated list is not empty</returns>
         private bool UpdateCurrents()
         {
-            m_currentGRs.Clear();
+            // Subsets: LGRs and GGRs
+            List<LocalGestureRecognizer> currentLGRs = new List<LocalGestureRecognizer>();
+            List<GestureRecognizer> currentGGRs = new List<GestureRecognizer>();
+
+            // Populate subsets and calculate distances of the local targets
             if (m_grs.Count > 0)
             {
                 m_currentPN = m_grs[0].PriorityNumber;
                 foreach (GestureRecognizer gr in m_grs)
                     if (gr.PriorityNumber == m_currentPN)
-                        m_currentGRs.Add(gr);
+                    {
+                        if (gr is LocalGestureRecognizer)
+                        {
+                            LocalGestureRecognizer lgr = (LocalGestureRecognizer)gr;
+                            lgr.SquareDistanceFromTarget = lgr.Target.GetSquareDistance(m_group.CentroidX, m_group.CentroidY);
+                            currentLGRs.Add(lgr);
+                        }
+                        else
+                            currentGGRs.Add(gr);
+                    }
             }
+            
+            // Sort LGRs in base of the calculated distances
+            currentLGRs.Sort(new Comparison<LocalGestureRecognizer>(
+                delegate(LocalGestureRecognizer a, LocalGestureRecognizer b)
+                {
+                    return (int)((a.SquareDistanceFromTarget - b.SquareDistanceFromTarget) * 10000000);
+                }
+            ));
+
+            // Update the current GR list
+            m_currentGRs.Clear();
+            foreach(LocalGestureRecognizer lgr in currentLGRs)
+                m_currentGRs.Add(lgr);
+            m_currentGRs.AddRange(currentGGRs);
+
             return m_currentGRs.Count > 0;
         }
     }

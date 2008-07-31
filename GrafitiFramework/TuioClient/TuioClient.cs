@@ -100,9 +100,12 @@ namespace TUIO
 		}
 
 		private void listen() {
-			while(listening) {
-				try {
-					OSCPacket packet = receiver.Receive();
+			while(listening)
+            {
+                #region	Changed by Alessandro De Nardi on 15th July 2008
+                //try {
+                #endregion
+                OSCPacket packet = receiver.Receive();
 					if (packet!=null) {
 						if (packet.IsBundle()) {
 							ArrayList messages = packet.Values;
@@ -111,7 +114,9 @@ namespace TUIO
 							}
 						} else processMessage((OSCMessage)packet);						
 					} else Console.WriteLine("null packet");
-				} catch (Exception e) { Console.WriteLine(e.Message); }
+                #region	Changed by Alessandro De Nardi on 15th July 2008
+                //} catch (Exception e) { Console.WriteLine(e.Message); }
+                #endregion
 			}
 		}
 

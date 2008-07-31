@@ -50,23 +50,23 @@ namespace Grafiti
 
         // GR developers have to declare through these lists, the events associated to the relative target list.
         // For example, to implement a multi-trace gesture recognizer there should be declared something like
-        // <code>m_enteringEvents = new Enum[] { Events.MultiTraceEnter };</code>
+        // <code>m_enteringEvents = new string[] { "MultiTraceEnter };</code>
         // where the client previously specified the Events enumeration, including  MultiTraceEnter.
         // The DefaultEvents list will include other events that are supposed to be sent to
         // every control that subscribed to them, disregarding whether such control appears in some predefined
         // list or not.
-        protected Enum[] EnteringEvents = new Enum[0] { };
-        protected Enum[] CurrentEvents = new Enum[0] { };
-        protected Enum[] LeavingEvents = new Enum[0] { };
-        protected Enum[] InitialEvents = new Enum[0] { };
-        protected Enum[] NewInitialEvents = new Enum[0] { };
-        protected Enum[] FinalEvents = new Enum[0] { };
-        protected Enum[] IntersectionEvents = new Enum[0] { };
-        protected Enum[] UnionEvents = new Enum[0] { };
-        protected Enum[] DefaultEvents = new Enum[0] { };
-        protected Enum[] ClosestEnteringEvents = new Enum[0] { };
-        protected Enum[] ClosestCurrentEvents = new Enum[0] { };
-        protected Enum[] ClosestLeavingEvents = new Enum[0] { };
+        protected string[] EnteringEvents = new string[0] { };
+        protected string[] CurrentEvents = new string[0] { };
+        protected string[] LeavingEvents = new string[0] { };
+        protected string[] InitialEvents = new string[0] { };
+        protected string[] NewInitialEvents = new string[0] { };
+        protected string[] FinalEvents = new string[0] { };
+        protected string[] IntersectionEvents = new string[0] { };
+        protected string[] UnionEvents = new string[0] { };
+        protected string[] DefaultEvents = new string[0] { };
+        protected string[] ClosestEnteringEvents = new string[0] { };
+        protected string[] ClosestCurrentEvents = new string[0] { };
+        protected string[] ClosestLeavingEvents = new string[0] { };
 
 
         // GR developers can use this (in association with the predefined lists), to manage the handlers
@@ -84,20 +84,20 @@ namespace Grafiti
             m_temporaryHandlerTable = new DoubleDictionary<TargetList, EventInfo, List<GestureEventHandler>>();
         }
 
-        internal override sealed void AddHandler(Enum e, GestureEventHandler handler)
+        internal override sealed void AddHandler(string ev, GestureEventHandler handler)
         {
             // Check id it's a default event
             bool isDefaultEvent = false;
             for (int i = 0; i < DefaultEvents.Length; i++)
             {
-                if (DefaultEvents[i] == e)
+                if (DefaultEvents[i] == ev)
                 {
                     isDefaultEvent = true;
                     break;
                 }
             }
 
-            EventInfo eventInfo = GetEventInfo(e);
+            EventInfo eventInfo = GetEventInfo(ev);
             object listener = handler.Target;
 
             if (isDefaultEvent)
@@ -150,8 +150,8 @@ namespace Grafiti
 
         private void UpdateHandlers(TargetList targetList)
         {
-            List<IGestureListener> groupTargetList;
-            Enum[] eventList;
+            List<ITuioObjectGestureListener> groupTargetList;
+            string[] eventList;
 
             if (targetList == TargetList.ENTERING)
             {
@@ -195,21 +195,21 @@ namespace Grafiti
             }
             else if (targetList == TargetList.CLOSEST_ENTERING)
             {
-                groupTargetList = new List<IGestureListener>();
+                groupTargetList = new List<ITuioObjectGestureListener>();
                 if (Group.ClosestEnteringTarget != null)
                     groupTargetList.Add(Group.ClosestEnteringTarget);
                 eventList = this.ClosestEnteringEvents;
             }
             else if (targetList == TargetList.CLOSEST_CURRENT)
             {
-                groupTargetList = new List<IGestureListener>();
+                groupTargetList = new List<ITuioObjectGestureListener>();
                 if (Group.ClosestCurrentTarget != null)
                     groupTargetList.Add(Group.ClosestCurrentTarget);
                 eventList = this.ClosestCurrentEvents;
             }
             else if (targetList == TargetList.CLOSEST_LEAVING)
             {
-                groupTargetList = new List<IGestureListener>();
+                groupTargetList = new List<ITuioObjectGestureListener>();
                 if (Group.ClosestLeavingTarget != null)
                     groupTargetList.Add(Group.ClosestLeavingTarget);
                 eventList = this.ClosestLeavingEvents;
@@ -238,7 +238,7 @@ namespace Grafiti
                 if (targetList != TargetList.INTERSECT) // INTERSECT removes only
                 {
                     m_temporaryHandlerTable[targetList, eventInfo] = new List<GestureEventHandler>();
-                    foreach (IGestureListener target in groupTargetList)
+                    foreach (ITuioObjectGestureListener target in groupTargetList)
                         if (m_handlerTable.ContainsKeys(eventInfo, target))
                             foreach (GestureEventHandler handler in m_handlerTable[eventInfo, target])
                             {

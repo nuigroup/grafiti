@@ -22,7 +22,7 @@ using System.Collections.Generic;
 
 namespace Grafiti
 {
-    public interface IGestureListener
+    public interface ITuioObjectGestureListener
     {
         // Must return true iff the interaction area contains the point given by the coordinates
         bool Contains(float x, float y);
