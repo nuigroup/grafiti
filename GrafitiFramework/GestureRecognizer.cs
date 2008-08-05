@@ -52,37 +52,6 @@ namespace Grafiti
     }
 
 
-    /// <summary>
-    /// Output delievered by a gesture recognizer to the caller of the function Recognize(), that is:
-    /// bool recognizing: true iff the GR is still attempting to recognize the gesture
-    /// successful: true iff the GR has recognized successfully a gesture
-    /// bool interpreting: true iff (the gesture is recognized and) the GR will process further incoming input
-    /// float probability: probability of successful recognition (0=plain failure, 1=plain success)
-    /// </summary>
-    public class GestureRecognitionResult
-    {
-        private bool m_recognizing;
-        private bool m_successful;
-        private bool m_interpreting;
-        private float m_probability;
-
-        internal bool Recognizing { get { return m_recognizing; } }
-        internal bool Successful { get { return m_successful; } }
-        internal bool Interpreting { get { return m_interpreting; } }
-        internal float Probability { get { return m_probability; } }
-
-        public GestureRecognitionResult(bool recognizing, bool successful, bool interpreting) :
-            this(recognizing, successful, interpreting, 1) { }
-
-        public GestureRecognitionResult(bool recognizing, bool successful, bool interpreting, float probability)
-        {
-            m_recognizing = recognizing;
-            m_successful = successful;
-            m_interpreting = interpreting;
-            m_probability = probability;
-        }
-    }
-
     // Default event handler for gestures
     public delegate void GestureEventHandler(object gestureRecognizer, GestureEventArgs args);
 
@@ -111,11 +80,21 @@ namespace Grafiti
         private GRConfigurator m_configurator;
         private int m_priorityNumber;
         private Group m_group;
-        internal bool m_recognizing = true, m_successful = false, m_interpreting = true;
-        internal float m_probabilityOfSuccess = 1;
         private bool m_armed;
         private List<GestureEventHandler> m_bufferedHandlers;
         private List<GestureEventArgs> m_bufferedArgs;
+
+        // Result state (Don't change default values)
+        private bool m_recognizing = true; // still attempting to recognize the gesture
+        private bool m_successful = false; // gesture successfully recognized
+        private float m_probability = 1;   // probability of successful recognition (0=plain failure, 1=plain success)
+        private bool m_processing = true;  // will process further incoming input
+
+        public bool Recognizing  { get { return m_recognizing; } }
+        public bool Successful   { get { return m_successful; } }
+        public bool Processing   { get { return m_processing; } }
+        public float Probability { get { return m_probability; } }
+
 
         private int m_debug_NProcessCalls = 0;
 
@@ -166,13 +145,39 @@ namespace Grafiti
         /// </summary>
         /// <param name="traces">The list of the updated traces, to which one element has been added to their cursor list.</param>
         /// <returns></returns>
-        public abstract GestureRecognitionResult Process(List<Trace> traces);
+        public abstract void Process(List<Trace> traces);
 
-        internal GestureRecognitionResult Process1(List<Trace> traces)
+        internal void Process1(List<Trace> traces)
         {
             m_debug_NProcessCalls++;
             Debug.WriteLine("N Process calls: " + m_debug_NProcessCalls + ", in " + this);
-            return Process(traces);
+            Process(traces);
+        }
+
+        protected void GestureHasBeenRecognized()
+        {
+            GestureHasBeenRecognized(true, 1f);
+        }
+        protected void GestureHasBeenRecognized(bool successful)
+        {
+            GestureHasBeenRecognized(successful, 1f);
+        }
+        protected void GestureHasBeenRecognized(bool successful, float probability)
+        {
+            Debug.Assert(m_recognizing || (m_successful == successful && m_probability == probability));
+            if (m_recognizing)
+            {
+                m_recognizing = false;
+                m_successful = successful;
+                m_probability = probability;
+                if (!successful)
+                    StopReceivingInput();
+            }
+        }
+        protected void StopReceivingInput()
+        {
+            Debug.Assert(!m_recognizing);
+            m_processing = false;
         }
 
         /// <summary>

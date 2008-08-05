@@ -110,8 +110,6 @@ namespace Grafiti
         private float m_hoverXRef, m_hoverYRef;
         private DateTime m_hoverTimeRef;
 
-        private GestureRecognitionResult m_defaultResult;
-
         public BasicMultiFingerGR(GRConfigurator configurator)
             : base(configurator)
         {
@@ -132,7 +130,6 @@ namespace Grafiti
             m_traceLastDownCurDict = new Dictionary<Trace, Cursor>();
 
             m_hoverThread = new Thread(new ThreadStart(HoverLoop));
-            m_defaultResult = new GestureRecognitionResult(false, true, true);
             m_tapSizeOk = true;
             m_newClosestCurrentTarget = false;
             m_numberOfAliveFingers = 0;
@@ -160,7 +157,7 @@ namespace Grafiti
         protected void OnTripleTap() { AppendEvent(TripleTap,new BasicMultiFingerEventArgs("TripleTap", Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
         protected void OnHover()     { AppendEvent(Hover,    new BasicMultiFingerEventArgs("Hover",     Group.Id, Group.CentroidX, Group.CentroidY, m_numberOfAliveFingers)); }
 
-        public override GestureRecognitionResult Process(List<Trace> traces)
+        public override void Process(List<Trace> traces)
         {
             OnLeave();
             OnEnter();
@@ -286,7 +283,9 @@ namespace Grafiti
                     }
                 }
             }
-            return m_defaultResult;
+
+            if (Recognizing)
+                GestureHasBeenRecognized();
         }
 
         #region TAP functions

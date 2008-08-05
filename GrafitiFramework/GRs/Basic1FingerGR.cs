@@ -104,8 +104,6 @@ namespace Grafiti
         private float m_hoverXRef, m_hoverYRef;
         private DateTime m_hoverTimeRef;
 
-        private GestureRecognitionResult m_defaultResult;
-
         public Basic1FingerGR(GRConfigurator configurator) : base(configurator)
         {
             if (!(configurator is Basic1FingerGRConfigurator))
@@ -122,7 +120,6 @@ namespace Grafiti
             ClosestLeavingEvents = new string[] { "Leave" };
 
             m_hoverThread = new Thread(new ThreadStart(HoverLoop));
-            m_defaultResult = new GestureRecognitionResult(false, true, true);
             m_terminated = false;
             m_newClosestCurrentTarget = false;
         }
@@ -147,16 +144,13 @@ namespace Grafiti
         protected void OnHover()     { AppendEvent(Hover,     new Basic1FingerEventArgs("Hover",     Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
         protected void OnMove()      { AppendEvent(Move,      new Basic1FingerEventArgs("Move",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y)); }
 
-        public override GestureRecognitionResult Process(List<Trace> traces)
+        public override void Process(List<Trace> traces)
         {
             if (Group.NOfAliveTraces > 1)
             {
-                m_terminated = true;
-                m_hoverEnabled = false;
+                StopReceivingInput();
+                return;
             }
-
-            if(m_terminated)
-                return m_defaultResult;
 
             Trace trace = traces[0];
             m_currentProcessingCursor = trace.Last;
@@ -229,7 +223,8 @@ namespace Grafiti
                 ResetHover();
             }
 
-            return m_defaultResult;
+            if (Recognizing)
+                GestureHasBeenRecognized();
         }
 
 

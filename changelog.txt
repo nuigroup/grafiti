@@ -7,6 +7,9 @@ by Alessandro De Nardi
 History of major changes and notes
 ----------------------------------
 
+08-08-05(2)
+- simplified and improved method of declaration and retrieval of the stateof a processing GR.- added auxiliar function to ovverride for client's handling of removaltarget for LGR- in GroupGRManager fixed bugs and tidy things up in Process()
+
 08-08-05
 - in groupGRManager.cs GRs coordination largely rewritten. Now all
 available GRs will start processing, despite their priority number.
@@ -39,26 +42,34 @@ setings.xml
 - Fixed bug of tuio client regarding removed cursors
 
 r9,r10,r11 08-06-27
-Due to the large amount of changes the files have been reuploaded and not only updated.
-- changed tuio client version, now it's 1.5 prerelease, modified. It's still missing but I'll upload it soon
-- improved group's targeting algorithm. Now tuio messages are processed in "parallel" after each refresh()
+Due to the large amount of changes the files have been reuploaded and 
+not only updated.
+- changed tuio client version, now it's 1.5 prerelease, modified. It's
+still missing but I'll upload it soon
+- improved group's targeting algorithm. Now tuio messages are processed
+in "parallel" after each refresh()
 - reorganized classes and solution's structure 
 
 r8 08-06-14
 - added LGR's constructor parameter 
 - in Group.cs fixed bug in group's targeting algorithm
 - in Group.cs added ProcessTerminated property
-- split GestureRecognizer.cs in three files (GR + auxiliar classes, LGR and GGR)
+- split GestureRecognizer.cs in three files (GR + auxiliar classes, LGR
+and GGR)
 Tuio client missing.
 
 r7 08-06-12
 - added GestureEventmanager.cs (forgot in last revision)
 
 r6 08-06-12
-- In GroupGRManager.cs, refined coordination among GRs: now LGRs, on success, will prevent other LGRs of the same type from succeding.
+- In GroupGRManager.cs, refined coordination among GRs: now LGRs, on 
+success, will prevent other LGRs of the same type from succeding.
 - added closestTarget (entering/current/leaving) to GGRs
-- added GGR for recognizing basic single-finger gestures: down, up, tap, double tap, triple tap, hover, entering, move, leaving. It uses closestTarget.
-- split Surface into two logical modules: Surface and GestureEventManager.
+- added GGR for recognizing basic single-finger gestures: down, up, tap,
+double tap, triple tap, hover, entering, move, leaving. It uses 
+closestTarget.
+- split Surface into two logical modules: Surface and
+GestureEventManager.
 Tuio client missing.
 
 r5 08-06-07

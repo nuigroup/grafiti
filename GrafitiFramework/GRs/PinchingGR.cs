@@ -210,8 +210,6 @@ namespace Grafiti
         private float m_rotation;
         private float m_rotationSpeed;
 
-        private GestureRecognitionResult m_defaultResult, m_nonRecognizingResult, m_recognizingResult;
-
         public PinchingGR(GRConfigurator configurator)
             : base(configurator)
         {
@@ -234,13 +232,6 @@ namespace Grafiti
             m_translateXSpeed = m_translateYSpeed = 0;
             m_rotation = 0;
             m_rotationSpeed = 0;
-
-            m_nonRecognizingResult = new GestureRecognitionResult(false, true, true);
-            m_recognizingResult = new GestureRecognitionResult(true, false, true);
-            if (!m_conf.IS_ONE_FINGER_SCALING_ENABLED)
-                m_defaultResult = m_recognizingResult;
-            else
-                m_defaultResult = m_nonRecognizingResult;
         }
 
         public event GestureEventHandler Down;
@@ -302,13 +293,17 @@ namespace Grafiti
                 Group.CentroidLivingX, Group.CentroidLivingY, m_ids));
         }
 
-        public override GestureRecognitionResult Process(List<Trace> traces)
+        public override void Process(List<Trace> traces)
         {
             // While there has been only one trace, if scaling with one finger is disabled then
             // return a 'recognizing' result
-            if (m_defaultResult == m_recognizingResult &&
-                !m_conf.IS_ONE_FINGER_SCALING_ENABLED && Group.Traces.Count > 1)
-                m_defaultResult = m_nonRecognizingResult;
+            if (Recognizing)
+                if (m_conf.IS_ONE_FINGER_SCALING_ENABLED || Group.Traces.Count > 1)
+                    GestureHasBeenRecognized();
+                else
+                    if (!Group.Alive)
+                        GestureHasBeenRecognized(false);
+
 
             // If a cursor has been added or removed this flag is set to true
             // so that references for computing scaling, translation and rotation
@@ -363,7 +358,7 @@ namespace Grafiti
                     OnRotateBegin();
                 }
                 
-                return m_defaultResult;
+                return;
             }
 
             // Compute scaling
@@ -396,7 +391,7 @@ namespace Grafiti
 
             OnPinch();
 
-            return m_defaultResult;
+            return;
         }
 
         // set centroid reference to the current centroid (calculated on the living traces)

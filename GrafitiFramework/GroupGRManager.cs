@@ -52,7 +52,9 @@ namespace Grafiti
         private bool m_taskCompleted;
 
         private List<int> m_pns;
+        // armed and processing GRs
         private List<GestureRecognizer> m_armedGRs;
+        // unarmed and active (may want to be armed) GRs
         private Dictionary<int, List<LocalGestureRecognizer>> m_unarmedLGRs;
         private Dictionary<int, List<GlobalGestureRecognizer>> m_unarmedGGRs;
 
@@ -137,10 +139,13 @@ namespace Grafiti
             {
                 foreach (GestureRecognizer lgr in m_targetLGRListTable[localTarget])
                 {
+                    // Notify lgr
+                    ((LocalGestureRecognizer)lgr).OnTargetRemoved1();
+
                     // reset exclusive local target if this is removed
                     if (localTarget == m_group.ExclusiveLocalTarget)
                         ResetExclusiveLocalTarget();
-                    RemoveUnarmed(lgr);
+                    RemoveUnarmedGR(lgr);
                     m_armedGRs.Remove(lgr);
                     m_lgrInstanceTable.Remove(lgr.GetType(), localTarget);
                 }
@@ -208,18 +213,15 @@ namespace Grafiti
             if (m_taskCompleted)
                 return true;
 
-            GestureRecognitionResult result;
-
-
-            /****************
-               interpreting
-            /****************/
+            /***************
+                  armed
+            /***************/
 
             m_toRemove.Clear();
             foreach (GestureRecognizer gr in m_armedGRs)
             {
-                result = gr.Process1(traces);
-                if (!result.Interpreting)
+                gr.Process1(traces);
+                if (!gr.Processing)
                     m_toRemove.Add(gr);
             }
             foreach (GestureRecognizer gr in m_toRemove)
@@ -228,9 +230,9 @@ namespace Grafiti
 
 
 
-            /****************
-                 current
-            /****************/
+            /***************
+                 unarmed
+            /***************/
 
             bool someIsRecognizing = false;
             bool exclusiveWinner = false;
@@ -243,59 +245,37 @@ namespace Grafiti
 
                 m_succedingGRs.Clear();
 
-                // process GGRs
-                foreach (GlobalGestureRecognizer ggr in m_unarmedGGRs[pn])
+                #region process GRs
+                foreach (GestureRecognizer gr in AppendGRs(m_unarmedGGRs[pn], m_unarmedLGRs[pn], true))
                 {
-                    if (!ggr.m_interpreting)
+                    if (gr is LocalGestureRecognizer && m_toRemove.Contains(gr))
                         continue;
 
-                    result = ggr.Process1(traces);
-                    if (!result.Recognizing)
+                    if (gr.Processing)
+                        gr.Process1(traces);
+
+                    if (!gr.Recognizing)
                     {
                         if (pn == m_currentPN)
                         {
-                            if (result.Successful)
-                            {
-                                ggr.m_interpreting = result.Interpreting;
-                                ggr.m_probabilityOfSuccess = result.Probability;
-                                m_succedingGRs.Add(ggr);
-                            }
-                            m_toRemove.Add(ggr);
+                            if (gr.Successful)
+                                m_succedingGRs.Add(gr);
+                            m_toRemove.Add(gr);
                         }
+                        else
+                            if (!gr.Successful)
+                                m_toRemove.Add(gr);
+
+                        if(gr is LocalGestureRecognizer)
+                            m_toRemove.AddRange(FindAllOtherEquivalentLGRs((LocalGestureRecognizer)gr));
                     }
                     else
                         if (someIsRecognizing == false)
                             someIsRecognizing = true;
-                }
+                } 
+                #endregion
 
-                // process LGRs
-                foreach (LocalGestureRecognizer lgr in m_unarmedLGRs[pn])
-                {
-                    if (m_toRemove.Contains(lgr) || (!lgr.m_interpreting))
-                        continue;
-
-                    result = lgr.Process1(traces);
-                    if (!result.Recognizing)
-                    {
-                        if (pn == m_currentPN)
-                        {
-                            if (result.Successful)
-                            {
-                                lgr.m_interpreting = result.Interpreting;
-                                lgr.m_probabilityOfSuccess = result.Probability;
-                                m_succedingGRs.Add(lgr);
-                            }
-                            m_toRemove.Add(lgr);
-                        }
-                        m_toRemove.AddRange(FindAllOtherEquivalentLGRs(lgr));
-                    }
-                    else
-                        if (someIsRecognizing == false)
-                            someIsRecognizing = true;
-                }
-
-
-
+                // Process succeding GRs
                 if (m_succedingGRs.Count > 0)
                 {
                     #region sort succeding GRs by probability of success
@@ -311,7 +291,7 @@ namespace Grafiti
                         // with the relative GRs linearly
                         for (int i = 0; i < m_succedingGRs.Count; )
                         {
-                            if (m_succedingGRs[i].m_probabilityOfSuccess == 1)
+                            if (m_succedingGRs[i].Probability == 1)
                             {
                                 sortedSucceding.Add(m_succedingGRs[i]);
                                 m_succedingGRs.RemoveAt(i);
@@ -325,11 +305,11 @@ namespace Grafiti
                         int idxMaxP;
                         while (m_succedingGRs.Count > 0)
                         {
-                            maxP = m_succedingGRs[0].m_probabilityOfSuccess;
+                            maxP = m_succedingGRs[0].Probability;
                             idxMaxP = 0;
                             for (int i = 1; i < m_succedingGRs.Count; i++)
                             {
-                                currentP = m_succedingGRs[i].m_probabilityOfSuccess;
+                                currentP = m_succedingGRs[i].Probability;
                                 if (currentP > maxP)
                                 {
                                     maxP = currentP;
@@ -373,16 +353,13 @@ namespace Grafiti
                     }
                     #endregion
 
-                    // For all the succeding GRs, arm them and process their pending events,
-                    // until an exclusive winner is found.
-                    GestureRecognizer winning;
-                    for (int i = 0; i < m_succedingGRs.Count; i++)
+                    #region arm and process events iteratively until an exclusive is found
+                    foreach (GestureRecognizer winning in m_succedingGRs)
                     {
-                        winning = m_succedingGRs[i];
                         winning.Armed = true;
                         winning.ProcessPendlingEvents();
 
-                        if (winning.m_interpreting)
+                        if (winning.Processing)
                             m_armedGRs.Add(winning);
                         if (winning.Configurator.Exclusive)
                         {
@@ -393,7 +370,8 @@ namespace Grafiti
                                 ResetExclusiveLocalTarget();
                             break;
                         }
-                    }
+                    } 
+                    #endregion
                 }
 
 
@@ -401,7 +379,7 @@ namespace Grafiti
                     ClearUnarmed();
                 else
                     foreach(GestureRecognizer gr in m_toRemove)
-                        RemoveUnarmed(gr);
+                        RemoveUnarmedGR(gr);
 
                 m_toRemove.Clear();
 
@@ -420,6 +398,22 @@ namespace Grafiti
             }
 
             return m_taskCompleted;
+        }
+
+        private IEnumerable<GestureRecognizer> AppendGRs(List<GlobalGestureRecognizer> ggrs, List<LocalGestureRecognizer> lgrs, bool firstGlobal)
+        {
+            List<GlobalGestureRecognizer>.Enumerator ggrEnum = ggrs.GetEnumerator();
+            List<LocalGestureRecognizer>.Enumerator lgrEnum = lgrs.GetEnumerator();
+            if (firstGlobal)
+            {
+                while (ggrEnum.MoveNext()) yield return (GestureRecognizer)ggrEnum.Current;
+                while (lgrEnum.MoveNext()) yield return (GestureRecognizer)lgrEnum.Current;
+            }
+            else
+            {
+                while (lgrEnum.MoveNext()) yield return (GestureRecognizer)lgrEnum.Current;
+                while (ggrEnum.MoveNext()) yield return (GestureRecognizer)ggrEnum.Current;
+            }
         }
 
         private IEnumerable<GestureRecognizer> FindAllOtherEquivalentLGRs(LocalGestureRecognizer lgr)
@@ -459,25 +453,7 @@ namespace Grafiti
                 m_unarmedGGRs[pn].Add((GlobalGestureRecognizer)gr);
         }
 
-        /// <summary>
-        /// Sort unarmed LGRs by increasing distance to their target
-        /// </summary>
-        private void SortUnarmedLGRs()
-        {
-            foreach(int pn in m_pns)
-            {
-                foreach(LocalGestureRecognizer lgr in m_unarmedLGRs[pn])
-                    lgr.SquareDistanceFromTarget = lgr.Target.GetSquareDistance(m_group.CentroidX, m_group.CentroidY);
-                m_unarmedLGRs[pn].Sort(new Comparison<LocalGestureRecognizer>(
-                delegate(LocalGestureRecognizer a, LocalGestureRecognizer b)
-                {
-                    return (int)((a.SquareDistanceFromTarget - b.SquareDistanceFromTarget) * 10000000);
-                }
-                ));
-            }
-        }
-
-        private void RemoveUnarmed(GestureRecognizer gr)
+        private void RemoveUnarmedGR(GestureRecognizer gr)
         {
             int pn = gr.PriorityNumber;
 
@@ -495,6 +471,24 @@ namespace Grafiti
                     m_unarmedGGRs.Remove(pn);
                     m_pns.Remove(pn);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Sort unarmed LGRs by increasing distance to their target
+        /// </summary>
+        private void SortUnarmedLGRs()
+        {
+            foreach(int pn in m_pns)
+            {
+                foreach(LocalGestureRecognizer lgr in m_unarmedLGRs[pn])
+                    lgr.SquareDistanceFromTarget = lgr.Target.GetSquareDistance(m_group.CentroidX, m_group.CentroidY);
+                m_unarmedLGRs[pn].Sort(new Comparison<LocalGestureRecognizer>(
+                delegate(LocalGestureRecognizer a, LocalGestureRecognizer b)
+                {
+                    return (int)((a.SquareDistanceFromTarget - b.SquareDistanceFromTarget) * 10000000);
+                }
+                ));
             }
         }
 

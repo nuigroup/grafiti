@@ -96,7 +96,6 @@ namespace Grafiti
 
     public class MultiTraceGR : GlobalGestureRecognizer
     {
-        private GestureRecognitionResult m_defaultResult;
         private int m_startingTime = -1;
         private List<Trace> m_startingTraces;
         private int m_nOfFingers;
@@ -130,8 +129,6 @@ namespace Grafiti
             m_startingTime = -1;
             m_startingTraces = new List<Trace>();
             m_nOfFingers = 0;
-
-            m_defaultResult = new GestureRecognitionResult(false, true, true);
         }
 
         private void OnMultiTraceStart()       { AppendEvent(MultiTraceStarted, new MultiTraceEventArgs("MultiTraceStarted", Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
@@ -145,7 +142,7 @@ namespace Grafiti
             "MultiTraceFromTo",  Group.Id, m_nOfFingers, Group.ClosestInitialTarget, Group.ClosestFinalTarget,
             m_initialCentroidX, m_initialCentroidY, Group.CentroidX, Group.CentroidY)); }
 
-        public override GestureRecognitionResult Process(List<Trace> traces)
+        public override void Process(List<Trace> traces)
         {
             if (m_startingTime == -1)
                 m_startingTime = traces[0].Last.TimeStamp;
@@ -187,7 +184,7 @@ namespace Grafiti
                 }
             }
 
-            return m_defaultResult;
+            GestureHasBeenRecognized();
         }
 
         protected override void OnUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving, 
