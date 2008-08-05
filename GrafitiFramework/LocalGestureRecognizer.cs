@@ -34,7 +34,7 @@ namespace Grafiti
         public ITuioObjectGestureListener Target { get { return m_target; } internal set { m_target = value; } }
         internal float SquareDistanceFromTarget { get { return m_squareDistanceFromTarget; } set { m_squareDistanceFromTarget = value; } }
 
-        public LocalGestureRecognizer(GRConfiguration configuration) : base(configuration) { }
+        public LocalGestureRecognizer(GRConfigurator configurator) : base(configurator) { }
 
         internal override sealed void AddHandler(string ev, GestureEventHandler handler)
         {

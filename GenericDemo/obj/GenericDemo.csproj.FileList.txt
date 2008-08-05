@@ -1,9 +1,0 @@
-obj\Debug\ResolveAssemblyReference.cache
-obj\Debug\GenericDemo.csproj.GenerateResource.Cache
-bin\Debug\GenericDemo.exe
-bin\Debug\GenericDemo.pdb
-bin\Debug\Grafiti.dll
-bin\Debug\Grafiti.pdb
-obj\Debug\GenericDemo.exe
-obj\Debug\GenericDemo.pdb
-obj\Debug\GenericDemo.MainForm.resources

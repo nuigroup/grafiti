@@ -31,7 +31,7 @@ namespace Grafiti
         private static GestureEventManager s_instance = null;
         private static readonly object s_lock = new object();
         private GestureEventRegistry s_grRegistry;
-        private GRConfiguration m_defaultGRConfiguration;
+        private GRConfigurator m_defaultGRConfigurator;
         private int m_grPriorityNumber;
         internal GestureEventRegistry GRRegistry { get { return s_grRegistry; } } 
         #endregion
@@ -40,7 +40,7 @@ namespace Grafiti
         private GestureEventManager()
         {
             s_grRegistry = GestureEventRegistry.Instance;
-            m_defaultGRConfiguration = new GRConfiguration(false);
+            m_defaultGRConfigurator = new GRConfigurator(false);
             m_grPriorityNumber = 0;
         } 
         #endregion
@@ -65,7 +65,7 @@ namespace Grafiti
         /// Set the priority number for the next GR registrations. GRs with a lower priority number will
         /// have precedence over those with a higher priority number.
         /// Note that if two or more statements declaring gesture event handlers are executed with 
-        /// the same GR class and the same GR configuration, but different priority numbers are used, then only
+        /// the same GR class and the same GR configurator, but different priority numbers are used, then only
         /// the last priority number set before the first of those statements will be considered.
         /// </summary>
         /// <param name="pn">The priority number.</param>
@@ -82,17 +82,17 @@ namespace Grafiti
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
         public void RegisterHandler(Type grType, string ev, GestureEventHandler handler)
         {
-            RegisterHandler(grType, GestureRecognizer.DefaultConfiguration, ev, handler);
+            RegisterHandler(grType, GestureRecognizer.DefaultConfigurator, ev, handler);
         }
 
         /// <summary>
-        /// Register a handler for a gesture event. The GR will be configured with the given configuration.
+        /// Register a handler for a gesture event. The GR will be configured with the given configurator.
         /// </summary>
         /// <param name="grType">Type of the gesture recognizer.</param>
-        /// <param name="grConf">The GR's configuration.</param>
+        /// <param name="grConf">The GR's configurator.</param>
         /// <param name="e">The event as string.</param>
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
-        public void RegisterHandler(Type grType, GRConfiguration grConf, string ev, GestureEventHandler handler)
+        public void RegisterHandler(Type grType, GRConfigurator grConf, string ev, GestureEventHandler handler)
         {
             s_grRegistry.RegisterHandler(grType, grConf, m_grPriorityNumber, ev, handler);
         }

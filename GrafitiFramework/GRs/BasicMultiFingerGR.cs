@@ -47,9 +47,11 @@ namespace Grafiti
         }
     }
 
-    public class BasicMultiFingerGRConfiguration : GRConfiguration
+    public class BasicMultiFingerGRConfigurator : GRConfigurator
     {
-        // the spatial tollerance for TAP is Settings.TRACE_TIME_GAP
+        public static readonly BasicMultiFingerGRConfigurator DEFAULT_CONFIGURATOR = new BasicMultiFingerGRConfigurator();
+
+        // the spatial tollerance for TAP is implicitly Settings.TRACE_TIME_GAP
 
         // time range for double/triple tap
         public readonly long TAP_TIME;
@@ -68,13 +70,13 @@ namespace Grafiti
         public readonly bool IS_TRIPLE_TAP_ENABLED;
         public const bool DEFAULT_IS_TRIPLE_TAP_ENABLED = false;
 
-        public BasicMultiFingerGRConfiguration()
+        public BasicMultiFingerGRConfigurator()
             : this(false) { }
 
-        public BasicMultiFingerGRConfiguration(bool exclusive)
+        public BasicMultiFingerGRConfigurator(bool exclusive)
             : this(DEFAULT_TAP_TIME, DEFAULT_HOVER_SIZE, DEFAULT_HOVER_TIME, DEFAULT_IS_TRIPLE_TAP_ENABLED, exclusive) { }
 
-        public BasicMultiFingerGRConfiguration(long tapTime, float hoverSize, long hoverTime, bool exclusive, bool isTripleTapEnabled)
+        public BasicMultiFingerGRConfigurator(long tapTime, float hoverSize, long hoverTime, bool exclusive, bool isTripleTapEnabled)
             : base(exclusive)
         {
             TAP_TIME = tapTime;
@@ -110,13 +112,13 @@ namespace Grafiti
 
         private GestureRecognitionResult m_defaultResult;
 
-        public BasicMultiFingerGR(GRConfiguration configuration)
-            : base(configuration)
+        public BasicMultiFingerGR(GRConfigurator configurator)
+            : base(configurator)
         {
-            if (!(configuration is BasicMultiFingerGRConfiguration))
-                Configuration = new BasicMultiFingerGRConfiguration();
+            if (!(configurator is BasicMultiFingerGRConfigurator))
+                Configurator = BasicMultiFingerGRConfigurator.DEFAULT_CONFIGURATOR;
 
-            BasicMultiFingerGRConfiguration conf = (BasicMultiFingerGRConfiguration)Configuration;
+            BasicMultiFingerGRConfigurator conf = (BasicMultiFingerGRConfigurator)Configurator;
             TAP_TIME = conf.TAP_TIME;
             HOVER_SIZE = conf.HOVER_SIZE;
             HOVER_TIME = conf.HOVER_TIME;
@@ -201,82 +203,87 @@ namespace Grafiti
                     }
                 }
 
-                /*** SET ***/
-                else if (trace.State == Trace.States.UPDATED)
-                {
-                    if (Group.ClosestCurrentTarget != null && !CheckHoverSize())
-                        ResetHover();
-                }
-
-                /*** DEL ***/
-                else if (trace.State == Trace.States.REMOVED)
-                {
-                    m_numberOfAliveFingers--;
-                    m_hoverEnabled = false;
-                    OnUp();
-
-                    if (!CheckTapSize(trace))
-                        m_tapSizeOk = false;
-
-                    if (m_numberOfAliveFingers == 0)
-                    {
-                        if (CheckDownTimes(m_traceDownTimesDict[trace]))
-                        {
-                            if (m_tapSizeOk)
-                            {
-                                if (!m_haveSingleTapped)
-                                {
-                                    OnTap();
-                                    m_haveSingleTapped = true;
-                                }
-                                else
-                                    if (CheckTapTime())
-                                        if (!m_haveDoubleTapped)
-                                        {
-                                            OnDoubleTap();
-                                            m_haveDoubleTapped = true;
-                                            if (!IS_TRIPLE_TAP_ENABLED)
-                                                m_needResetTap = true;
-                                        }
-                                        else
-                                        {
-                                            OnTripleTap();
-                                            m_needResetTap = true;
-                                        }
-                                    else
-                                    {
-                                        OnTap();
-                                        m_needResetTap = true;
-                                    }
-                            }
-                            else
-                            {
-                                m_needResetTap = true;
-                            }
-                        }
-                        else
-                            foreach (Trace t in Group.Traces)
-                                m_traceDownTimesDict[t] = 0;
-                    }
-                }
-
-                /*** RESET ***/
                 else
                 {
-                    m_traceDownTimesDict[trace]++;
-                    m_traceLastDownCurDict[trace] = trace.Last;
-                    m_numberOfAliveFingers++;
+                    System.Diagnostics.Debug.Assert(m_traceLastDownCurDict.ContainsKey(trace));
 
-                    OnDown();
-                    if (m_needResetTap)
+                    /*** SET ***/
+                    if (trace.State == Trace.States.UPDATED)
                     {
-                        foreach (Trace t in Group.Traces)
-                            if (t != trace)
-                                m_traceDownTimesDict[t] = 0;
-
-                        ResetTap();
+                        if (Group.ClosestCurrentTarget != null && !CheckHoverSize())
+                            ResetHover();
                     }
-                    ResetHover();
+
+                    /*** DEL ***/
+                    else if (trace.State == Trace.States.REMOVED)
+                    {
+                        m_numberOfAliveFingers--;
+                        m_hoverEnabled = false;
+                        OnUp();
+
+                        if (!CheckTapSize(trace))
+                            m_tapSizeOk = false;
+
+                        if (m_numberOfAliveFingers == 0)
+                        {
+                            if (CheckDownTimes(m_traceDownTimesDict[trace]))
+                            {
+                                if (m_tapSizeOk)
+                                {
+                                    if (!m_haveSingleTapped)
+                                    {
+                                        OnTap();
+                                        m_haveSingleTapped = true;
+                                    }
+                                    else
+                                        if (CheckTapTime())
+                                            if (!m_haveDoubleTapped)
+                                            {
+                                                OnDoubleTap();
+                                                m_haveDoubleTapped = true;
+                                                if (!IS_TRIPLE_TAP_ENABLED)
+                                                    m_needResetTap = true;
+                                            }
+                                            else
+                                            {
+                                                OnTripleTap();
+                                                m_needResetTap = true;
+                                            }
+                                        else
+                                        {
+                                            OnTap();
+                                            m_needResetTap = true;
+                                        }
+                                }
+                                else
+                                {
+                                    m_needResetTap = true;
+                                }
+                            }
+                            else
+                                foreach (Trace t in Group.Traces)
+                                    m_traceDownTimesDict[t] = 0;
+                        }
+                    }
+
+                    /*** RESET ***/
+                    else
+                    {
+                        m_traceDownTimesDict[trace]++;
+                        m_traceLastDownCurDict[trace] = trace.Last;
+                        m_numberOfAliveFingers++;
+
+                        OnDown();
+                        if (m_needResetTap)
+                        {
+                            foreach (Trace t in Group.Traces)
+                                if (t != trace)
+                                    m_traceDownTimesDict[t] = 0;
+
+                            ResetTap();
+                        }
+                        ResetHover();
+                    }
                 }
             }
             return m_defaultResult;
@@ -342,7 +349,8 @@ namespace Grafiti
             bool initial, bool final,
             bool entering, bool current, bool leaving,
             bool intersect, bool union,
-            bool newClosestEnt, bool newClosestCur, bool newClosestLvn)
+            bool newClosestEnt, bool newClosestCur, bool newClosestLvn, 
+            bool newClosestIni, bool newClosestFin)
         {
             m_newClosestCurrentTarget = newClosestCur;
         }

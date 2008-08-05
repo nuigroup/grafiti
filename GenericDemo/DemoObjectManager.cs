@@ -28,11 +28,55 @@ using Grafiti;
 
 namespace GenericDemo
 {
+    public class DemoObjectLink
+    {
+        private DemoObject m_fromObject, m_toObject;
+        private float m_xm, m_ym; // mean point
+        private int m_nFingers;
+        private Pen m_pen;
+
+        public float Xm { get { return m_xm; } }
+        public float Ym { get { return m_ym; } }
+
+        public DemoObjectLink(DemoObject from, DemoObject to, int nFingers)
+        {
+            m_fromObject = from;
+            m_toObject = to;
+            m_nFingers = nFingers;
+            Update();
+            m_pen = new Pen(Color.Black);
+            m_pen.Width = nFingers;
+            from.m_links.Add(this);
+            to.m_links.Add(this);
+        }
+
+        public void Update()
+        {
+            m_xm = (m_fromObject.X + m_toObject.X) / 2;
+            m_ym = (m_fromObject.Y + m_toObject.Y) / 2;
+        }
+
+        public void OnPaint(System.Windows.Forms.PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            float screen = MainForm.height;
+            g.DrawLine(m_pen, new PointF(m_fromObject.X * screen, m_fromObject.Y * screen),
+                new PointF(m_toObject.X * screen, m_toObject.Y * screen));
+            g.FillEllipse(Brushes.Black, m_xm * screen - 2, m_ym * screen - 2, 4, 4);
+        }
+    }
     public class DemoObjectManager : TuioListener
     {
-        private Form m_parentForm;
+        private const float MAX_DISTANCE_FOR_LINKING = 0.3f;
+        private const float SQUARE_MAX_DISTANCE = MAX_DISTANCE_FOR_LINKING * MAX_DISTANCE_FOR_LINKING;
+        private Form m_parentForm;  
         private List<TuioObject> m_tuioObjectAddedList, m_tuioObjectUpdatedList, m_tuioObjectRemovedList;
         private Dictionary<long, DemoObject> m_idDemoObjectTable;
+        private List<DemoObjectLink> m_links;
+        private PinchingGRConfigurator m_pinchingConfigurator = new PinchingGRConfigurator(true, false);
+
+        public List<DemoObjectLink> Links { get { return m_links; } }
+        internal PinchingGRConfigurator PinchingConfigurator { get { return m_pinchingConfigurator; } }
 
         public DemoObjectManager(Form parentForm)
         {
@@ -41,6 +85,14 @@ namespace GenericDemo
             m_tuioObjectUpdatedList = new List<TuioObject>();
             m_tuioObjectRemovedList = new List<TuioObject>();
             m_idDemoObjectTable = new Dictionary<long,DemoObject>();
+            m_links = new List<DemoObjectLink>();
+
+            GestureEventManager.Instance.SetPriorityNumber(-2);
+            GestureEventManager.Instance.RegisterHandler(typeof(RemovingLinkGR), new RemovingLinkGRConfigurator(this), "RemoveLinks", OnRemoveLinks);
+
+            GestureEventManager.Instance.SetPriorityNumber(-1);
+            GestureEventManager.Instance.RegisterHandler(typeof(MultiTraceGR), "MultiTraceFromTo", OnMultiTraceFromTo);
+            
         }
 
         #region TuioListener interface
@@ -68,24 +120,28 @@ namespace GenericDemo
 
         public void refresh(long timestamp)
         {
-            lock (this)
+            foreach (TuioObject o in m_tuioObjectAddedList)
             {
-                foreach (TuioObject o in m_tuioObjectAddedList)
-                {
-                    DemoObject demoObject = new DemoObject(m_parentForm, (int)o.getSessionID(), o.getX() * Surface.SCREEN_RATIO, o.getY(), o.getAngle());
-                    m_idDemoObjectTable[o.getSessionID()] = demoObject;
-                    Surface.Instance.AddListener(demoObject);
-                }
-                foreach (TuioObject o in m_tuioObjectUpdatedList)
-                {
-                    m_idDemoObjectTable[o.getSessionID()].Update(o.getX() * Surface.SCREEN_RATIO, o.getY(), o.getAngle());
-                }
-                foreach (TuioObject o in m_tuioObjectRemovedList)
-                {
-                    Surface.Instance.RemoveListener(m_idDemoObjectTable[o.getSessionID()]);
-                    m_idDemoObjectTable.Remove(o.getSessionID());
-                }
+                DemoObject demoObject = new DemoObject(this, m_parentForm, (int)o.getSessionID(), o.getX() * Surface.SCREEN_RATIO, o.getY(), o.getAngle());
+                m_idDemoObjectTable[o.getSessionID()] = demoObject;
+                Surface.Instance.AddListener(demoObject);
             }
+            foreach (TuioObject o in m_tuioObjectUpdatedList)
+            {
+                m_idDemoObjectTable[o.getSessionID()].Update(o.getX() * Surface.SCREEN_RATIO, o.getY(), o.getAngle());
+            }
+            foreach (TuioObject o in m_tuioObjectRemovedList)
+            {
+                DemoObject demoObject = m_idDemoObjectTable[o.getSessionID()];
+                m_idDemoObjectTable.Remove(o.getSessionID());
+                Surface.Instance.RemoveListener(demoObject);
+                foreach (DemoObjectLink link in demoObject.m_links)
+                    m_links.Remove(link);
+            }
+
+            foreach (DemoObjectLink link in m_links)
+                link.Update();
+
             m_tuioObjectAddedList.Clear();
             m_tuioObjectUpdatedList.Clear();
             m_tuioObjectRemovedList.Clear();
@@ -93,17 +149,31 @@ namespace GenericDemo
 
         #endregion
 
-
+        public void OnRemoveLinks(object obj, GestureEventArgs args)
+        {
+            RemovingLinkGREventArgs cArgs = (RemovingLinkGREventArgs)args;
+            foreach(DemoObjectLink link in cArgs.Links)
+                m_links.Remove(link);
+        }
+        public void OnMultiTraceFromTo(object obj, GestureEventArgs args)
+        {
+            MultiTraceFromToEventArgs cArgs = (MultiTraceFromToEventArgs)args;
+            DemoObject fromObj = (DemoObject)cArgs.FromTarget;
+            DemoObject toObj = (DemoObject)cArgs.ToTarget;
+            if (fromObj != toObj &&
+                fromObj.GetSquareDistance(cArgs.InitialCentroidX, cArgs.InitialCentroidY) <= SQUARE_MAX_DISTANCE &&
+                toObj.GetSquareDistance(cArgs.FinalCentroidX, cArgs.FinalCentroidY) <= SQUARE_MAX_DISTANCE)
+                m_links.Add(new DemoObjectLink(fromObj, toObj, cArgs.NOfFingers));
+        }
 
         public void OnPaint(System.Windows.Forms.PaintEventArgs e)
         {
-            lock (this)
-            {
-                foreach (DemoObject demoObject in m_idDemoObjectTable.Values)
-                {
-                    demoObject.OnPaint(e);
-                }
-            }
+            Graphics g = e.Graphics;
+            foreach (DemoObjectLink link in m_links)
+                link.OnPaint(e);
+
+            foreach (DemoObject demoObject in m_idDemoObjectTable.Values)
+                demoObject.OnPaint(e);
         }
     }
 }

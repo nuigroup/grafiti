@@ -44,7 +44,10 @@ namespace Grafiti
             DEFAULT,
             CLOSEST_ENTERING,
             CLOSEST_CURRENT,
-            CLOSEST_LEAVING
+            CLOSEST_LEAVING,
+            CLOSEST_INITIAL,
+            CLOSEST_NEWINITIAL,
+            CLOSEST_FINAL
         }
 
 
@@ -67,6 +70,9 @@ namespace Grafiti
         protected string[] ClosestEnteringEvents = new string[0] { };
         protected string[] ClosestCurrentEvents = new string[0] { };
         protected string[] ClosestLeavingEvents = new string[0] { };
+        protected string[] ClosestInitialEvents = new string[0] { };
+        protected string[] ClosestNewInitialEvents = new string[0] { };
+        protected string[] ClosestFinalEvents = new string[0] { };
 
 
         // GR developers can use this (in association with the predefined lists), to manage the handlers
@@ -78,10 +84,14 @@ namespace Grafiti
             get { return m_handlerTable; }
         }
 
-        public GlobalGestureRecognizer(GRConfiguration configuration) : base(configuration)
+        // Auxiliar list used instead of creating a new instance each time.
+        List<ITuioObjectGestureListener> m_temporaryTargetSingletonList;
+
+        public GlobalGestureRecognizer(GRConfigurator configurator) : base(configurator)
         {
             m_handlerTable = new DoubleDictionary<EventInfo, object, List<GestureEventHandler>>();
             m_temporaryHandlerTable = new DoubleDictionary<TargetList, EventInfo, List<GestureEventHandler>>();
+            m_temporaryTargetSingletonList = new List<ITuioObjectGestureListener>(1);
         }
 
         internal override sealed void AddHandler(string ev, GestureEventHandler handler)
@@ -114,13 +124,16 @@ namespace Grafiti
         /// <summary>
         /// Update handlers to the events for targets appearing in the predefined target lists
         /// </summary>
-        internal void UpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
-            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn)
+        internal void UpdateHandlers(
+            bool initial, bool final, bool entering, bool current, bool leaving,
+            bool intersect, bool union, 
+            bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin)
         {
             if (initial)
             {
                 UpdateHandlers(TargetList.INITIAL);
                 UpdateHandlers(TargetList.NEWINITIAL);
+                UpdateHandlers(TargetList.CLOSEST_NEWINITIAL);
             }
             if (final)
                 UpdateHandlers(TargetList.FINAL);
@@ -140,13 +153,17 @@ namespace Grafiti
                 UpdateHandlers(TargetList.CLOSEST_CURRENT);
             if (newClosestLvn)
                 UpdateHandlers(TargetList.CLOSEST_LEAVING);
+            if (newClosestIni)
+                UpdateHandlers(TargetList.CLOSEST_INITIAL);
+            if (newClosestFin)
+                UpdateHandlers(TargetList.CLOSEST_FINAL);
 
             OnUpdateHandlers(initial, final, entering, current, leaving,
-                intersect, union, newClosestEnt, newClosestCur, newClosestLvn);
+                intersect, union, newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
         }
 
         protected virtual void OnUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
-            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn) { }
+            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin) { }
 
         private void UpdateHandlers(TargetList targetList)
         {
@@ -193,29 +210,53 @@ namespace Grafiti
                 groupTargetList = Group.UnionTargets;
                 eventList = UnionEvents;
             }
-            else if (targetList == TargetList.CLOSEST_ENTERING)
+            else // Using temporary singleton list
             {
-                groupTargetList = new List<ITuioObjectGestureListener>();
-                if (Group.ClosestEnteringTarget != null)
-                    groupTargetList.Add(Group.ClosestEnteringTarget);
-                eventList = this.ClosestEnteringEvents;
+                // Assign groupTargetList to the cleared temp list
+                if (m_temporaryTargetSingletonList.Count > 0)
+                    m_temporaryTargetSingletonList.RemoveAt(0);
+                groupTargetList = m_temporaryTargetSingletonList;
+
+                if (targetList == TargetList.CLOSEST_ENTERING)
+                {
+                    if (Group.ClosestEnteringTarget != null)
+                        groupTargetList.Add(Group.ClosestEnteringTarget);
+                    eventList = this.ClosestEnteringEvents;
+                }
+                else if (targetList == TargetList.CLOSEST_CURRENT)
+                {
+                    if (Group.ClosestCurrentTarget != null)
+                        groupTargetList.Add(Group.ClosestCurrentTarget);
+                    eventList = this.ClosestCurrentEvents;
+                }
+                else if (targetList == TargetList.CLOSEST_LEAVING)
+                {
+                    if (Group.ClosestLeavingTarget != null)
+                        groupTargetList.Add(Group.ClosestLeavingTarget);
+                    eventList = this.ClosestLeavingEvents;
+                }
+                else if (targetList == TargetList.CLOSEST_INITIAL)
+                {
+                    if (Group.ClosestInitialTarget != null)
+                        groupTargetList.Add(Group.ClosestInitialTarget);
+                    eventList = this.ClosestInitialEvents;
+                }
+                else if (targetList == TargetList.CLOSEST_NEWINITIAL)
+                {
+                    if (Group.ClosestNewInitialTarget != null)
+                        groupTargetList.Add(Group.ClosestNewInitialTarget);
+                    eventList = this.ClosestNewInitialEvents;
+                }
+                else if (targetList == TargetList.CLOSEST_FINAL)
+                {
+                    if (Group.ClosestFinalTarget != null)
+                        groupTargetList.Add(Group.ClosestFinalTarget);
+                    eventList = this.ClosestFinalEvents;
+                }
+                else
+                    throw new Exception("Invalid parameter.");
             }
-            else if (targetList == TargetList.CLOSEST_CURRENT)
-            {
-                groupTargetList = new List<ITuioObjectGestureListener>();
-                if (Group.ClosestCurrentTarget != null)
-                    groupTargetList.Add(Group.ClosestCurrentTarget);
-                eventList = this.ClosestCurrentEvents;
-            }
-            else if (targetList == TargetList.CLOSEST_LEAVING)
-            {
-                groupTargetList = new List<ITuioObjectGestureListener>();
-                if (Group.ClosestLeavingTarget != null)
-                    groupTargetList.Add(Group.ClosestLeavingTarget);
-                eventList = this.ClosestLeavingEvents;
-            }
-            else
-                throw new Exception("Invalid parameter.");
+
 
             // TODO: optimize
             EventInfo eventInfo;
@@ -237,7 +278,10 @@ namespace Grafiti
                 // Add new handlers
                 if (targetList != TargetList.INTERSECT) // INTERSECT removes only
                 {
-                    m_temporaryHandlerTable[targetList, eventInfo] = new List<GestureEventHandler>();
+                    if (m_temporaryHandlerTable.ContainsKeys(targetList, eventInfo))
+                        m_temporaryHandlerTable[targetList, eventInfo].Clear();
+                    else
+                        m_temporaryHandlerTable[targetList, eventInfo] = new List<GestureEventHandler>();
                     foreach (ITuioObjectGestureListener target in groupTargetList)
                         if (m_handlerTable.ContainsKeys(eventInfo, target))
                             foreach (GestureEventHandler handler in m_handlerTable[eventInfo, target])

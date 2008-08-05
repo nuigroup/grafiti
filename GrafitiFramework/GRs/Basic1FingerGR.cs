@@ -44,8 +44,10 @@ namespace Grafiti
         }
     }
 
-    public class Basic1FingerGRConfiguration : GRConfiguration
+    public class Basic1FingerGRConfigurator : GRConfigurator
     {
+        public static readonly Basic1FingerGRConfigurator DEFAULT_CONFIGURATOR = new Basic1FingerGRConfigurator();
+
         // spacial tollerance for single/double/triple tap
         public readonly float TAP_SIZE;
         public const float DEFAULT_TAP_SIZE = 0.02f;
@@ -64,13 +66,13 @@ namespace Grafiti
         public const long DEFAULT_HOVER_TIME = 800;
 
 
-        public Basic1FingerGRConfiguration()
+        public Basic1FingerGRConfigurator()
             : this(false) { }
 
-        public Basic1FingerGRConfiguration(bool exclusive)
+        public Basic1FingerGRConfigurator(bool exclusive)
             : this(DEFAULT_TAP_SIZE, DEFAULT_TAP_TIME, DEFAULT_HOVER_SIZE, DEFAULT_HOVER_TIME, exclusive) { }
         
-        public Basic1FingerGRConfiguration(float tapSize, long tapTime, float hoverSize, long hoverTime, bool exclusive)
+        public Basic1FingerGRConfigurator(float tapSize, long tapTime, float hoverSize, long hoverTime, bool exclusive)
             : base(exclusive)
         {
             TAP_SIZE = tapSize;
@@ -104,12 +106,12 @@ namespace Grafiti
 
         private GestureRecognitionResult m_defaultResult;
 
-        public Basic1FingerGR(GRConfiguration configuration) : base(configuration)
+        public Basic1FingerGR(GRConfigurator configurator) : base(configurator)
         {
-            if (!(configuration is Basic1FingerGRConfiguration))
-                Configuration = new Basic1FingerGRConfiguration();
+            if (!(configurator is Basic1FingerGRConfigurator))
+                Configurator = Basic1FingerGRConfigurator.DEFAULT_CONFIGURATOR;
 
-            Basic1FingerGRConfiguration conf = (Basic1FingerGRConfiguration)Configuration;
+            Basic1FingerGRConfigurator conf = (Basic1FingerGRConfigurator)Configurator;
             TAP_SIZE = conf.TAP_SIZE;
             TAP_TIME = conf.TAP_TIME;
             HOVER_SIZE = conf.HOVER_SIZE;
@@ -290,8 +292,8 @@ namespace Grafiti
         protected override void OnUpdateHandlers(
             bool initial, bool final, 
             bool entering, bool current, bool leaving, 
-            bool intersect, bool union, 
-            bool newClosestEnt, bool newClosestCur, bool newClosestLvn)
+            bool intersect, bool union,
+            bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin)
         {
             m_newClosestCurrentTarget = newClosestCur;
         }

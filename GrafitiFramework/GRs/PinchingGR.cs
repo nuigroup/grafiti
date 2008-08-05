@@ -136,34 +136,49 @@ namespace Grafiti
         }
     }
 
-    public class PinchingGRConfiguration : GRConfiguration
+    public class PinchingGRConfigurator : GRConfigurator
     {
+        public static readonly PinchingGRConfigurator DEFAULT_CONFIGURATOR = new PinchingGRConfigurator();
+
+        private const bool EXCLUSIVE_DEFAULT = false;
+
+        public readonly bool IS_ONE_FINGER_SCALING_ENABLED;
+        public const bool DEFAULT_IS_ONE_FINGER_SCALING_ENABLED = true;
+
         public readonly float SCALE_FACTOR; // no
         public const float DEFAULT_SCALE_FACTOR = 1;
 
         public readonly float TRASLATE_FACTOR; // no
         public const float DEFAULT_TRASLATE_FACTOR = 1;
 
-        public PinchingGRConfiguration()
-            : this(true) { } // Exclusive by default
+        public PinchingGRConfigurator()
+            : this(DEFAULT_SCALE_FACTOR, DEFAULT_TRASLATE_FACTOR) { }
 
-        public PinchingGRConfiguration(bool exclusive)
-            : this(DEFAULT_SCALE_FACTOR, DEFAULT_TRASLATE_FACTOR, exclusive) { }
+        public PinchingGRConfigurator(bool exclusive, bool isOneFingerScalingEnabled)
+            : this(exclusive, DEFAULT_SCALE_FACTOR, DEFAULT_TRASLATE_FACTOR, isOneFingerScalingEnabled) { }
 
-        public PinchingGRConfiguration(float scaleFactor, float translateFactor, bool exclusive)
+        public PinchingGRConfigurator(float scaleFactor, float translateFactor)
+            : base(EXCLUSIVE_DEFAULT)
+        {
+            SCALE_FACTOR = scaleFactor;
+            TRASLATE_FACTOR = translateFactor;
+            IS_ONE_FINGER_SCALING_ENABLED = DEFAULT_IS_ONE_FINGER_SCALING_ENABLED;
+        }
+
+        public PinchingGRConfigurator(bool exclusive, float scaleFactor, float translateFactor, bool isOneFingerScalingEnabled)
             : base(exclusive)
         {
             SCALE_FACTOR = scaleFactor;
             TRASLATE_FACTOR = translateFactor;
+            IS_ONE_FINGER_SCALING_ENABLED = isOneFingerScalingEnabled;
         }
 
     }
 
     public class PinchingGR : LocalGestureRecognizer
     {
-        // Configuration parameters
-        private readonly float SCALE_FACTOR;
-        private readonly float TRASLATE_FACTOR;
+        // Configurator
+        private PinchingGRConfigurator m_conf;
 
         // Last timestamp value
         private long m_lastTimeStamp;
@@ -195,17 +210,15 @@ namespace Grafiti
         private float m_rotation;
         private float m_rotationSpeed;
 
-        private GestureRecognitionResult m_defaultResult;
+        private GestureRecognitionResult m_defaultResult, m_nonRecognizingResult, m_recognizingResult;
 
-        public PinchingGR(GRConfiguration configuration)
-            : base(configuration)
+        public PinchingGR(GRConfigurator configurator)
+            : base(configurator)
         {
-            if (!(configuration is PinchingGRConfiguration))
-                Configuration = new PinchingGRConfiguration();
+            if (!(configurator is PinchingGRConfigurator))
+                Configurator = PinchingGRConfigurator.DEFAULT_CONFIGURATOR;
 
-            PinchingGRConfiguration conf = (PinchingGRConfiguration)Configuration;
-            SCALE_FACTOR = conf.SCALE_FACTOR;
-            TRASLATE_FACTOR = conf.TRASLATE_FACTOR;
+            m_conf = (PinchingGRConfigurator)Configurator;
 
             m_lastTimeStamp = 0;
             m_ids = new List<long>();
@@ -222,7 +235,12 @@ namespace Grafiti
             m_rotation = 0;
             m_rotationSpeed = 0;
 
-            m_defaultResult = new GestureRecognitionResult(false, true, true);
+            m_nonRecognizingResult = new GestureRecognitionResult(false, true, true);
+            m_recognizingResult = new GestureRecognitionResult(true, false, true);
+            if (!m_conf.IS_ONE_FINGER_SCALING_ENABLED)
+                m_defaultResult = m_recognizingResult;
+            else
+                m_defaultResult = m_nonRecognizingResult;
         }
 
         public event GestureEventHandler Down;
@@ -286,6 +304,12 @@ namespace Grafiti
 
         public override GestureRecognitionResult Process(List<Trace> traces)
         {
+            // While there has been only one trace, if scaling with one finger is disabled then
+            // return a 'recognizing' result
+            if (m_defaultResult == m_recognizingResult &&
+                !m_conf.IS_ONE_FINGER_SCALING_ENABLED && Group.Traces.Count > 1)
+                m_defaultResult = m_nonRecognizingResult;
+
             // If a cursor has been added or removed this flag is set to true
             // so that references for computing scaling, translation and rotation
             // are updated
@@ -346,15 +370,15 @@ namespace Grafiti
             if (Group.NOfAliveTraces > 1)
             {
                 float distanceFromCentroid = GetMeanDistanceFromCentroid();
-                float newScale = (distanceFromCentroid - m_centroidDistanceRef) * SCALE_FACTOR;
+                float newScale = (distanceFromCentroid - m_centroidDistanceRef) * m_conf.SCALE_FACTOR;
                 m_scaleSpeed = (newScale - m_scale) / dt * 1000;
                 m_scale = newScale;
                 OnScale(); 
             }
 
             // Compute translation
-            float newTranslateX = (Group.CentroidLivingX - m_centroidXRef) * TRASLATE_FACTOR;
-            float newTranslateY = (Group.CentroidLivingY - m_centroidYRef) * TRASLATE_FACTOR;
+            float newTranslateX = (Group.CentroidLivingX - m_centroidXRef) * m_conf.TRASLATE_FACTOR;
+            float newTranslateY = (Group.CentroidLivingY - m_centroidYRef) * m_conf.TRASLATE_FACTOR;
             m_translateXSpeed = (newTranslateX - m_translateX) / dt * 1000;
             m_translateYSpeed = (newTranslateY - m_translateY) / dt * 1000;
             m_translateX = newTranslateX;

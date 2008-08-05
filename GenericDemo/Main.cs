@@ -32,7 +32,7 @@ namespace GenericDemo
     public class MainForm : Form, TuioListener
     {
         private TuioClient m_client;
-        DemoObjectManager m_tuioObjectManager;
+        DemoObjectManager m_demoObjectManager;
 
         public static int width, height;
         private int window_width = 640;
@@ -45,6 +45,8 @@ namespace GenericDemo
         private bool fullscreen, verbose;
 
         Random m_random = new Random();
+
+        private static object m_lock = new object();
 
         List<DemoGroup> m_demoGroups = new List<DemoGroup>();
 
@@ -64,12 +66,19 @@ namespace GenericDemo
                             ControlStyles.UserPaint |
                             ControlStyles.DoubleBuffer, true);
 
-            m_tuioObjectManager = new DemoObjectManager(this);
+            m_demoObjectManager = new DemoObjectManager(this);
 
             m_client = new TuioClient(port);
-            m_client.addTuioListener(m_tuioObjectManager); // first this
-            m_client.addTuioListener(Surface.Instance); // then this
-            m_client.addTuioListener(this); // finally this
+
+            // Grafiti main listener - Tuio cursor listener
+            m_client.addTuioListener(Surface.Instance);
+
+            // Tuio object listener
+            m_client.addTuioListener(m_demoObjectManager);
+
+            // Auxiliar listener, that retrieves data from grafiti synchronously to output a visual feedback
+            m_client.addTuioListener(this);
+
             m_client.connect();
         }
 
@@ -82,10 +91,10 @@ namespace GenericDemo
         public void removeTuioCursor(TuioCursor c) { }
         public void refresh(long timestamp)
         {
-            lock (this)
+            lock (m_lock)
             {
                 // Add demo groups
-                foreach (Group group in Surface.Instance.AddingGroups)
+                foreach (Group group in Surface.Instance.AddedGroups)
                 {
                     m_demoGroups.Add(new DemoGroup(this, group, Color.FromArgb(m_random.Next(255), m_random.Next(255), m_random.Next(255))));
                 }
@@ -93,27 +102,38 @@ namespace GenericDemo
                 // Remove demo groups
                 m_demoGroups.RemoveAll(delegate(DemoGroup demoGroup)
                 {
-                    return (Surface.Instance.RemovingGroups.Contains(demoGroup.Group));
+                    return (Surface.Instance.RemovedGroups.Contains(demoGroup.Group));
                 });
 
-                UpdateGroups(timestamp);
+                foreach (DemoGroup demoGroup in m_demoGroups)
+                    demoGroup.Update(timestamp);
             }
-
+            
             Invalidate();
-        }
-
-        private void UpdateGroups(long timestamp)
-        {
-            foreach (DemoGroup demoGroup in m_demoGroups)
-                demoGroup.Update(timestamp);
         }
         #endregion
 
+        protected override void OnPaintBackground(PaintEventArgs e)
+        {
+            lock (m_lock)
+            {
+                // draw background
+                e.Graphics.FillRectangle(Brushes.White, 0, 0, width, height);
+
+                // draw objects
+                m_demoObjectManager.OnPaint(e);
+
+                // draw finger groups
+                foreach (DemoGroup demoGroup in m_demoGroups)
+                    demoGroup.OnPaint(e);
+            }
+        }
+
         void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            m_client.removeTuioListener(Surface.Instance);
             m_client.removeTuioListener(this);
-            m_client.removeTuioListener(m_tuioObjectManager);
+            m_client.removeTuioListener(m_demoObjectManager);
+            m_client.removeTuioListener(Surface.Instance);
             m_client.disconnect();
             System.Environment.Exit(0);
         }
@@ -167,30 +187,6 @@ namespace GenericDemo
 
         }
 
-        protected override void OnPaintBackground(PaintEventArgs e)
-        {
-            lock (this)
-            {
-                // Getting the graphics object
-                Graphics g = e.Graphics;
-
-                g.FillRectangle(Brushes.White, new Rectangle(0, 0, width, height));
-            }
-
-        }
-
-        protected override void OnPaint(PaintEventArgs e)
-        {
-            lock (this)
-            {
-                // draw objects
-                m_tuioObjectManager.OnPaint(e);
-
-                // draw finger groups
-                foreach (DemoGroup demoGroup in m_demoGroups)
-                    demoGroup.OnPaint(e);
-            }
-        }
 
         public static void Main(String[] argv)
         {
@@ -209,6 +205,12 @@ namespace GenericDemo
                     System.Environment.Exit(0);
                     break;
             }
+
+            // these will force the compilation of the GR classes
+            new PinchingGR(new GRConfigurator());
+            new BasicMultiFingerGR(new GRConfigurator());
+            new MultiTraceGR(new GRConfigurator());
+            new RemovingLinkGR(new GRConfigurator());
 
             MainForm app = new MainForm(port);
             Application.Run(app);

@@ -39,7 +39,7 @@ namespace Grafiti
 
         public GestureEventArgs()
         {
-            m_eventId = null;
+            m_eventId = "";
             m_groupId = -1;
         }
         public GestureEventArgs(string eventId, int groupId)
@@ -87,7 +87,7 @@ namespace Grafiti
     public delegate void GestureEventHandler(object gestureRecognizer, GestureEventArgs args);
 
 
-    public class GRConfiguration
+    public class GRConfigurator
     {
         protected readonly bool m_exclusive;
 
@@ -97,9 +97,9 @@ namespace Grafiti
         // to send events as well.
         public bool Exclusive { get { return m_exclusive; } }
 
-        public GRConfiguration() : this(false) { }
+        public GRConfigurator() : this(false) { }
         
-        public GRConfiguration(bool exclusive)
+        public GRConfigurator(bool exclusive)
         {
             m_exclusive = exclusive;
         }
@@ -107,21 +107,25 @@ namespace Grafiti
 
     public abstract class GestureRecognizer
     {
-        private static GRConfiguration s_defaultConfiguration = null;
-        private GRConfiguration m_configuration;
+        private static GRConfigurator s_defaultConfigurator = null;
+        private GRConfigurator m_configurator;
         private int m_priorityNumber;
         private Group m_group;
+        internal bool m_recognizing = true, m_successful = false, m_interpreting = true;
+        internal float m_probabilityOfSuccess = 1;
         private bool m_armed;
         private List<GestureEventHandler> m_bufferedHandlers;
         private List<GestureEventArgs> m_bufferedArgs;
 
-        internal static GRConfiguration DefaultConfiguration
+        private int m_debug_NProcessCalls = 0;
+
+        internal static GRConfigurator DefaultConfigurator
         {
             get
             {
-                if (s_defaultConfiguration == null)
-                    s_defaultConfiguration = new GRConfiguration();
-                return s_defaultConfiguration; 
+                if (s_defaultConfigurator == null)
+                    s_defaultConfigurator = new GRConfigurator();
+                return s_defaultConfigurator; 
             }
         }
         internal int PriorityNumber { get { return m_priorityNumber; } set { m_priorityNumber = value; } }
@@ -132,7 +136,7 @@ namespace Grafiti
         // This object will be passed as parameter to the constructor. It can be used to configure its
         // behaviour and/or to give it access to some resources.
         // Should be set once in the constructor.
-        public GRConfiguration Configuration { get { return m_configuration; } protected set { m_configuration = value; } }
+        public GRConfigurator Configurator { get { return m_configurator; } protected set { m_configurator = value; } }
 
         // The associated group to process
         public Group Group { get { return m_group; } internal set { m_group = value; } }
@@ -140,9 +144,9 @@ namespace Grafiti
         #endregion
 
 
-        public GestureRecognizer(GRConfiguration configuration)
+        public GestureRecognizer(GRConfigurator configurator)
         {
-            m_configuration = configuration;
+            m_configurator = configurator;
             m_armed = false;
             m_bufferedHandlers = new List<GestureEventHandler>();
             m_bufferedArgs = new List<GestureEventArgs>();
@@ -163,6 +167,13 @@ namespace Grafiti
         /// <param name="traces">The list of the updated traces, to which one element has been added to their cursor list.</param>
         /// <returns></returns>
         public abstract GestureRecognitionResult Process(List<Trace> traces);
+
+        internal GestureRecognitionResult Process1(List<Trace> traces)
+        {
+            m_debug_NProcessCalls++;
+            Debug.WriteLine("N Process calls: " + m_debug_NProcessCalls + ", in " + this);
+            return Process(traces);
+        }
 
         /// <summary>
         /// Use this method to send events. If the GRs is not armed (e.g. it's in competition with another

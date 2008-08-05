@@ -57,19 +57,14 @@ namespace GenericDemo
                     m_demoTraces.Add(new DemoTrace(m_mainForm, this, trace));
             }
 
-            if(timestamp != 0)
-                foreach (DemoTrace demoTrace in m_demoTraces)
-                {
-                    demoTrace.Update(timestamp);
-                }
+            foreach (DemoTrace demoTrace in m_demoTraces)
+                demoTrace.Update(timestamp);
         }
 
         public void OnPaint(System.Windows.Forms.PaintEventArgs e)
         {
             foreach (DemoTrace demoTrace in m_demoTraces)
-            {
                 demoTrace.OnPaint(e);
-            }
 
             Graphics g = e.Graphics;
 
@@ -80,27 +75,34 @@ namespace GenericDemo
                 {
                     Cursor cursor = trace.Last;
                     g.DrawLine(m_pen,
-                        new PointF(m_group.CentroidX * MainForm.height, m_group.CentroidY * MainForm.height),
-                        new PointF(cursor.X * MainForm.height, cursor.Y * MainForm.height));
+                        m_group.CentroidX * MainForm.height, m_group.CentroidY * MainForm.height,
+                        cursor.X * MainForm.height, cursor.Y * MainForm.height);
                 }
             }
 
-            if (m_group.NOfAliveTraces > 0)
+            if (m_group.NOfAliveTraces >= 0)
             {
-                // draw lines from centroid to local targets
-                foreach (ITuioObjectGestureListener target in m_group.LGRTargets)
+                if (m_group.ExclusiveLocalTarget != null)
                 {
-                    if (m_group.ExclusiveLocalTarget == target)
-                        m_pen.Width = 2; // draw thicker line to the target of the exclusive and winning LGR
-                    else
-                        m_pen.Width = 1;
-
-                    DemoObject demoObj = (DemoObject)target;
-                    g.DrawLine(m_pen,
-                        new PointF(m_group.CentroidX * MainForm.height, m_group.CentroidY * MainForm.height),
-                        new PointF(demoObj.X * MainForm.height, demoObj.Y * MainForm.height));
+                    // draw lines from centroid to exclusive local target
+                    m_pen.Width = 2;
+                    DrawLineToTarget(g, (DemoObject)m_group.ExclusiveLocalTarget);
+                }
+                else
+                {
+                    // draw lines from centroid to all possible local targets
+                    m_pen.Width = 1;
+                    foreach (ITuioObjectGestureListener target in m_group.LGRTargets)
+                        DrawLineToTarget(g, (DemoObject)target);
                 }
             }
+        }
+
+        private void DrawLineToTarget(Graphics g, DemoObject demoObj)
+        {
+            g.DrawLine(m_pen,
+                m_group.CentroidX * MainForm.height, m_group.CentroidY * MainForm.height,
+                demoObj.X * MainForm.height, demoObj.Y * MainForm.height);
         }
     }
 }

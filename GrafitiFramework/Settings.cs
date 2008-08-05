@@ -75,6 +75,16 @@ namespace Grafiti
 
         static Settings()
         {
+            // Default settings
+            SCREEN_RATIO = SCREEN_RATIO_DEFAULT;
+            INTERSECTION_MODE = INTERSECTION_MODE_DEFAULT;
+            GROUPING_SYNCH_TIME = GROUPING_SYNCH_TIME_DEFAULT;
+            GROUPING_SPACE = GROUPING_SPACE_DEFAULT;
+            TRACE_TIME_GAP = TRACE_TIME_GAP_DEFAULT;
+            TRACE_SPACE_GAP = TRACE_SPACE_GAP_DEFAULT;
+            LGR_TARGET_LIST = LGR_TARGET_LIST_DEFAULT;
+
+
             // Get settings.xml file path
             string fullAppName = System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase;
             string fullAppPath = System.IO.Path.GetDirectoryName(fullAppName);
@@ -85,8 +95,8 @@ namespace Grafiti
                 settingsFullFileName = System.IO.Path.Combine(fullAppPath, SETTINGS_FILENAME).Substring(6);
             if (!System.IO.File.Exists(settingsFullFileName))
             {
-                Console.WriteLine("File '{0}' doesn't exist. The path can't contain spaces or characters like '#'.", settingsFullFileName);
-                goto error;
+                Console.WriteLine("File '{0}' not found. Using default settings.", settingsFullFileName);
+                return;
             }
 
             // Set up xml reader
@@ -100,72 +110,98 @@ namespace Grafiti
             reader.Read();
             if (!(reader.Name == "settings"))
             {
-                Console.WriteLine("Coudn't find tag <settings> in file '{0}'.", settingsFullFileName);
-                goto error;
+                Console.WriteLine("Coudn't find tag <settings> in file '{0}'. Using default settings.", settingsFullFileName);
+                return;
             }
 
             // Parse attributes and initialize values
-            string currentAttribute = "";
-            try
-            {
-                currentAttribute = SCREEN_RATIO_NAME;
-                reader.MoveToAttribute(currentAttribute);
-                SCREEN_RATIO = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
 
-                currentAttribute = INTERSECTION_MODE_NAME;
-                reader.MoveToAttribute(currentAttribute);
-                INTERSECTION_MODE = Boolean.Parse(reader.Value);
-
-                currentAttribute = GROUPING_SYNCH_TIME_NAME;
-                reader.MoveToAttribute(currentAttribute);
-                GROUPING_SYNCH_TIME = int.Parse(reader.Value);
-
-                currentAttribute = GROUPING_SPACE_NAME;
-                reader.MoveToAttribute(currentAttribute);
-                GROUPING_SPACE = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
-
-                currentAttribute = TRACE_TIME_GAP_NAME;
-                reader.MoveToAttribute(currentAttribute);
-                TRACE_TIME_GAP = int.Parse(reader.Value);
-
-                currentAttribute = TRACE_SPACE_GAP_NAME;
-                reader.MoveToAttribute(currentAttribute);
-                TRACE_SPACE_GAP = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
-
-                currentAttribute = LGR_TARGET_LIST_NAME;
-                reader.MoveToAttribute(currentAttribute);
-                switch (int.Parse(reader.Value))
+            if (reader.MoveToAttribute(SCREEN_RATIO_NAME))
+                try
                 {
-                    case (int)LGRTargetLists.INITIAL_TARGET_LIST:
-                        LGR_TARGET_LIST = LGRTargetLists.INITIAL_TARGET_LIST;
-                        break;
-                    case (int)LGRTargetLists.INTERSECTION_TARGET_LIST:
-                        LGR_TARGET_LIST = LGRTargetLists.INTERSECTION_TARGET_LIST;
-                        break;
-                    default:
-                        throw new FormatException("Invalid value.");
+                    SCREEN_RATIO = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
                 }
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("{0}\nThe error occurred while checking attribute '{1}'.\nPlease check file '{2}'.", e.Message, currentAttribute, settingsFullFileName);
-                goto error;
-            }
-
-            return;
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
 
 
-            // If some error occured use the default settings. I like goto, so?
-        error:
-            Console.WriteLine("Using default settings.");
-            SCREEN_RATIO = SCREEN_RATIO_DEFAULT;
-            INTERSECTION_MODE = INTERSECTION_MODE_DEFAULT;
-            GROUPING_SYNCH_TIME = GROUPING_SYNCH_TIME_DEFAULT;
-            GROUPING_SPACE = GROUPING_SPACE_DEFAULT;
-            TRACE_TIME_GAP = TRACE_TIME_GAP_DEFAULT;
-            TRACE_SPACE_GAP = TRACE_SPACE_GAP_DEFAULT;
-            LGR_TARGET_LIST = LGR_TARGET_LIST_DEFAULT;
+            if (reader.MoveToAttribute(INTERSECTION_MODE_NAME))
+                try
+                {
+                    //INTERSECTION_MODE = Boolean.Parse(reader.Value); // disabled.. (deprecated?)
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
 
+            if (reader.MoveToAttribute(GROUPING_SYNCH_TIME_NAME))
+                try
+                {
+                    GROUPING_SYNCH_TIME = int.Parse(reader.Value);
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
+
+            if (reader.MoveToAttribute(GROUPING_SPACE_NAME))
+                try
+                {
+                    GROUPING_SPACE = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
+
+            if (reader.MoveToAttribute(TRACE_TIME_GAP_NAME))
+                try
+                {
+                    TRACE_TIME_GAP = int.Parse(reader.Value);
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
+
+            if (reader.MoveToAttribute(TRACE_SPACE_GAP_NAME))
+                try
+                {
+                    TRACE_SPACE_GAP = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
+
+            if (reader.MoveToAttribute(LGR_TARGET_LIST_NAME))
+                try
+                {
+                    switch (int.Parse(reader.Value))
+                    {
+                        case (int)LGRTargetLists.INITIAL_TARGET_LIST:
+                            LGR_TARGET_LIST = LGRTargetLists.INITIAL_TARGET_LIST;
+                            break;
+                        case (int)LGRTargetLists.INTERSECTION_TARGET_LIST:
+                            LGR_TARGET_LIST = LGRTargetLists.INTERSECTION_TARGET_LIST;
+                            break;
+                        default:
+                            throw new FormatException("Invalid value.");
+                    }
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
+        }
+
+        private static void PrintParsingError(string settingsFullFileName, XmlReader reader, Exception e)
+        {
+            Console.WriteLine("{0}\nError occurred while parsing attribute '{1}'.\nPlease check file '{2}'.\nThe value will be set by default.",
+                e.Message, reader.Name, settingsFullFileName);
         }
 
         public static void Initialize() { }

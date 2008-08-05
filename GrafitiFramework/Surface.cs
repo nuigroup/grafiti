@@ -62,6 +62,9 @@ namespace Grafiti
         // Debugging variables
         private int m_lastProcessedRefreshTimeStamp;
         private DateTime m_startTime;
+
+        // Auxiliary variable used for sorting targets in base of their distance to a point
+        List<TargetDistance> m_targetIdxDistances;
         #endregion
 
         #region Public properties
@@ -69,16 +72,17 @@ namespace Grafiti
         // Ratio of the input screen.
         public const float SCREEN_RATIO = 4f / 3f;
 
-        public List<Group> AddingGroups { get { return m_addedGroups; } }
-        public List<Group> RemovingGroups { get { return m_removedGroups; } }
+        public List<Group> AddedGroups { get { return m_addedGroups; } }
+        public List<Group> RemovedGroups { get { return m_removedGroups; } }
         public List<Group> TouchedGroups { get { return m_touchedGroups; } }
-        public List<Group> AliveGroups { get { return m_aliveGroups; } } 
+        public List<Group> AliveGroups { get { return m_aliveGroups; } }
         #endregion
 
         #region Private constructor
         private Surface()
-		{
+        {
             m_gListeners = new List<ITuioObjectGestureListener>();
+            m_targetIdxDistances = new List<TargetDistance>();
             m_addingCursors = new List<Cursor>();
             m_updatingCursors = new List<Cursor>();
             m_removingCursors = new List<Cursor>();
@@ -98,7 +102,7 @@ namespace Grafiti
         #region Singleton
         public static Surface Instance
         {
-            get 
+            get
             {
                 lock (m_lock)
                 {
@@ -146,6 +150,9 @@ namespace Grafiti
 
             int timeStamp = (int)timeStampAsLong;
 
+            //Console.WriteLine(timeStamp - m_lastProcessedRefreshTimeStamp);
+            //m_lastProcessedRefreshTimeStamp = timeStamp;
+
             RemoveNonResurrectableTraces(timeStamp);
             RemoveNonResurrectableGroups(timeStamp);
 
@@ -190,7 +197,7 @@ namespace Grafiti
             {
                 // set timestamp
                 cursor.TimeStamp = timeStamp;
-                
+
                 Group group;
                 Trace trace;
 
@@ -225,7 +232,7 @@ namespace Grafiti
             {
                 // set timestamp
                 cursor.TimeStamp = timeStamp;
-                
+
                 // determine belonging trace
                 Trace trace = m_cursorTraceTable[cursor.SessionId];
 
@@ -234,7 +241,7 @@ namespace Grafiti
 
                 // refresh touched group list
                 if (!m_touchedGroups.Contains(trace.Group))
-                    m_touchedGroups.Add(trace.Group); 
+                    m_touchedGroups.Add(trace.Group);
             }
         }
         private void ProcessCurrentRemovingCursors(int timeStamp)
@@ -278,7 +285,7 @@ namespace Grafiti
             if (resurrectingTrace != null)
             {
                 m_resurrectableTraces.Remove(resurrectingTrace);
-            } 
+            }
             return resurrectingTrace;
         }
         private Group GetMatchingGroup(Cursor cursor)
@@ -317,27 +324,37 @@ namespace Grafiti
         }
         private List<ITuioObjectGestureListener> ListTargetsAt(float x, float y)
         {
-            List<ITuioObjectGestureListener> targets = new List<ITuioObjectGestureListener>();
+            m_targetIdxDistances.Clear();
             foreach (ITuioObjectGestureListener listener in m_gListeners)
-            {
                 if (listener.Contains(x, y))
-                    targets.Add(listener);
-            }
+                    m_targetIdxDistances.Add(new TargetDistance(listener, listener.GetSquareDistance(x, y)));
+            m_targetIdxDistances.Sort();
 
-            // TODO: optimize
-            targets.Sort(new Comparison<ITuioObjectGestureListener>(
-                delegate(ITuioObjectGestureListener a, ITuioObjectGestureListener b)
-                {
-                    // BUG: objects updated during statement execution (?)
-                    int d = (int)((a.GetSquareDistance(x, y) - b.GetSquareDistance(x, y)) * 1000000000);
-                    if (a == b && d != 0)
-                        Console.WriteLine("List<ITuioObjectGestureListener> Surface.ListTargetsAt(float, float) {0}", d); // breakpoint
-                    return d;
-                }
-            ));
+            List<ITuioObjectGestureListener> targets = new List<ITuioObjectGestureListener>();
+            foreach (TargetDistance td in m_targetIdxDistances)
+                targets.Add(td.target);
 
             return targets;
         }
-        #endregion  
+        private struct TargetDistance : IComparable
+        { 
+            internal ITuioObjectGestureListener target;
+            internal float distance;
+            public TargetDistance(ITuioObjectGestureListener t, float dist)
+            {
+                target = t;
+                distance = dist;
+            }
+
+            #region IComparable Members
+
+            int IComparable.CompareTo(object obj)
+            {
+                return (int)((distance - ((TargetDistance)obj).distance) * 1000000000);
+            }
+
+            #endregion
+        }
+        #endregion
     }
 }

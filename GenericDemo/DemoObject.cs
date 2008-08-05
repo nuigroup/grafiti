@@ -21,6 +21,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Collections.Generic;
 using TUIO;
 using Grafiti;
 
@@ -32,11 +33,14 @@ namespace GenericDemo
         private float m_targetRadiusRef;
 
         private Form m_ParentForm;
+        private DemoObjectManager m_objectManager;
         private static GestureEventManager m_gEvtMgr = GestureEventManager.Instance;
+        internal List<DemoObjectLink> m_links = new List<DemoObjectLink>();
 
         private Color m_color;
         private Pen m_pen;
         private Brush m_brush;
+        private Font m_font;
 
         private int m_id;
         private float m_x, m_y;
@@ -51,8 +55,9 @@ namespace GenericDemo
         public Color Color { get { return m_color; } }
 
 
-        public DemoObject(Form form, int fiducialId, float x, float y, float angle)
+        public DemoObject(DemoObjectManager objectManager, Form form, int fiducialId, float x, float y, float angle)
         {
+            m_objectManager = objectManager;
             m_ParentForm = form;
             m_id = fiducialId++;
             m_x = x;
@@ -64,20 +69,19 @@ namespace GenericDemo
             m_color = Color.FromArgb(random.Next(255), random.Next(255), random.Next(255));
             m_pen = new Pen(m_color);
             m_brush = new SolidBrush(m_color);
+            m_font = new Font("Arial", 12.0f);
 
-
-            new PinchingGR(new GRConfiguration());
-            new BasicMultiFingerGR(new GRConfiguration());
-
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), "Translate", OnPinchingEvent);
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), "Scale", OnPinchingEvent);
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), "Rotate", OnPinchingEvent);
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), "TranslateOrScaleBegin", OnPinchBegin);
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), "RotateBegin", OnPinchBegin);
-            m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "Tap", OnTap);
-            m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "DoubleTap", OnDoubleTap);
-            m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "Hover", OnHover);
+            m_gEvtMgr.SetPriorityNumber(0);
+            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConfigurator, "Translate", OnPinchingEvent);
+            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConfigurator, "Scale", OnPinchingEvent);
+            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConfigurator, "Rotate", OnPinchingEvent);
+            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConfigurator, "TranslateOrScaleBegin", OnPinchBegin);
+            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConfigurator, "RotateBegin", OnPinchBegin);
+            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "Tap", OnTap);
+            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "DoubleTap", OnDoubleTap);
+            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "Hover", OnHover);
         }
+
         public void OnPinchBegin(object obj, GestureEventArgs args)
         {
             PinchBeginEventArgs cArgs = (PinchBeginEventArgs)args;
@@ -110,66 +114,51 @@ namespace GenericDemo
             //Console.WriteLine("hover");
             //BasicMultiFingerEventArgs cArgs = (BasicMultiFingerEventArgs)args;
         }
-        
 
-        public void OnPaint(System.Windows.Forms.PaintEventArgs e)
-        {
-            lock (this)
-            {
-                Graphics g = e.Graphics;
-
-                int scale = MainForm.height;
-                int x = (int)(m_x * scale);
-                int y = (int)(m_y * scale);
-                int targetRadius = (int)(m_targetRadius * scale);
-
-
-                g.TranslateTransform(x, y);
-                g.RotateTransform((float)(m_angle / Math.PI * 180.0f));
-                g.TranslateTransform(-1 * x, -1 * y);
-
-                g.FillRectangle(m_brush, new Rectangle(
-                        (int)(x - m_size / 2),
-                        (int)(y - m_size / 2),
-                        (int)(m_size),
-                        (int)(m_size)));
-
-                g.DrawEllipse(
-                    m_pen,
-                    new Rectangle(
-                        new Point(x - targetRadius, y - targetRadius),
-                        new Size(2 * targetRadius, 2 * targetRadius)));
-
-                g.TranslateTransform(x, y);
-                g.RotateTransform(-1 * (float)(m_angle / Math.PI * 180.0f));
-                g.TranslateTransform(-1 * x, -1 * y);
-
-                Font font = new Font("Arial", 12.0f);
-                g.DrawString(m_id.ToString(), font, white, new PointF(x - 10, y - 10));
-            }
-        }
 
         internal void Update(float x, float y, float angle)
         {
-            lock (this)
-            {
-                m_x = x;
-                m_y = y;
-                m_angle = angle;
-            }
+            m_x = x;
+            m_y = y;
+            m_angle = angle;
         }
+
+        public void OnPaint(System.Windows.Forms.PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+
+            int scale = MainForm.height;
+            int x = (int)(m_x * scale);
+            int y = (int)(m_y * scale);
+            int targetRadius = (int)(m_targetRadius * scale);
+
+            g.TranslateTransform(x, y);
+            g.RotateTransform((float)(m_angle / Math.PI * 180.0f));
+            g.TranslateTransform(-1 * x, -1 * y);
+
+            g.FillRectangle(m_brush, x - m_size / 2, y - m_size / 2, m_size, m_size);
+            g.DrawEllipse(m_pen, x - targetRadius, y - targetRadius, 2 * targetRadius, 2 * targetRadius);
+
+            g.TranslateTransform(x, y);
+            g.RotateTransform(-1 * (float)(m_angle / Math.PI * 180.0f));
+            g.TranslateTransform(-1 * x, -1 * y);
+
+
+            g.DrawString(m_id.ToString(), m_font, white, x - 10, y - 10);
+        }
+
 
 
         #region IGestureListener Members
 
-        bool ITuioObjectGestureListener.Contains(float x, float y)
+        public bool Contains(float x, float y)
         {
             float dx = Math.Abs(x - m_x);
             float dy = Math.Abs(y - m_y);
             return (float)Math.Sqrt(dx * dx + dy * dy) <= m_targetRadius;
         }
 
-        float ITuioObjectGestureListener.GetSquareDistance(float x, float y)
+        public float GetSquareDistance(float x, float y)
         {
             float dx = x - m_x;
             float dy = y - m_y;
@@ -177,6 +166,5 @@ namespace GenericDemo
         }
 
         #endregion
-
     }
 }

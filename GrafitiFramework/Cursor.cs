@@ -59,11 +59,11 @@ namespace Grafiti
             return dx * dx + dy * dy;
         }
 
-        //public float SquareDistance(float x, float y)
-        //{
-        //    float dx = m_x - x;
-        //    float dy = m_y - y;
-        //    return dx * dx + dy * dy;
-        //}
+        public float SquareDistance(float x, float y)
+        {
+            float dx = m_x - x;
+            float dy = m_y - y;
+            return dx * dx + dy * dy;
+        }
     }
 }

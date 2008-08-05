@@ -26,20 +26,81 @@ namespace Grafiti
 {
     public class MultiTraceEventArgs : GestureEventArgs
     {
-        private int m_nOfFingers;
+        protected int m_nOfFingers;
+        protected float m_centroidX, m_centroidY;
 
-        public int NOfFingers { get { return m_nOfFingers; } }
+        public int NOfFingers  { get { return m_nOfFingers; } }
+        public float CentroidX { get { return m_centroidX; } }
+        public float CentroidY { get { return m_centroidY; } }
 
-        public MultiTraceEventArgs(string eventId, int groupId, int nFingers)
-            : base(eventId, groupId) 
+        public MultiTraceEventArgs(string eventId, int groupId, int nFingers, float centroidX, float centroidY)
+            : base(eventId, groupId)
         {
             m_nOfFingers = nFingers;
+            m_centroidX = centroidX;
+            m_centroidY = centroidY;
+        }
+    }
+
+    public class MultiTraceFromToEventArgs : MultiTraceEventArgs
+    {
+        protected ITuioObjectGestureListener m_fromTarget, m_toTarget;
+        protected float m_initialCentroidX, m_initialCentroidY;
+
+        public ITuioObjectGestureListener FromTarget { get { return m_fromTarget; } }
+        public ITuioObjectGestureListener ToTarget { get { return m_toTarget; } }
+        public float InitialCentroidX { get { return m_initialCentroidX; } }
+        public float InitialCentroidY { get { return m_initialCentroidY; } }
+        public float FinalCentroidX { get { return m_centroidX; } }
+        public float FinalCentroidY { get { return m_centroidY; } }
+
+        public MultiTraceFromToEventArgs(string eventId, int groupId, int nFingers, 
+            ITuioObjectGestureListener fromTarget, ITuioObjectGestureListener toTarget,
+            float initialCentroidX, float initialCentroidY, float finalCentroidX, float finalCentroidY)
+            : base(eventId, groupId, nFingers, finalCentroidX, finalCentroidY)
+        {
+            m_fromTarget = fromTarget;
+            m_toTarget = toTarget;
+            m_initialCentroidX = initialCentroidX;
+            m_initialCentroidY = initialCentroidY;
+        }
+    }
+
+    public class MultiTraceGRConfigurator : GRConfigurator
+    {
+        public static readonly MultiTraceGRConfigurator DEFAULT_CONFIGURATOR = new MultiTraceGRConfigurator();
+
+        private float m_minDistance;
+        private const float MIN_DIST_DEFAULT = 0.2f;
+        
+        public float MinimumDistance { get { return m_minDistance; } }
+
+        public MultiTraceGRConfigurator()
+            : this(MIN_DIST_DEFAULT) { }
+
+        public MultiTraceGRConfigurator(bool exclusive)
+            : this(exclusive, MIN_DIST_DEFAULT) { }
+
+        public MultiTraceGRConfigurator(float minDistance)
+            : base()
+        {
+            m_minDistance = minDistance;
+        }
+
+        public MultiTraceGRConfigurator(bool exclusive, float minDistance)
+            : base(exclusive)
+        {
+            m_minDistance = minDistance;
         }
     }
 
     public class MultiTraceGR : GlobalGestureRecognizer
     {
+        private GestureRecognitionResult m_defaultResult;
+        private int m_startingTime = -1;
+        private List<Trace> m_startingTraces;
         private int m_nOfFingers;
+        private float m_initialCentroidX = -1, m_initialCentroidY = -1;
 
         // These are public only to make reflection to work.
         // They're not intended to be accessed directly from clients.
@@ -50,64 +111,97 @@ namespace Grafiti
         public event GestureEventHandler MultiTraceEnter;
         public event GestureEventHandler MultiTraceLeave;
         public event GestureEventHandler MultiTraceEnd;
+        public event GestureEventHandler MultiTraceFromTo;
 
-        public MultiTraceGR(GRConfiguration configuration) : base(configuration)
+        public MultiTraceGR(GRConfigurator configurator) : base(configurator)
         {
-            NewInitialEvents = new string[] { "MultiTraceStarted" };
-            EnteringEvents = new string[] { "MultiTraceEnter" };
-            LeavingEvents = new string[] { "MultiTraceLeave" };
-            CurrentEvents = new string[] { "MultiTraceDown", "MultiTraceMove", "MultiTraceUp" };
-            FinalEvents = new string[] { "MultiTraceEnd" };
+            if (!(configurator is MultiTraceGRConfigurator))
+                Configurator = MultiTraceGRConfigurator.DEFAULT_CONFIGURATOR;
 
+            MultiTraceGRConfigurator conf = (MultiTraceGRConfigurator)Configurator;
+            
+            ClosestInitialEvents  = new string[] { "MultiTraceStarted" };
+            ClosestEnteringEvents = new string[] { "MultiTraceEnter" };
+            ClosestLeavingEvents  = new string[] { "MultiTraceLeave" };
+            ClosestCurrentEvents  = new string[] { "MultiTraceDown", "MultiTraceMove", "MultiTraceUp" };
+            ClosestFinalEvents    = new string[] { "MultiTraceEnd" };
+            DefaultEvents         = new string[] { "MultiTraceFromTo" };
+
+            m_startingTime = -1;
+            m_startingTraces = new List<Trace>();
             m_nOfFingers = 0;
+
+            m_defaultResult = new GestureRecognitionResult(false, true, true);
         }
 
-        private void OnMultiTraceStart()       { AppendEvent(MultiTraceStarted, new MultiTraceEventArgs("MultiTraceStarted", Group.Id, m_nOfFingers)); }
-        private void OnMultiTraceEnd()         { AppendEvent(MultiTraceEnd,     new MultiTraceEventArgs("MultiTraceEnd",     Group.Id, m_nOfFingers)); }
-        private void OnMultiTraceGestureDown() { AppendEvent(MultiTraceDown,    new MultiTraceEventArgs("MultiTraceDown",    Group.Id, m_nOfFingers)); }
-        private void OnMultiTraceGestureMove() { AppendEvent(MultiTraceMove,    new MultiTraceEventArgs("MultiTraceMove",    Group.Id, m_nOfFingers)); }
-        private void OnMultiTraceGestureUp()   { AppendEvent(MultiTraceUp,      new MultiTraceEventArgs("MultiTraceUp",      Group.Id, m_nOfFingers)); }
-        private void OnMultiTraceGestureEnter(){ AppendEvent(MultiTraceEnter,   new MultiTraceEventArgs("MultiTraceEnter",   Group.Id, m_nOfFingers)); }
-        private void OnMultiTraceGestureLeave(){ AppendEvent(MultiTraceLeave,   new MultiTraceEventArgs("MultiTraceLeave",   Group.Id, m_nOfFingers)); }
+        private void OnMultiTraceStart()       { AppendEvent(MultiTraceStarted, new MultiTraceEventArgs("MultiTraceStarted", Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
+        private void OnMultiTraceEnd()         { AppendEvent(MultiTraceEnd,     new MultiTraceEventArgs("MultiTraceEnd",     Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
+        private void OnMultiTraceGestureDown() { AppendEvent(MultiTraceDown,    new MultiTraceEventArgs("MultiTraceDown",    Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
+        private void OnMultiTraceGestureMove() { AppendEvent(MultiTraceMove,    new MultiTraceEventArgs("MultiTraceMove",    Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
+        private void OnMultiTraceGestureUp()   { AppendEvent(MultiTraceUp,      new MultiTraceEventArgs("MultiTraceUp",      Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
+        private void OnMultiTraceGestureEnter(){ AppendEvent(MultiTraceEnter,   new MultiTraceEventArgs("MultiTraceEnter",   Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
+        private void OnMultiTraceGestureLeave(){ AppendEvent(MultiTraceLeave,   new MultiTraceEventArgs("MultiTraceLeave",   Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
+        private void OnMultiTraceFromTo()      { AppendEvent(MultiTraceFromTo,  new MultiTraceFromToEventArgs(
+            "MultiTraceFromTo",  Group.Id, m_nOfFingers, Group.ClosestInitialTarget, Group.ClosestFinalTarget,
+            m_initialCentroidX, m_initialCentroidY, Group.CentroidX, Group.CentroidY)); }
 
         public override GestureRecognitionResult Process(List<Trace> traces)
         {
-            System.Diagnostics.Debug.Assert(traces.Count > 0);
+            if (m_startingTime == -1)
+                m_startingTime = traces[0].Last.TimeStamp;
 
-            GestureRecognitionResult result = null;
             m_nOfFingers = Group.NOfAliveTraces;
 
+            OnMultiTraceGestureLeave();
             OnMultiTraceGestureEnter();
-            OnMultiTraceStart();
 
             foreach (Trace trace in traces)
             {
                 if (trace.State == Trace.States.UPDATED)
                 {
                     OnMultiTraceGestureMove();
-                    result = new GestureRecognitionResult(false, true, true);
                 }
                 else if (trace.State == Trace.States.ADDED)
                 {
+                    if (trace.Last.TimeStamp - m_startingTime <= Settings.GetGroupingSynchTime())
+                        m_startingTraces.Add(trace);
                     OnMultiTraceGestureDown();
-                    result = new GestureRecognitionResult(false, true, true);
                 }
                 else
                 {
                     OnMultiTraceGestureUp();
                     if (!Group.Alive)
                     {
+                        m_nOfFingers = 0;
+                        int endTime = trace.Last.TimeStamp;
+                        foreach (Trace startinTrace in m_startingTraces)
+                        {
+                            if (endTime - startinTrace.Last.TimeStamp <= Settings.GetGroupingSynchTime())
+                                m_nOfFingers++;
+                        }
+                        OnMultiTraceStart();
                         OnMultiTraceEnd();
-                        result = new GestureRecognitionResult(false, true, true);
+                        if(Group.ClosestInitialTarget != null && Group.ClosestFinalTarget != null)
+                            OnMultiTraceFromTo();
                     }
-                    else
-                        result = new GestureRecognitionResult(false, true, true);
                 }
             }
 
-            OnMultiTraceGestureLeave();
+            return m_defaultResult;
+        }
 
-            return result;
+        protected override void OnUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving, 
+            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, 
+            bool newClosestIni, bool newClosestFin)
+        {
+            if (newClosestIni)
+            {
+                if (Group.ClosestInitialTarget != null)
+                {
+                    m_initialCentroidX = Group.CentroidX;
+                    m_initialCentroidY = Group.CentroidY;
+                }
+            }
         }
     }
 
