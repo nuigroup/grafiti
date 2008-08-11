@@ -30,7 +30,7 @@ namespace GenericDemo
     {
         const int MAX_TAIL_LENGTH = 15; // number of refresh() calls
         const float PEN_WIDTH = 2f;
-        MainForm m_mainForm;
+        MainForm m_form;
         Trace m_trace;
         int m_startPath = 0;
         Pen m_pen;
@@ -43,11 +43,11 @@ namespace GenericDemo
         public DemoTrace(MainForm mainForm, DemoGroup demoGroup, Trace trace)
         {
             Color color = demoGroup.Color;
-            m_mainForm = mainForm;
+            m_form = mainForm;
             m_trace = trace;
             m_brush = new SolidBrush(Color.FromArgb(10, color.R, color.G, color.B));
             m_pen = new Pen(m_brush, PEN_WIDTH);
-            m_pointerSize = MainForm.height / 25;
+            m_pointerSize = m_form.ClientSize.Height / 25;
         }
 
         public void Update(long timestamp)
@@ -62,15 +62,17 @@ namespace GenericDemo
                 m_startPath = Math.Max(0, m_trace.Count - MAX_TAIL_LENGTH);
         }
         
-        public void OnPaint(System.Windows.Forms.PaintEventArgs e)
+        public void Draw(Graphics g, float screen)
         {
-            Graphics g = e.Graphics;
             Cursor last = m_trace.Last;
-            float screen = (float)MainForm.height;
 
             // draw path
             for (int i = m_startPath; i < m_trace.Count - 1; i++)
-                g.DrawLine(m_pen, Utilities.GetScreenPoint(m_trace[i]), Utilities.GetScreenPoint(m_trace[i + 1]));
+            {
+                g.DrawLine(m_pen,
+                    m_trace[i].X * screen, m_trace[i].Y * screen,
+                    m_trace[i + 1].X * screen, m_trace[i + 1].Y * screen);
+            }
 
             // draw pointer and id
             if (!(m_startPath == m_trace.Count - 1 && last.State == Cursor.States.REMOVED))
@@ -80,11 +82,22 @@ namespace GenericDemo
                     pointerBrush = Brushes.Black;
                 else
                     pointerBrush = Brushes.Gray;
-                g.FillEllipse(pointerBrush, last.X * screen - m_pointerSize / 2, last.Y * screen - m_pointerSize / 2, m_pointerSize, m_pointerSize);
-                g.DrawString(m_trace.Id.ToString(), m_idFont, Brushes.White, last.X * screen - m_pointerSize / 2, last.Y * screen - m_pointerSize / 2);
+                g.FillEllipse(pointerBrush, 
+                    last.X * screen - m_pointerSize / 2, 
+                    last.Y * screen - m_pointerSize / 2, 
+                    m_pointerSize, 
+                    m_pointerSize);
+                g.DrawString(m_trace.Id.ToString(), m_idFont, Brushes.White, 
+                    last.X * screen - m_pointerSize / 2, 
+                    last.Y * screen - m_pointerSize / 2);
 
                 // draw grouping area
-                g.FillEllipse(m_brush, last.X * screen - Settings.GetGroupingSpace() * screen, last.Y * screen - Settings.GetGroupingSpace() * screen, Settings.GetGroupingSpace() * 2 * screen, Settings.GetGroupingSpace() * 2 * screen);
+                if (m_trace.Group.MaxNumberOfFingersAllowed < 0)
+                    g.FillEllipse(m_brush,
+                        last.X * screen - Settings.GetGroupingSpace() * screen,
+                        last.Y * screen - Settings.GetGroupingSpace() * screen,
+                        Settings.GetGroupingSpace() * 2 * screen,
+                        Settings.GetGroupingSpace() * 2 * screen);
             }
         }
     }

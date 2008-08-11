@@ -44,18 +44,18 @@ namespace Grafiti
 
     public class MultiTraceFromToEventArgs : MultiTraceEventArgs
     {
-        protected ITuioObjectGestureListener m_fromTarget, m_toTarget;
+        protected IGestureListener m_fromTarget, m_toTarget;
         protected float m_initialCentroidX, m_initialCentroidY;
 
-        public ITuioObjectGestureListener FromTarget { get { return m_fromTarget; } }
-        public ITuioObjectGestureListener ToTarget { get { return m_toTarget; } }
+        public IGestureListener FromTarget { get { return m_fromTarget; } }
+        public IGestureListener ToTarget { get { return m_toTarget; } }
         public float InitialCentroidX { get { return m_initialCentroidX; } }
         public float InitialCentroidY { get { return m_initialCentroidY; } }
         public float FinalCentroidX { get { return m_centroidX; } }
         public float FinalCentroidY { get { return m_centroidY; } }
 
         public MultiTraceFromToEventArgs(string eventId, int groupId, int nFingers, 
-            ITuioObjectGestureListener fromTarget, ITuioObjectGestureListener toTarget,
+            IGestureListener fromTarget, IGestureListener toTarget,
             float initialCentroidX, float initialCentroidY, float finalCentroidX, float finalCentroidY)
             : base(eventId, groupId, nFingers, finalCentroidX, finalCentroidY)
         {
@@ -70,7 +70,7 @@ namespace Grafiti
     {
         public static readonly MultiTraceGRConfigurator DEFAULT_CONFIGURATOR = new MultiTraceGRConfigurator();
 
-        private float m_minDistance;
+        private float m_minDistance; // not used
         private const float MIN_DIST_DEFAULT = 0.2f;
         
         public float MinimumDistance { get { return m_minDistance; } }
@@ -147,7 +147,7 @@ namespace Grafiti
             if (m_startingTime == -1)
                 m_startingTime = traces[0].Last.TimeStamp;
 
-            m_nOfFingers = Group.NOfAliveTraces;
+            m_nOfFingers = Group.NumberOfPresentTraces;
 
             OnMultiTraceGestureLeave();
             OnMultiTraceGestureEnter();
@@ -162,12 +162,13 @@ namespace Grafiti
                 {
                     if (trace.Last.TimeStamp - m_startingTime <= Settings.GetGroupingSynchTime())
                         m_startingTraces.Add(trace);
+                    
                     OnMultiTraceGestureDown();
                 }
                 else
                 {
                     OnMultiTraceGestureUp();
-                    if (!Group.Alive)
+                    if (!Group.IsPresent)
                     {
                         m_nOfFingers = 0;
                         int endTime = trace.Last.TimeStamp;
@@ -187,7 +188,7 @@ namespace Grafiti
             GestureHasBeenRecognized();
         }
 
-        protected override void OnUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving, 
+        protected override void OnPostUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving, 
             bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, 
             bool newClosestIni, bool newClosestFin)
         {

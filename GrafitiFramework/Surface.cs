@@ -25,6 +25,11 @@ using Grafiti;
 
 namespace Grafiti
 {
+    /// <summary>
+    /// Defines the main singleton instance that processes Tuio cursor messages and
+    /// retrieves informations from the client about the tuio objects and the
+    /// GUI components in the surface.
+    /// </summary>
     public class Surface : TuioListener
     {
         #region Private members
@@ -34,8 +39,8 @@ namespace Grafiti
         // Locking object
         private static readonly object m_lock = new object();
 
-        // List of gesture listeners associated to tuio objects.
-        private List<ITuioObjectGestureListener> m_gListeners;
+        // Client's GUI manager used for hit tests.
+        private IGrafitiClientGUIManager m_clientGUIManager;
 
         // Accumulators for adding, updating and removing cursors.
         // These lists will be cleared at the end of every TuioListener.refresh() call,
@@ -48,8 +53,8 @@ namespace Grafiti
         // that is a new cursor can be added to the path of the trace so that this reborns.
         private List<Trace> m_resurrectableTraces;
 
-        // List of alive groups. A group is alive when it contains alive or resurrectable traces.
-        private List<Group> m_aliveGroups;
+        // List of groups which contain some alive or resurrectable traces.
+        private List<Group> m_aliveOrResurrectableGroups;
 
         // Accumulators for added, removed or modified alive groups (this includes also adding and removing).
         // These lists will be cleared at the beginning of every TuioListener.refresh() call, so
@@ -64,30 +69,41 @@ namespace Grafiti
         private DateTime m_startTime;
 
         // Auxiliary variable used for sorting targets in base of their distance to a point
-        List<TargetDistance> m_targetIdxDistances;
+        List<TargetDistanceData> m_targetIdxDistances;
         #endregion
 
         #region Public properties
-
-        // Ratio of the input screen.
-        public const float SCREEN_RATIO = 4f / 3f;
-
+        // Ratio of the camera resolutions (width resolution over height resolution).
+        public const float SCREEN_RATIO = 4f / 3f; // TODO: xml configurable
+        
+        // The following can be used to create a visual feedback of Grafiti.
+        /// <summary>
+        /// List of groups that have been added during the last refresh() call.
+        /// </summary>
         public List<Group> AddedGroups { get { return m_addedGroups; } }
+        /// <summary>
+        /// List of groups that have been removed during the last refresh() call.
+        /// </summary>
         public List<Group> RemovedGroups { get { return m_removedGroups; } }
+        /// <summary>
+        /// List of groups that have been added, updated or removed during the last refresh() call.
+        /// </summary>
         public List<Group> TouchedGroups { get { return m_touchedGroups; } }
-        public List<Group> AliveGroups { get { return m_aliveGroups; } }
+        /// <summary>
+        /// List of groups that are currently alive or that have been recently removed.
+        /// </summary>
+        public List<Group> AliveOrResurrectableGroups { get { return m_aliveOrResurrectableGroups; } }
         #endregion
 
         #region Private constructor
         private Surface()
         {
-            m_gListeners = new List<ITuioObjectGestureListener>();
-            m_targetIdxDistances = new List<TargetDistance>();
+            m_targetIdxDistances = new List<TargetDistanceData>();
             m_addingCursors = new List<Cursor>();
             m_updatingCursors = new List<Cursor>();
             m_removingCursors = new List<Cursor>();
             m_resurrectableTraces = new List<Trace>();
-            m_aliveGroups = new List<Group>();
+            m_aliveOrResurrectableGroups = new List<Group>();
             m_addedGroups = new List<Group>();
             m_removedGroups = new List<Group>();
             m_touchedGroups = new List<Group>();
@@ -114,15 +130,33 @@ namespace Grafiti
         }
         #endregion
 
-        #region Client's interface methods
-        public void AddListener(ITuioObjectGestureListener listener)
+        #region Public members
+        /// <summary>
+        /// Sets the client's GUI manager.
+        /// </summary>
+        /// <param name="guiManager">The client's GUI manager.</param>
+        public void SetGUIManager(IGrafitiClientGUIManager guiManager)
         {
-            m_gListeners.Add(listener);
+            lock (m_lock)
+            {
+                m_clientGUIManager = guiManager;
+            }
         }
-        public void RemoveListener(ITuioObjectGestureListener listener)
+
+        /// <summary>
+        /// Takes a GUI control and point specified in Grafiti-coordinate-system and 
+        /// returns the point relative to the GUI target control in client's coordinates.
+        /// </summary>
+        /// <param name="target">The GUI target control.</param>
+        /// <param name="x">X coordinate of the point to convert.</param>
+        /// <param name="y">Y coordinate of the point to convert.</param>
+        /// <returns>Return the converted point in client's coordinates, relative to the target control</returns>
+        public System.Drawing.Point PointToClient(IGestureListener target, float x, float y)
         {
-            m_gListeners.Remove(listener);
-            GestureEventManager.Instance.UnregisterAllHandlersOf(listener);
+            lock (m_lock)
+            {
+                return m_clientGUIManager.PointToClient(target, x, y);
+            }
         }
         #endregion
 
@@ -175,14 +209,17 @@ namespace Grafiti
             int i;
             for (i = 0; i < m_resurrectableTraces.Count && timeStamp - m_resurrectableTraces[i].Last.TimeStamp <= Settings.TRACE_TIME_GAP; i++) ;
             //Console.WriteLine("Removing {0} non resurrectable traces", m_resurrectableTraces.Count - i);
+            for (int j = i; j < m_resurrectableTraces.Count - i; j++)
+                m_resurrectableTraces[j].Terminate();
             m_resurrectableTraces.RemoveRange(i, m_resurrectableTraces.Count - i);
         }
         private void RemoveNonResurrectableGroups(int timeStamp)
         {
-            m_aliveGroups.RemoveAll(delegate(Group group)
+            m_aliveOrResurrectableGroups.RemoveAll(delegate(Group group)
             {
-                if (!group.Alive && timeStamp - group.LastTimeStamp > Settings.TRACE_TIME_GAP)
+                if (!group.IsPresent && timeStamp - group.CurrentTimeStamp > Settings.TRACE_TIME_GAP)
                 {
+                    group.Terminate();
                     m_removedGroups.Add(group);
                     //Console.WriteLine("Removed non resurrectable group");
                     return true;
@@ -201,6 +238,9 @@ namespace Grafiti
                 Group group;
                 Trace trace;
 
+                List<IGestureListener> targets;
+                bool guiTargets = ListTargetsAt(cursor.X, cursor.Y, out targets);
+
                 // try finding a resurrecting trace
                 // TODO: don't give priority to the first added cursors
                 trace = TryResurrectTrace(cursor);
@@ -209,13 +249,13 @@ namespace Grafiti
                 {
                     // resurrect the trace
                     group = trace.Group;
-                    trace.UpdateCursor(cursor, ListTargetsAt(cursor.X, cursor.Y));
+                    trace.AppendAddingOrUpdatingCursor(cursor, targets, guiTargets);
                 }
                 else
                 {
                     // create a new trace
-                    group = GetMatchingGroup(cursor);
-                    trace = new Trace(cursor, group, ListTargetsAt(cursor.X, cursor.Y));
+                    group = GetMatchingGroup(cursor, targets, guiTargets);
+                    trace = new Trace(cursor, group, targets, guiTargets);
                 }
 
                 // index the cursor
@@ -237,7 +277,9 @@ namespace Grafiti
                 Trace trace = m_cursorTraceTable[cursor.SessionId];
 
                 // update trace
-                trace.UpdateCursor(cursor, ListTargetsAt(cursor.X, cursor.Y));
+                List<IGestureListener> targets;
+                bool guiTargets = ListTargetsAt(cursor.X, cursor.Y, out targets);
+                trace.AppendAddingOrUpdatingCursor(cursor, targets, guiTargets);
 
                 // refresh touched group list
                 if (!m_touchedGroups.Contains(trace.Group))
@@ -255,7 +297,9 @@ namespace Grafiti
                 Trace trace = m_cursorTraceTable[cursor.SessionId];
 
                 // update trace
-                trace.RemoveCursor(cursor, ListTargetsAt(cursor.X, cursor.Y));
+                List<IGestureListener> targets;
+                bool guiTargets = ListTargetsAt(cursor.X, cursor.Y, out targets);
+                trace.AppendRemovingCursor(cursor, targets, guiTargets);
 
                 // add trace to resurrectable traces list
                 m_resurrectableTraces.Insert(0, trace);
@@ -288,20 +332,28 @@ namespace Grafiti
             }
             return resurrectingTrace;
         }
-        private Group GetMatchingGroup(Cursor cursor)
+        /// <summary>
+        /// Clustering method. Determine the best matching group to add the cursor's trace to.
+        /// If none existing groups are suitable, a new one is created.
+        /// </summary>
+        /// <param name="cursor">The cursor to cluster</param>
+        /// <param name="targets">The given cursor's targets</param>
+        /// <param name="guiTargets">Flag indicating whether the given targets are GUI controls</param>
+        /// <returns>The matching group where to add the given cursor-s trace.</returns>
+        private Group GetMatchingGroup(Cursor cursor, List<IGestureListener> targets, bool guiTargets)
         {
             Group matchingGroup = null;
             float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE;
             float tempDist;
 
-            foreach (Group group in m_aliveGroups)
+            foreach (Group group in m_aliveOrResurrectableGroups)
             {
                 // filter out groups that don't accept the trace
-                if (!group.AcceptNewCursor(cursor))
+                if (!group.AcceptNewCursor(cursor, targets, guiTargets))
                     continue;
 
                 // find the closest
-                tempDist = group.SquareMinDist(cursor);
+                tempDist = group.SquareDistanceToNearestTrace(cursor, Settings.CLUSTERING_ONLY_WITH_ALIVE_TRACES);
                 if (tempDist < minDist)
                 {
                     minDist = tempDist;
@@ -312,48 +364,50 @@ namespace Grafiti
             // if no group is found, create a new one
             if (matchingGroup == null)
                 matchingGroup = CreateGroup();
-
             return matchingGroup;
         }
         private Group CreateGroup()
         {
             Group group = new Group();
             m_addedGroups.Add(group);
-            m_aliveGroups.Add(group);
+            m_aliveOrResurrectableGroups.Add(group);
             return group;
         }
-        private List<ITuioObjectGestureListener> ListTargetsAt(float x, float y)
+        private bool ListTargetsAt(float x, float y, out List<IGestureListener> output)
         {
-            m_targetIdxDistances.Clear();
-            foreach (ITuioObjectGestureListener listener in m_gListeners)
-                if (listener.Contains(x, y))
-                    m_targetIdxDistances.Add(new TargetDistance(listener, listener.GetSquareDistance(x, y)));
-            m_targetIdxDistances.Sort();
+            output = new List<IGestureListener>();
 
-            List<ITuioObjectGestureListener> targets = new List<ITuioObjectGestureListener>();
-            foreach (TargetDistance td in m_targetIdxDistances)
-                targets.Add(td.target);
+            IGestureListener guiCtrl = m_clientGUIManager.HitTest(x, y);
+            if (guiCtrl != null)
+            {
+                output.Add(guiCtrl);
+                return true;
+            }
+            else
+            {
+                m_targetIdxDistances.Clear();
+                foreach (ITuioObjectGestureListener listener in m_clientGUIManager.HitTestTangibles(x, y))
+                    m_targetIdxDistances.Add(new TargetDistanceData(listener, listener.GetSquareDistance(x, y)));
+                m_targetIdxDistances.Sort();
 
-            return targets;
+                foreach (TargetDistanceData td in m_targetIdxDistances)
+                    output.Add(td.target);
+                return false;
+            }
         }
-        private struct TargetDistance : IComparable
+        private struct TargetDistanceData : IComparable
         { 
             internal ITuioObjectGestureListener target;
             internal float distance;
-            public TargetDistance(ITuioObjectGestureListener t, float dist)
+            public TargetDistanceData(ITuioObjectGestureListener t, float dist)
             {
                 target = t;
                 distance = dist;
             }
-
-            #region IComparable Members
-
             int IComparable.CompareTo(object obj)
             {
-                return (int)((distance - ((TargetDistance)obj).distance) * 1000000000);
+                return (int)((distance - ((TargetDistanceData)obj).distance) * 1000000000);
             }
-
-            #endregion
         }
         #endregion
     }

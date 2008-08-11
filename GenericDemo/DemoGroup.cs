@@ -28,7 +28,7 @@ namespace GenericDemo
 {
     class DemoGroup
     {
-        MainForm m_mainForm;
+        MainForm m_form;
         Group m_group;
         Color m_color;
         Pen m_pen;
@@ -39,7 +39,7 @@ namespace GenericDemo
 
         public DemoGroup(MainForm mainForm, Group group, Color color)
         {
-            m_mainForm = mainForm;
+            m_form = mainForm;
             m_group = group;
             m_color = color;
             m_pen = new Pen(m_color);
@@ -54,19 +54,18 @@ namespace GenericDemo
                 {
                     return (demoTrace.Trace == trace);
                 }))
-                    m_demoTraces.Add(new DemoTrace(m_mainForm, this, trace));
+                    m_demoTraces.Add(new DemoTrace(m_form, this, trace));
             }
 
             foreach (DemoTrace demoTrace in m_demoTraces)
                 demoTrace.Update(timestamp);
         }
 
-        public void OnPaint(System.Windows.Forms.PaintEventArgs e)
+        public void Draw(Graphics g, float screen)
         {
+            // draw demo traces
             foreach (DemoTrace demoTrace in m_demoTraces)
-                demoTrace.OnPaint(e);
-
-            Graphics g = e.Graphics;
+                demoTrace.Draw(g, screen);
 
             // draw lines from cursor to centroid
             foreach (Trace trace in m_group.Traces)
@@ -75,34 +74,41 @@ namespace GenericDemo
                 {
                     Cursor cursor = trace.Last;
                     g.DrawLine(m_pen,
-                        m_group.CentroidX * MainForm.height, m_group.CentroidY * MainForm.height,
-                        cursor.X * MainForm.height, cursor.Y * MainForm.height);
+                        m_group.CentroidX * screen, m_group.CentroidY * screen,
+                        cursor.X * screen, cursor.Y * screen);
                 }
             }
 
-            if (m_group.NOfAliveTraces >= 0)
+            // draw lines to target(s)
+            if (m_group.NumberOfPresentTraces >= 0 && !m_group.OnGUIControl)
             {
                 if (m_group.ExclusiveLocalTarget != null)
                 {
                     // draw lines from centroid to exclusive local target
                     m_pen.Width = 2;
-                    DrawLineToTarget(g, (DemoObject)m_group.ExclusiveLocalTarget);
+                    DrawLineToTarget(g, (DemoObject)m_group.ExclusiveLocalTarget, screen);
                 }
                 else
                 {
                     // draw lines from centroid to all possible local targets
                     m_pen.Width = 1;
-                    foreach (ITuioObjectGestureListener target in m_group.LGRTargets)
-                        DrawLineToTarget(g, (DemoObject)target);
+                    foreach (IGestureListener target in m_group.LGRTargets)
+                        DrawLineToTarget(g, (object)target, screen);
                 }
-            }
+            }            
         }
 
-        private void DrawLineToTarget(Graphics g, DemoObject demoObj)
+        private void DrawLineToTarget(Graphics g, object obj, float screen)
         {
-            g.DrawLine(m_pen,
-                m_group.CentroidX * MainForm.height, m_group.CentroidY * MainForm.height,
-                demoObj.X * MainForm.height, demoObj.Y * MainForm.height);
+            // have to check whether the object is a DemoObject because it could be the GUI control
+            // where the gesture have started from (if Settings.LGR_TARGET_LIST == INITIAL_TARGET_LIST)
+            if (obj is DemoObject)
+            {
+                DemoObject demoObj = (DemoObject)obj;
+                g.DrawLine(m_pen,
+                    m_group.CentroidX * screen, m_group.CentroidY * screen,
+                    demoObj.X * screen, demoObj.Y * screen);
+            }
         }
     }
 }

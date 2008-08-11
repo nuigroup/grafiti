@@ -83,6 +83,7 @@ namespace Grafiti
         private bool m_armed;
         private List<GestureEventHandler> m_bufferedHandlers;
         private List<GestureEventArgs> m_bufferedArgs;
+        private int m_maxNumberOfFingersAllowed = -1;
 
         // Result state (Don't change default values)
         private bool m_recognizing = true; // still attempting to recognize the gesture
@@ -94,6 +95,12 @@ namespace Grafiti
         public bool Successful   { get { return m_successful; } }
         public bool Processing   { get { return m_processing; } }
         public float Probability { get { return m_probability; } }
+
+        public int MaxNumberOfFingersAllowed 
+        { 
+            get { return m_maxNumberOfFingersAllowed; } 
+            set { m_maxNumberOfFingersAllowed = value; } 
+        }
 
 
         private int m_debug_NProcessCalls = 0;
@@ -154,6 +161,7 @@ namespace Grafiti
             Process(traces);
         }
 
+        #region Changing state methods
         protected void GestureHasBeenRecognized()
         {
             GestureHasBeenRecognized(true, 1f);
@@ -171,14 +179,21 @@ namespace Grafiti
                 m_successful = successful;
                 m_probability = probability;
                 if (!successful)
-                    StopReceivingInput();
+                    Terminate();
             }
         }
-        protected void StopReceivingInput()
+        protected void Terminate()
         {
-            Debug.Assert(!m_recognizing);
-            m_processing = false;
+            Terminate(false);
         }
+        protected void Terminate(bool successfulRecognition)
+        {
+            if (m_recognizing)
+                GestureHasBeenRecognized(successfulRecognition);
+            m_processing = false;
+        } 
+        #endregion
+
 
         /// <summary>
         /// Use this method to send events. If the GRs is not armed (e.g. it's in competition with another
@@ -209,5 +224,17 @@ namespace Grafiti
             m_bufferedHandlers.Clear();
             m_bufferedArgs.Clear();
         }
+
+        internal void OnGroupRemoval1()
+        {
+            OnGroupRemoval();
+        }
+
+        /// <summary>
+        /// Called when the group has been definetly removed from the surface, this happens
+        /// after Settings.TRACE_TIME_GAP ms from when all the traces have been removed
+        /// Override this to handle the finalization of the lgr if needed.
+        /// </summary>
+        protected virtual void OnGroupRemoval() { }
     }
 }

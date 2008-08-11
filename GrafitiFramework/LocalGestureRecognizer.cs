@@ -28,10 +28,10 @@ namespace Grafiti
 {
     public abstract class LocalGestureRecognizer : GestureRecognizer
     {
-        private ITuioObjectGestureListener m_target;
+        private IGestureListener m_target;
         private float m_squareDistanceFromTarget;
 
-        public ITuioObjectGestureListener Target { get { return m_target; } internal set { m_target = value; } }
+        public IGestureListener Target { get { return m_target; } internal set { m_target = value; } }
         internal float SquareDistanceFromTarget { get { return m_squareDistanceFromTarget; } set { m_squareDistanceFromTarget = value; } }
 
         public LocalGestureRecognizer(GRConfigurator configurator) : base(configurator) { }
@@ -50,8 +50,8 @@ namespace Grafiti
         /// Called if the group removes (goes out from) the lgr's target, so that Process() 
         /// won't be called anymore This can happen if LGR_TARGET_LIST is set to 
         /// INTERSECTION_TARGET_LIST in the global settings.
-        /// Override this to handle the finalization of the lgr (e.g. send events like 'HoverEnded').
+        /// Override this to handle the finalization of the lgr, if needed.
         /// </summary>
-        protected void OnTargetRemoved() { }
+        protected virtual void OnTargetRemoved() { }
     } 
 }

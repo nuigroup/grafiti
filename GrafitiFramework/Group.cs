@@ -33,7 +33,7 @@ namespace Grafiti
         /// A list of IGestureListener that at every update will notify a GroupGRManager object 
         /// (if specified in the constructor)
         /// </summary>
-        private class TargetList : List<ITuioObjectGestureListener>
+        private class TargetList : List<IGestureListener>
         {
             private GroupGRManager m_groupGRManager;
 
@@ -47,20 +47,20 @@ namespace Grafiti
             {
                 m_groupGRManager = groupGRManager;
             }
-            public new void Add(ITuioObjectGestureListener target)
+            public new void Add(IGestureListener target)
             {
                 if (m_groupGRManager != null)
                     m_groupGRManager.AddLocalTarget(target);
                 base.Add(target);
             }
-            public new void AddRange(IEnumerable<ITuioObjectGestureListener> targets)
+            public new void AddRange(IEnumerable<IGestureListener> targets)
             {
                 if (m_groupGRManager != null)
-                    foreach (ITuioObjectGestureListener target in targets)
+                    foreach (IGestureListener target in targets)
                         m_groupGRManager.AddLocalTarget(target);
                 base.AddRange(targets);
             }
-            public new bool Remove(ITuioObjectGestureListener target)
+            public new bool Remove(IGestureListener target)
             {
                 if (m_groupGRManager != null)
                     m_groupGRManager.RemoveLocalTarget(target);
@@ -72,7 +72,8 @@ namespace Grafiti
         private static int s_counter = 0;           // id counter
         private int m_id;                           // id
         private List<Trace> m_traces;               // the traces of which the group is composed
-        private int m_nOfAliveTraces;               // number of alive traces
+        private int m_nOfPresentTraces;             // number of alive traces (fingers currently in the surface)
+        private int m_nOfActiveTraces;              // number of alive (present) or resurrectable traces.
         private float m_x0, m_y0;                   // initial coordinates of the first added trace
         private int m_t0, m_currentTimeStamp;       // initial and last time stamp
         private float m_centroidX, m_centroidY;     // centroid coordinates, calculated on the last points of the
@@ -80,7 +81,9 @@ namespace Grafiti
 
         private GroupGRManager m_groupGRManager;    // gesture recognition manager
         private bool m_initializing;
-        private bool m_processingTerminated;
+        private bool m_processing;
+
+        private int m_maxNumberOfFingersAllowed = -1;
 
         private List<Trace> m_startingSequence;       // traces listed in order of adding
         private List<Trace> m_endingSequenceReversed; // traces listed in reversed order of dying
@@ -95,26 +98,34 @@ namespace Grafiti
         private TargetList m_intersectionTargets, m_unionTargets;
         private TargetList m_enteringTargets, m_currentTargets, m_leavingTargets;
         // One-element target lists
-        private ITuioObjectGestureListener m_closestEnteringTarget, m_closestCurrentTarget, m_closestLeavingTarget;
-        private ITuioObjectGestureListener m_closestInitialTarget, m_closestNewInitialTarget, m_closestFinalTraget;
+        private IGestureListener m_closestEnteringTarget, m_closestCurrentTarget, m_closestLeavingTarget;
+        private IGestureListener m_closestInitialTarget, m_closestNewInitialTarget, m_closestFinalTraget;
 
         // One-element target list. When there is a running and armed LGR, this variable points to its target.
         // If the variable is (re)set (by GroupGRManager), the change is reflected in m_lgrTargets.
-        private ITuioObjectGestureListener m_exclusiveLocalTarget = null;
+        private IGestureListener m_exclusiveLocalTarget = null;
+
+        private bool m_onGUIControl;
 
         private SimmetricDoubleDictionary<Trace, float> m_traceSpaceCouplingTable;
         private SimmetricDoubleDictionary<Trace, int> m_traceTimeCouplingTable;
 
         // temp auxiliary variables
-        private List<List<ITuioObjectGestureListener>> m_currentInitialTargetLists = new List<List<ITuioObjectGestureListener>>();
-        private List<List<ITuioObjectGestureListener>> m_currentStartingAndResettingTargetLists = new List<List<ITuioObjectGestureListener>>();
-        private List<List<ITuioObjectGestureListener>> m_currentEnteringTargetLists = new List<List<ITuioObjectGestureListener>>();
-        private List<List<ITuioObjectGestureListener>> m_currentLeavingTargetLists = new List<List<ITuioObjectGestureListener>>();
-        private List<List<ITuioObjectGestureListener>> m_currentCurrentTargetLists = new List<List<ITuioObjectGestureListener>>();
-        private List<List<ITuioObjectGestureListener>> m_finalTargetLists = new List<List<ITuioObjectGestureListener>>();
+        private List<List<IGestureListener>> m_currentInitialTargetLists = new List<List<IGestureListener>>();
+        private List<List<IGestureListener>> m_currentStartingAndResettingTargetLists = new List<List<IGestureListener>>();
+        private List<List<IGestureListener>> m_currentEnteringTargetLists = new List<List<IGestureListener>>();
+        private List<List<IGestureListener>> m_currentLeavingTargetLists = new List<List<IGestureListener>>();
+        private List<List<IGestureListener>> m_currentCurrentTargetLists = new List<List<IGestureListener>>();
+        private List<List<IGestureListener>> m_finalTargetLists = new List<List<IGestureListener>>();
 
         internal GroupGRManager GRManager { get { return m_groupGRManager; } }
-        internal bool ProcessingTerminated { get { return m_processingTerminated; } }
+        public bool Processing { get { return m_processing; } }
+
+        public int MaxNumberOfFingersAllowed
+        {
+            get { return m_maxNumberOfFingersAllowed; }
+            internal set { m_maxNumberOfFingersAllowed = value; }
+        }
         #endregion
 
         #region Public properties
@@ -124,14 +135,20 @@ namespace Grafiti
         // Traces of which the group is composed
         public List<Trace> Traces { get { return m_traces; } }
 
-        // Number of alive traces
-        public int NOfAliveTraces { get { return m_nOfAliveTraces; } }
+        // Number of present traces
+        public int NumberOfPresentTraces { get { return m_nOfPresentTraces; } }
 
-        // Flag indicating iff the group is alive, i.e. at least one trace is alive (a cursor is on the surface)
-        public bool Alive { get { return m_nOfAliveTraces > 0; } }
+        // Number of active traces
+        public int NumberOfActiveTraces { get { return m_nOfActiveTraces; } }
 
-        // Last time stamp, that is the current, corresponding to when the last refresh was called
-        public int LastTimeStamp { get { return m_currentTimeStamp; } }
+        // The group is present iff there is at least a present trace (a finger is currently in the surface)
+        public bool IsPresent { get { return m_nOfPresentTraces > 0; } }
+
+        // The group is terminated iff all traces have been removed since a time not lesser than Settings.TRACE_TIME_GAP
+        public bool IsTerminated { get { return m_nOfActiveTraces == 0; } }
+
+        // Current time stamp corresponding to when the last refresh was called
+        public int CurrentTimeStamp { get { return m_currentTimeStamp; } }
 
         // Centroid coordinates (calculated on the last point of the living and the resurrectable traces)
         public float CentroidX { get { return m_centroidX; } }
@@ -141,35 +158,49 @@ namespace Grafiti
         public float CentroidLivingY { get { return m_centroidLivingY; } }
 
         // Target lists
-        public List<ITuioObjectGestureListener> InitialTargets { get { return (List<ITuioObjectGestureListener>)m_initialTargets; } }
-        public List<ITuioObjectGestureListener> NewIntialTargets { get { return (List<ITuioObjectGestureListener>)m_newInitialTargets; } }
-        public List<ITuioObjectGestureListener> FinalTargets { get { return (List<ITuioObjectGestureListener>)m_finalTargets; } }
-        public List<ITuioObjectGestureListener> IntersectionTargets { get { return (List<ITuioObjectGestureListener>)m_intersectionTargets; } }
-        public List<ITuioObjectGestureListener> UnionTargets { get { return (List<ITuioObjectGestureListener>)m_unionTargets; } }
-        public List<ITuioObjectGestureListener> EnteringTargets { get { return (List<ITuioObjectGestureListener>)m_enteringTargets; } }
-        public List<ITuioObjectGestureListener> CurrentTargets { get { return (List<ITuioObjectGestureListener>)m_currentTargets; } }
-        public List<ITuioObjectGestureListener> LeavingTargets { get { return (List<ITuioObjectGestureListener>)m_leavingTargets; } }
-        public ITuioObjectGestureListener ClosestEnteringTarget { get { return m_closestEnteringTarget; } }
-        public ITuioObjectGestureListener ClosestCurrentTarget { get { return m_closestCurrentTarget; } }
-        public ITuioObjectGestureListener ClosestLeavingTarget { get { return m_closestLeavingTarget; } }
-        public ITuioObjectGestureListener ClosestInitialTarget { get { return m_closestInitialTarget; } }
-        public ITuioObjectGestureListener ClosestNewInitialTarget { get { return m_closestNewInitialTarget; } }
-        public ITuioObjectGestureListener ClosestFinalTarget { get { return m_closestFinalTraget; } }
+        public List<IGestureListener> InitialTargets { get { return (List<IGestureListener>)m_initialTargets; } }
+        public List<IGestureListener> NewIntialTargets { get { return (List<IGestureListener>)m_newInitialTargets; } }
+        public List<IGestureListener> FinalTargets { get { return (List<IGestureListener>)m_finalTargets; } }
+        public List<IGestureListener> IntersectionTargets { get { return (List<IGestureListener>)m_intersectionTargets; } }
+        public List<IGestureListener> UnionTargets { get { return (List<IGestureListener>)m_unionTargets; } }
+        public List<IGestureListener> EnteringTargets { get { return (List<IGestureListener>)m_enteringTargets; } }
+        public List<IGestureListener> CurrentTargets { get { return (List<IGestureListener>)m_currentTargets; } }
+        public List<IGestureListener> LeavingTargets { get { return (List<IGestureListener>)m_leavingTargets; } }
+        public IGestureListener ClosestEnteringTarget { get { return m_closestEnteringTarget; } }
+        public IGestureListener ClosestCurrentTarget { get { return m_closestCurrentTarget; } }
+        public IGestureListener ClosestLeavingTarget { get { return m_closestLeavingTarget; } }
+        public IGestureListener ClosestInitialTarget { get { return m_closestInitialTarget; } }
+        public IGestureListener ClosestNewInitialTarget { get { return m_closestNewInitialTarget; } }
+        public IGestureListener ClosestFinalTarget { get { return m_closestFinalTraget; } }
 
         // List of targets of the currently active LGRs
-        public List<ITuioObjectGestureListener> LGRTargets { get { return (List<ITuioObjectGestureListener>)m_lgrTargets; } }
+        public List<IGestureListener> LGRTargets { get { return (List<IGestureListener>)m_lgrTargets; } }
 
         // Target of the winning and exclusive LGR
-        public ITuioObjectGestureListener ExclusiveLocalTarget
+        public IGestureListener ExclusiveLocalTarget
         {
             get { return m_exclusiveLocalTarget; }
             internal set
             {
                 m_exclusiveLocalTarget = value;
-                // Reset lgr target list to the only actual target
-                m_lgrTargets.Clear();
-                if (value != null)
-                    ((List<ITuioObjectGestureListener>)m_lgrTargets).Add(value); // by-passing the groupGRManager call
+                #region commented out to keep coherence: m_lgrTargets is set geometrically
+                //// Reset lgr target list to the only actual target
+                //m_lgrTargets.Clear();
+                //if (value != null)
+                //    ((List<IGestureListener>)m_lgrTargets).Add(value); // by-passing the groupGRManager call 
+                #endregion
+            }
+        }
+
+        public bool OnGUIControl
+        {
+            get { return m_onGUIControl; }
+            private set
+            {
+                if (m_onGUIControl != value)
+                {
+                    m_onGUIControl = value;
+                }
             }
         }
         #endregion
@@ -178,11 +209,12 @@ namespace Grafiti
         internal Group()
         {
             m_groupGRManager = new GroupGRManager(this);
-            m_processingTerminated = false;
+            m_processing = true;
 
             m_id = s_counter++;
             m_traces = new List<Trace>();
-            m_nOfAliveTraces = 0;
+            m_nOfActiveTraces = 0;
+            m_nOfPresentTraces = 0;
             m_initializing = true;
 
             m_centroidX = m_centroidY = 0;
@@ -239,7 +271,8 @@ namespace Grafiti
                 m_initializing = true;
 
             m_traces.Add(trace);
-            m_nOfAliveTraces++;
+            m_nOfActiveTraces++;
+            m_nOfPresentTraces++;
 
             Cursor firstPoint = trace.First;
             int firstPointTimeStamp = firstPoint.TimeStamp;
@@ -277,7 +310,7 @@ namespace Grafiti
         {
             if (trace.State == Trace.States.RESET)
             {
-                m_nOfAliveTraces++;
+                m_nOfPresentTraces++;
                 m_endingSequenceReversed.Remove(trace);
                 m_currentResettingTraces.Add(trace);
             }
@@ -287,7 +320,7 @@ namespace Grafiti
         }
         internal void EndTrace(Trace trace)
         {
-            m_nOfAliveTraces--;
+            m_nOfPresentTraces--;
 
             // update ending sequence
             m_endingSequenceReversed.Insert(0, trace);
@@ -295,27 +328,39 @@ namespace Grafiti
             m_currentEndingTraces.Add(trace);
             m_allCurrentTraces.Add(trace);
         }
-        internal void Process(int timeStamp)
+        internal void TerminateTrace(Trace trace)
         {
-            // update current time stamp
-            m_currentTimeStamp = timeStamp;
+            m_nOfActiveTraces--;
+        }
+        internal void Terminate()
+        {
+            m_groupGRManager.Terminate();
+        }
+        internal bool Process(int timeStamp)
+        {
+            if (m_processing)
+            {
+                // update current time stamp
+                m_currentTimeStamp = timeStamp;
 
-            // update centroids
-            UpdateCentroids();
+                // update centroids
+                UpdateCentroids();
 
-            // update target lists and gesture event handlers
-            UpdateTargetsAndHandlers();
+                // update target lists and gesture event handlers
+                UpdateTargetsAndHandlers();
 
-            // process
-            if (!m_processingTerminated)
-                m_processingTerminated = m_groupGRManager.Process(m_allCurrentTraces);
+                // process
+                if (!m_groupGRManager.Process(m_allCurrentTraces, false))
+                    m_processing = false;
 
-            // clear temp lists
-            m_currentStartingTraces.Clear();
-            m_currentInitialTraces.Clear();
-            m_currentUpdatingTraces.Clear();
-            m_currentEndingTraces.Clear();
-            m_allCurrentTraces.Clear();
+                // clear temp lists
+                m_currentStartingTraces.Clear();
+                m_currentInitialTraces.Clear();
+                m_currentUpdatingTraces.Clear();
+                m_currentEndingTraces.Clear();
+                m_allCurrentTraces.Clear();
+            }
+            return m_processing;
         }
         private void UpdateCentroids()
         {
@@ -338,7 +383,7 @@ namespace Grafiti
                 else
                 {
                     // Recently dead trace
-                    if (m_currentTimeStamp - cursor.TimeStamp <= Settings.GetTraceTimeGap())
+                    if (m_currentTimeStamp - cursor.TimeStamp <= Settings.TRACE_TIME_GAP)
                     {
                         sxd += cursor.X;
                         syd += cursor.Y;
@@ -408,15 +453,13 @@ namespace Grafiti
 
             foreach (Trace t in m_currentInitialTraces)
                 m_currentInitialTargetLists.Add(t.InitialTargets);
-            List<ITuioObjectGestureListener> intersectionInitialList = Intersect(m_currentInitialTargetLists);
-            List<ITuioObjectGestureListener> unionInitialList = Union(m_currentInitialTargetLists);
+            List<IGestureListener> intersectionInitialList = Intersect(m_currentInitialTargetLists);
 
             foreach (Trace t in m_currentStartingTraces)
                 m_currentStartingAndResettingTargetLists.Add(t.InitialTargets);
             foreach (Trace t in m_currentResettingTraces)
                 m_currentStartingAndResettingTargetLists.Add(t.CurrentTargets);
-            List<ITuioObjectGestureListener> intersectionStartingAndResettingList = Intersect(m_currentStartingAndResettingTargetLists);
-            List<ITuioObjectGestureListener> unionStartingAndResettingList = Union(m_currentStartingAndResettingTargetLists);
+            List<IGestureListener> intersectionStartingAndResettingList = Intersect(m_currentStartingAndResettingTargetLists);
 
 
             if (m_initializing)
@@ -424,16 +467,8 @@ namespace Grafiti
                 m_initializing = false;
 
                 // The first added traces determine INITIAL, NEWINITIAL and INTERSECTION lists
-                if (Settings.INTERSECTION_MODE)
-                {
-                    m_initialTargets.AddRange(intersectionInitialList);
-                    m_newInitialTargets.AddRange(intersectionInitialList);
-                }
-                else
-                {
-                    m_initialTargets.AddRange(unionInitialList);
-                    m_newInitialTargets.AddRange(unionInitialList);
-                }
+                m_initialTargets.AddRange(intersectionInitialList);
+                m_newInitialTargets.AddRange(intersectionInitialList);
                 m_intersectionTargets.AddRange(intersectionInitialList);
 
                 if (m_initialTargets.Count > 0)
@@ -444,75 +479,48 @@ namespace Grafiti
             }
             else
             {
-                if (Settings.INTERSECTION_MODE)
+
+                // INITIAL list is the intersection of the recently born traces' INITIAL lists.
+                if (m_currentInitialTargetLists.Count > 0)
                 {
-                    // INITIAL list is the intersection of the recently born traces' INITIAL lists.
-                    if (m_currentInitialTargetLists.Count > 0)
-                    {
-                        foreach (ITuioObjectGestureListener target in m_initialTargets)
-                            if (!intersectionInitialList.Contains(target))
-                                m_leavingTargets.Add(target);
+                    foreach (IGestureListener target in m_initialTargets)
+                        if (!intersectionInitialList.Contains(target))
+                            m_leavingTargets.Add(target);
 
-                        foreach (ITuioObjectGestureListener target in m_leavingTargets)
-                        {
-                            m_initialTargets.Remove(target);
-                            m_currentTargets.Remove(target);
-                            m_intersectionTargets.Remove(target);
-                        }
-                        if (m_leavingTargets.Count > 0)
-                        {
-                            newLeaving = true;
-                            newInitial = true;
-                            newCurrent = true;
-                            newIntersect = true;
-                        }
+                    foreach (IGestureListener target in m_leavingTargets)
+                    {
+                        m_initialTargets.Remove(target);
+                        m_currentTargets.Remove(target);
+                        m_intersectionTargets.Remove(target);
                     }
-
-                    // Remove targets that don't appear in the added/reset traces' lists
-                    if (m_currentStartingTraces.Count + m_currentResettingTraces.Count > 0)
+                    if (m_leavingTargets.Count > 0)
                     {
-                        foreach (ITuioObjectGestureListener target in m_currentTargets)
-                        {
-                            if (!intersectionStartingAndResettingList.Contains(target))
-                                m_leavingTargets.Add(target);
-                        }
-                        foreach (ITuioObjectGestureListener target in m_leavingTargets)
-                        {
-                            m_currentTargets.Remove(target);
-                            m_intersectionTargets.Remove(target);
-                        }
-                        if (m_leavingTargets.Count > 0)
-                        {
-                            newLeaving = true;
-                            newCurrent = true;
-                            newIntersect = true;
-                        }
+                        newLeaving = true;
+                        newInitial = true;
+                        newCurrent = true;
+                        newIntersect = true;
                     }
                 }
-                else
-                {
-                    // INITIAL list is the union of the recently born traces' INITIAL lists.
-                    foreach (ITuioObjectGestureListener target in unionInitialList)
-                    {
-                        if (!m_initialTargets.Contains(target))
-                        {
-                            m_initialTargets.Add(target);
-                            m_newInitialTargets.Add(target);
-                            newInitial = true;
-                        }
-                    }
 
-                    // update INTERSECTION list
-                    m_intersectionTargets.RemoveAll(delegate(ITuioObjectGestureListener target)
+                // Remove targets that don't appear in the added/reset traces' lists
+                if (m_currentStartingTraces.Count + m_currentResettingTraces.Count > 0)
+                {
+                    foreach (IGestureListener target in m_currentTargets)
                     {
                         if (!intersectionStartingAndResettingList.Contains(target))
-                        {
-                            newIntersect = true;
-                            return true;
-                        }
-                        else
-                            return false;
-                    });
+                            m_leavingTargets.Add(target);
+                    }
+                    foreach (IGestureListener target in m_leavingTargets)
+                    {
+                        m_currentTargets.Remove(target);
+                        m_intersectionTargets.Remove(target);
+                    }
+                    if (m_leavingTargets.Count > 0)
+                    {
+                        newLeaving = true;
+                        newCurrent = true;
+                        newIntersect = true;
+                    }
                 }
             }
             #endregion
@@ -523,9 +531,9 @@ namespace Grafiti
             m_currentEnteringTargetLists.Clear();
             foreach (Trace t in m_allCurrentTraces)
                 m_currentEnteringTargetLists.Add(t.EnteringTargets);
-            List<ITuioObjectGestureListener> enteringTargets = Union(m_currentEnteringTargetLists);
+            List<IGestureListener> enteringTargets = Union(m_currentEnteringTargetLists);
 
-            foreach (ITuioObjectGestureListener enteringTarget in enteringTargets)
+            foreach (IGestureListener enteringTarget in enteringTargets)
             {
                 // in this way the group's union list is the union of the traces' union lists
                 if (!m_unionTargets.Contains(enteringTarget))
@@ -534,22 +542,12 @@ namespace Grafiti
                     newUnion = true;
                 }
 
-
                 if (!m_currentTargets.Contains(enteringTarget))
                 {
-                    bool trueForAll = true;
-                    if (Settings.INTERSECTION_MODE)
+                    if (m_traces.TrueForAll(delegate(Trace t)
                     {
-                        foreach (Trace t in m_traces)
-                        {
-                            if (t.Alive && !t.CurrentTargets.Contains(enteringTarget))
-                            {
-                                trueForAll = false;
-                                break;
-                            }
-                        }
-                    }
-                    if (trueForAll)
+                        return !t.Alive || t.CurrentTargets.Contains(enteringTarget);
+                    }))
                     {
                         m_enteringTargets.Add(enteringTarget);
                         m_currentTargets.Add(enteringTarget);
@@ -567,35 +565,22 @@ namespace Grafiti
             m_currentLeavingTargetLists.Clear();
             foreach (Trace t in m_allCurrentTraces)
                 m_currentLeavingTargetLists.Add(t.LeavingTargets);
-            List<ITuioObjectGestureListener> leavingTargets = Union(m_currentLeavingTargetLists);
+            List<IGestureListener> leavingTargets = Union(m_currentLeavingTargetLists);
 
             // Note: if the following condition is satisfied then traceLeavingTargets is empty
-            foreach (ITuioObjectGestureListener leavingTarget in leavingTargets)
+            foreach (IGestureListener leavingTarget in leavingTargets)
             {
                 if (m_currentTargets.Contains(leavingTarget))
                 {
                     if (m_intersectionTargets.Remove(leavingTarget))
                         newIntersect = true;
 
-                    bool falseForAll = true;
-                    if (!Settings.INTERSECTION_MODE)
-                    {
-                        foreach (Trace t in m_traces)
-                            if (t.Alive && t.CurrentTargets.Contains(leavingTarget))
-                            {
-                                falseForAll = false;
-                                break;
-                            }
-                    }
-                    if (falseForAll)
-                    {
-                        m_currentTargets.Remove(leavingTarget);
-                        m_leavingTargets.Add(leavingTarget);
-                        newCurrent = true;
-                        newLeaving = true;
+                    m_currentTargets.Remove(leavingTarget);
+                    m_leavingTargets.Add(leavingTarget);
+                    newCurrent = true;
+                    newLeaving = true;
 
-                        //Console.WriteLine("Removed {0} from CURRENT", traceLeavingTarget.ToString());
-                    }
+                    //Console.WriteLine("Removed {0} from CURRENT", traceLeavingTarget.ToString());
                 }
             }
 
@@ -604,7 +589,7 @@ namespace Grafiti
 
             #region removed traces
 
-            if (!Alive) // if all traces have been removed then compute FINAL targets
+            if (!IsPresent) // if all traces have been removed then compute FINAL targets
             {
                 int finalTimeStamp = m_allCurrentTraces[0].Last.TimeStamp;
                 m_finalTargetLists.Clear();
@@ -615,27 +600,23 @@ namespace Grafiti
                     m_finalTargetLists.Add(deadTrace.FinalTargets);
                 }
 
-                if (Settings.INTERSECTION_MODE)
-                    m_finalTargets.AddRange(Intersect(m_finalTargetLists));
-                else
-                    m_finalTargets.AddRange(Union(m_finalTargetLists));
+                m_finalTargets.AddRange(Intersect(m_finalTargetLists));
 
                 if (m_finalTargets.Count > 0)
                     newFinal = true;
             }
             else
             {
-                // In INTERSECTION mode, if any trace has been removed 
-                // then some target may be added to the CURRENT (and ENTERING) list
-                if (m_currentEndingTraces.Count > 0 && Settings.INTERSECTION_MODE)
+                // If any trace has been removed then some target may be added to the CURRENT (and ENTERING) list
+                if (m_currentEndingTraces.Count > 0)
                 {
                     m_currentCurrentTargetLists.Clear();
                     foreach (Trace t in m_traces)
                         if (t.Alive)
                             m_currentCurrentTargetLists.Add(t.CurrentTargets);
-                    List<ITuioObjectGestureListener> currentTargets = Intersect(m_currentCurrentTargetLists);
+                    List<IGestureListener> currentTargets = Intersect(m_currentCurrentTargetLists);
 
-                    foreach (ITuioObjectGestureListener currentTarget in currentTargets)
+                    foreach (IGestureListener currentTarget in currentTargets)
                     {
                         if (!m_currentTargets.Contains(currentTarget))
                         {
@@ -650,22 +631,29 @@ namespace Grafiti
 
             #endregion
 
+            
+            OnGUIControl = m_currentTargets.Count > 0 && !(m_currentTargets[0] is ITuioObjectGestureListener);
+
 
             #region closest targets
-
+            IGestureListener closestTarget = null;
             float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE + 1;
             float tempDist;
-            ITuioObjectGestureListener closestTarget = null;
-
-            // Find closest target
-            foreach (ITuioObjectGestureListener target in m_currentTargets)
+            if (!(OnGUIControl))
             {
-                tempDist = target.GetSquareDistance(m_centroidX, m_centroidY);
-                if (tempDist < minDist)
+                foreach (IGestureListener target in m_currentTargets)
                 {
-                    minDist = tempDist;
-                    closestTarget = target;
+                    tempDist = ((ITuioObjectGestureListener)target).GetSquareDistance(m_centroidX, m_centroidY);
+                    if (tempDist < minDist)
+                    {
+                        minDist = tempDist;
+                        closestTarget = target;
+                    }
                 }
+            }
+            else
+            {
+                closestTarget = m_currentTargets[0];
             }
 
             // Update closest entering/current/leaving
@@ -735,9 +723,9 @@ namespace Grafiti
                 //newInitial, newFinal, newEntering, newLeaving);
             }
         }
-        private List<ITuioObjectGestureListener> Intersect(List<List<ITuioObjectGestureListener>> targetLists)
+        private List<IGestureListener> Intersect(List<List<IGestureListener>> targetLists)
         {
-            List<ITuioObjectGestureListener> output = new List<ITuioObjectGestureListener>();
+            List<IGestureListener> output = new List<IGestureListener>();
             if (targetLists.Count == 0)
                 return output;
 
@@ -745,12 +733,12 @@ namespace Grafiti
             if (targetLists.Count == 1)
                 return output;
 
-            List<ITuioObjectGestureListener> firstElement = targetLists[0];
+            List<IGestureListener> firstElement = targetLists[0];
             targetLists.RemoveAt(0);
             int updatedOutputCount = output.Count;
             for (int i = 0; i < updatedOutputCount; )
             {
-                if (!targetLists.TrueForAll(delegate(List<ITuioObjectGestureListener> targetList)
+                if (!targetLists.TrueForAll(delegate(List<IGestureListener> targetList)
                 {
                     return targetList.Contains(output[i]);
                 }))
@@ -765,9 +753,9 @@ namespace Grafiti
 
             return output;
         }
-        private List<ITuioObjectGestureListener> Union(List<List<ITuioObjectGestureListener>> targetLists)
+        private List<IGestureListener> Union(List<List<IGestureListener>> targetLists)
         {
-            List<ITuioObjectGestureListener> output = new List<ITuioObjectGestureListener>();
+            List<IGestureListener> output = new List<IGestureListener>();
 
             if (targetLists.Count == 0)
                 return output;
@@ -777,31 +765,60 @@ namespace Grafiti
                 return output;
 
             for (int i = 1; i < targetLists.Count; i++)
-                foreach (ITuioObjectGestureListener target in targetLists[i])
+                foreach (IGestureListener target in targetLists[i])
                     if (!output.Contains(target))
                         output.Add(target);
 
             return output;
         }
 
-        // Return the distance between a given point and the nearest current finger.
-        internal float SquareMinDist(Cursor cursor)
+        /// <summary>
+        /// Calculate the distance between the given cursor and the nearest cursor belonging
+        /// to an existing trace. This is the geometrical test for the clusterization.
+        /// </summary>
+        /// <param name="cursor">The cursor</param>
+        /// <param name="onlyAliveTraces">If this is set to true, the distance will be relative
+        /// only to alive traces (i.e. the finger is still present). If set to false there
+        /// will be considered also the resurrectable (i.e. recently died) traces.</param>
+        /// <returns>The minimum distance between the given cursor and the nearest trace,
+        /// among the considered ones (depending on the parameter onlyAliveTraces)</returns>
+        internal float SquareDistanceToNearestTrace(Cursor cursor, bool onlyAliveTraces)
         {
             float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE + 1;
             foreach (Trace trace in m_traces)
             {
-                if (trace.Alive)// || 
-                    //(m_currentTimeStamp - trace.Last.TimeStamp <= Settings.GetTraceTimeGap())) // recently dead
+                if (trace.Alive || 
+                    (!onlyAliveTraces && cursor.TimeStamp - trace.Last.TimeStamp <= Settings.GetTraceTimeGap())) // recently dead
                     minDist = Math.Min(trace.Last.SquareDistance(cursor), minDist);
             }
 
             return minDist;
         }
-        internal bool AcceptNewCursor(Cursor cursor)
+        /// <summary>
+        /// Test whether a cursor can be added to the group. This is the non-geometrical test
+        /// for the clusterization.
+        /// </summary>
+        /// <param name="cursor">The cursor that is supposed to be added to the group.</param>
+        /// <param name="targets">Targets of the given cursor.</param>
+        /// <param name="guiTargets">This flag must be true iff the targets are GUI controls</param>
+        /// <returns>true iff the cursor can be added to the group</returns>
+        internal bool AcceptNewCursor(Cursor cursor, List<IGestureListener> targets, bool guiTargets)
         {
-            // 1. ask GR if is currently interpreting and accepting the new trace
+            // If both the group and the cursor are on a GUI control, then such control must be the same
+            // If only one of them is on a GUI control than don't accept the cursor
+            if (guiTargets != OnGUIControl ||
+                (guiTargets && targets[0] != m_currentTargets[0]))
+                return false;
 
-            // 2. (optional) check that the intersection of the targets is not empty.
+            if (m_maxNumberOfFingersAllowed > 0 &&
+                m_nOfActiveTraces >= m_maxNumberOfFingersAllowed)
+                return false;
+
+
+            // TODO maybe (?)
+            // - ask GR if is currently interpreting and accepting the new trace
+
+            // - (optional) check that the intersection of the targets is not empty.
             // Although this could be good for some purposes, if the actual target of the gesture
             // is the global surface, the right clusterizing will not be done. So that such gestures
             // will have to be done outside every controls' areas.
@@ -834,55 +851,59 @@ namespace Grafiti
             //}
 
 
-            //sb.Append("\nInitial targets:");
-            //foreach (ITuioObjectGestureListener target in m_initialTargets)
-            //    sb.Append(target.ToString() + ", ");
+            sb.Append("\nInitial targets:");
+            foreach (IGestureListener target in m_initialTargets)
+                sb.Append(target.ToString() + ", ");
 
-            //sb.Append("\nNew Initial targets:");
-            //foreach (ITuioObjectGestureListener target in m_newInitialTargets)
-            //    sb.Append(target.ToString() + ", ");
+            sb.Append("\nNew Initial targets:");
+            foreach (IGestureListener target in m_newInitialTargets)
+                sb.Append(target.ToString() + ", ");
 
-            //sb.Append("\nIntersection targets:");
-            //foreach (ITuioObjectGestureListener target in m_intersectionTargets)
-            //    sb.Append(target.ToString() + ", ");
+            sb.Append("\nIntersection targets:");
+            foreach (IGestureListener target in m_intersectionTargets)
+                sb.Append(target.ToString() + ", ");
 
-            //sb.Append("\nUnion targets:");
-            //foreach (ITuioObjectGestureListener target in m_unionTargets)
-            //    sb.Append(target.ToString() + ", ");
+            sb.Append("\nUnion targets:");
+            foreach (IGestureListener target in m_unionTargets)
+                sb.Append(target.ToString() + ", ");
 
-            //sb.Append("\nEntering targets:");
-            //foreach (ITuioObjectGestureListener target in m_enteringTargets)
-            //    sb.Append(target.ToString() + ", ");
+            sb.Append("\nEntering targets:");
+            foreach (IGestureListener target in m_enteringTargets)
+                sb.Append(target.ToString() + ", ");
 
-            //sb.Append("\nCurrent targets:");
-            //foreach (ITuioObjectGestureListener target in m_currentTargets)
-            //    sb.Append(target.ToString() + ", ");
+            sb.Append("\nCurrent targets:");
+            foreach (IGestureListener target in m_currentTargets)
+                sb.Append(target.ToString() + ", ");
 
-            //sb.Append("\nLeaving targets:");
-            //foreach (ITuioObjectGestureListener target in m_leavingTargets)
-            //    sb.Append(target.ToString() + ", ");
+            sb.Append("\nLeaving targets:");
+            foreach (IGestureListener target in m_leavingTargets)
+                sb.Append(target.ToString() + ", ");
 
-            //sb.Append("\nFinal targets:");
-            //foreach (ITuioObjectGestureListener target in m_finalTargets)
-            //    sb.Append(target.ToString() + ", ");
+            sb.Append("\nFinal targets:");
+            foreach (IGestureListener target in m_finalTargets)
+                sb.Append(target.ToString() + ", ");
 
-            //sb.Append("\nClosest entering target:");
-            //if (m_closestEnteringTarget != null)
-            //    sb.Append(m_closestEnteringTarget.ToString());
-            //else
-            //    sb.Append("null");
+            sb.Append("\nClosest entering target:");
+            if (m_closestEnteringTarget != null)
+                sb.Append(m_closestEnteringTarget.ToString());
+            else
+                sb.Append("null");
 
-            //sb.Append("\nClosest current target:");
-            //if (m_closestCurrentTarget != null)
-            //    sb.Append(m_closestCurrentTarget.ToString());
-            //else
-            //    sb.Append("null");
+            sb.Append("\nClosest current target:");
+            if (m_closestCurrentTarget != null)
+                sb.Append(m_closestCurrentTarget.ToString());
+            else
+                sb.Append("null");
 
-            //sb.Append("\nClosest leaving target:");
-            //if (m_closestLeavingTarget != null)
-            //    sb.Append(m_closestLeavingTarget.ToString());
-            //else
-            //    sb.Append("null");
+            sb.Append("\nClosest leaving target:");
+            if (m_closestLeavingTarget != null)
+                sb.Append(m_closestLeavingTarget.ToString());
+            else
+                sb.Append("null");
+
+            sb.Append("\nLGR targets:");
+            foreach (IGestureListener target in m_lgrTargets)
+                sb.Append(target.ToString() + ", ");
 
             return sb.ToString();
 

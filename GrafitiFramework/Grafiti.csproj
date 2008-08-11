@@ -41,6 +41,15 @@
   </Target>
   -->
   <ItemGroup>
+    <Compile Include="Controls\TouchButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\TouchPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\TouchRadioButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Cursor.cs" />
     <Compile Include="DoubleDictionaries.cs" />
     <Compile Include="GestureEventManager.cs" />
@@ -49,11 +58,13 @@
     <Compile Include="Group.cs" />
     <Compile Include="GroupGRManager.cs" />
     <Compile Include="GRRegistry.cs" />
-    <Compile Include="GRs\Basic1FingerGR.cs" />
     <Compile Include="GRs\BasicMultiFingerGR.cs" />
+    <Compile Include="GRs\CircleGR.cs" />
     <Compile Include="GRs\MultiTraceGR.cs" />
     <Compile Include="GRs\PinchingGR.cs" />
     <Compile Include="IGestureListener.cs" />
+    <Compile Include="IGrafitiClientGUIManager.cs" />
+    <Compile Include="ITuioObjectGestureListener.cs" />
     <Compile Include="LocalGestureRecognizer.cs" />
     <Compile Include="OSC.NET\OSCBundle.cs" />
     <Compile Include="OSC.NET\OSCMessage.cs" />
@@ -74,6 +85,8 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.XML" />
   </ItemGroup>
 </Project>

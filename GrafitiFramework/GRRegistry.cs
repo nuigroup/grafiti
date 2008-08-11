@@ -27,8 +27,8 @@ using Grafiti;
 namespace Grafiti
 {
     /// <summary>
-    /// Manages registrations of gesture events.
-    /// of event handlers.
+    /// Stores the registrations of gesture event handlers and notifies changes to the 
+    /// subscribed groups' GR managers.
     /// </summary>
     internal class GestureEventRegistry
     {
@@ -133,6 +133,5 @@ namespace Grafiti
         {
             m_subscribedGRManagers.Remove(grManager);
         }
-
     }
 }

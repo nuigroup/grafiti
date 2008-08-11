@@ -74,6 +74,8 @@ namespace Grafiti
         protected string[] ClosestNewInitialEvents = new string[0] { };
         protected string[] ClosestFinalEvents = new string[0] { };
 
+        private bool m_freezeEventHandlerLists = false;
+
 
         // GR developers can use this (in association with the predefined lists), to manage the handlers
         // of events when the predefined lists don't give a sufficient support.
@@ -85,13 +87,13 @@ namespace Grafiti
         }
 
         // Auxiliar list used instead of creating a new instance each time.
-        List<ITuioObjectGestureListener> m_temporaryTargetSingletonList;
+        List<IGestureListener> m_temporaryTargetSingletonList;
 
         public GlobalGestureRecognizer(GRConfigurator configurator) : base(configurator)
         {
             m_handlerTable = new DoubleDictionary<EventInfo, object, List<GestureEventHandler>>();
             m_temporaryHandlerTable = new DoubleDictionary<TargetList, EventInfo, List<GestureEventHandler>>();
-            m_temporaryTargetSingletonList = new List<ITuioObjectGestureListener>(1);
+            m_temporaryTargetSingletonList = new List<IGestureListener>(1);
         }
 
         internal override sealed void AddHandler(string ev, GestureEventHandler handler)
@@ -121,6 +123,16 @@ namespace Grafiti
 
         }
 
+        protected void FreezeEventHandlerLists()
+        {
+            m_freezeEventHandlerLists = true;
+        }
+        protected void UnFreezeEventHandlerLists()
+        {
+            m_freezeEventHandlerLists = false;
+        }
+
+
         /// <summary>
         /// Update handlers to the events for targets appearing in the predefined target lists
         /// </summary>
@@ -129,45 +141,53 @@ namespace Grafiti
             bool intersect, bool union, 
             bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin)
         {
-            if (initial)
-            {
-                UpdateHandlers(TargetList.INITIAL);
-                UpdateHandlers(TargetList.NEWINITIAL);
-                UpdateHandlers(TargetList.CLOSEST_NEWINITIAL);
-            }
-            if (final)
-                UpdateHandlers(TargetList.FINAL);
-            if (entering)
-                UpdateHandlers(TargetList.ENTERING);
-            if (current)
-                UpdateHandlers(TargetList.CURRENT);
-            if (leaving)
-                UpdateHandlers(TargetList.LEAVING);
-            if (intersect)
-                UpdateHandlers(TargetList.INTERSECT);
-            if (union)
-                UpdateHandlers(TargetList.UNION);
-            if (newClosestEnt)
-                UpdateHandlers(TargetList.CLOSEST_ENTERING);
-            if (newClosestCur)
-                UpdateHandlers(TargetList.CLOSEST_CURRENT);
-            if (newClosestLvn)
-                UpdateHandlers(TargetList.CLOSEST_LEAVING);
-            if (newClosestIni)
-                UpdateHandlers(TargetList.CLOSEST_INITIAL);
-            if (newClosestFin)
-                UpdateHandlers(TargetList.CLOSEST_FINAL);
+            OnPreUpdateHandlers(initial, final, entering, current, leaving,
+                intersect, union, newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
 
-            OnUpdateHandlers(initial, final, entering, current, leaving,
+            if (!m_freezeEventHandlerLists)
+            {
+
+                if (initial)
+                {
+                    UpdateHandlers(TargetList.INITIAL);
+                    UpdateHandlers(TargetList.NEWINITIAL);
+                    UpdateHandlers(TargetList.CLOSEST_NEWINITIAL);
+                }
+                if (final)
+                    UpdateHandlers(TargetList.FINAL);
+                if (entering)
+                    UpdateHandlers(TargetList.ENTERING);
+                if (current)
+                    UpdateHandlers(TargetList.CURRENT);
+                if (leaving)
+                    UpdateHandlers(TargetList.LEAVING);
+                if (intersect)
+                    UpdateHandlers(TargetList.INTERSECT);
+                if (union)
+                    UpdateHandlers(TargetList.UNION);
+                if (newClosestEnt)
+                    UpdateHandlers(TargetList.CLOSEST_ENTERING);
+                if (newClosestCur)
+                    UpdateHandlers(TargetList.CLOSEST_CURRENT);
+                if (newClosestLvn)
+                    UpdateHandlers(TargetList.CLOSEST_LEAVING);
+                if (newClosestIni)
+                    UpdateHandlers(TargetList.CLOSEST_INITIAL);
+                if (newClosestFin)
+                    UpdateHandlers(TargetList.CLOSEST_FINAL);
+            }
+            OnPostUpdateHandlers(initial, final, entering, current, leaving,
                 intersect, union, newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
         }
+        protected virtual void OnPreUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
+            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin) { }
 
-        protected virtual void OnUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
+        protected virtual void OnPostUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
             bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin) { }
 
         private void UpdateHandlers(TargetList targetList)
         {
-            List<ITuioObjectGestureListener> groupTargetList;
+            List<IGestureListener> groupTargetList;
             string[] eventList;
 
             if (targetList == TargetList.ENTERING)
@@ -282,7 +302,7 @@ namespace Grafiti
                         m_temporaryHandlerTable[targetList, eventInfo].Clear();
                     else
                         m_temporaryHandlerTable[targetList, eventInfo] = new List<GestureEventHandler>();
-                    foreach (ITuioObjectGestureListener target in groupTargetList)
+                    foreach (IGestureListener target in groupTargetList)
                         if (m_handlerTable.ContainsKeys(eventInfo, target))
                             foreach (GestureEventHandler handler in m_handlerTable[eventInfo, target])
                             {

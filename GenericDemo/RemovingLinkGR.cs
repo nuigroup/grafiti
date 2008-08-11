@@ -1,5 +1,5 @@
 /*
-    Grafiti library
+	GenericDemo, Grafiti demo application
 
     Copyright 2008  Alessandro De Nardi <alessandro.denardi@gmail.com>
 
@@ -15,7 +15,6 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 */
 
 using System;
@@ -51,7 +50,7 @@ namespace GenericDemo
             : this(null) { }
 
         public RemovingLinkGRConfigurator(DemoObjectManager demoObjectManager)
-            : base(false) // Default is not exclusive
+            : base(true) // Default is exclusive
         {
             m_demoObjectManager = demoObjectManager;
         }
@@ -86,14 +85,13 @@ namespace GenericDemo
             }
 
             foreach (DemoObjectLink link in m_demoObjectManager.Links)
-                if (cursor.SquareDistance(link.Xm, link.Ym) <= 0.001)
+                if (cursor.SquareDistance(link.Xm, link.Ym) <= 0.0015)
                     m_linksToRemove.Add(link);
 
             if (m_linksToRemove.Count > 0)
             {
                 AppendEvent(RemoveLinks, new RemovingLinkGREventArgs("RemoveLink", Group.Id, m_linksToRemove));
-                GestureHasBeenRecognized();
-                StopReceivingInput();
+                Terminate(true);
             }
         }
     }

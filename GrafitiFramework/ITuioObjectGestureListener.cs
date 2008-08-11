@@ -1,4 +1,4 @@
-/*
+﻿/*
 	Grafiti library
 
     Copyright 2008  Alessandro De Nardi <alessandro.denardi@gmail.com>
@@ -21,9 +21,12 @@
 namespace Grafiti
 {
     /// <summary>
-    /// Provides functionality for listening to gesture events.
-    /// Any gesture event handler's target needs to implement this interface in order
-    /// to be registered as a listener.
+    /// Provides functionality for Tuio objects (or related objects) for listening to gesture events.
     /// </summary>
-    public interface IGestureListener { }
+    public interface ITuioObjectGestureListener : IGestureListener
+    {
+        // Returns the square distance to a conventional point (e.g. the center or the point
+        // on the border closest to the given coordinates), coherently with the client application.
+        float GetSquareDistance(float x, float y);
+    }
 }

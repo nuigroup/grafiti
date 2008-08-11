@@ -35,11 +35,6 @@ namespace Grafiti
         internal static readonly float SCREEN_RATIO;
         internal const float SCREEN_RATIO_DEFAULT = 1.333333f; // 4/3
 
-        // Group's targeting method
-        private const string INTERSECTION_MODE_NAME = "INTERSECTION_MODE";
-        internal static readonly bool INTERSECTION_MODE;
-        internal const bool INTERSECTION_MODE_DEFAULT = true;
-
         // The maximum time in milliseconds between cursors to determine the group's INITIAL and FINAL lists
         private const string GROUPING_SYNCH_TIME_NAME = "GROUPING_SYNCH_TIME";
         internal static readonly int GROUPING_SYNCH_TIME;
@@ -49,6 +44,14 @@ namespace Grafiti
         private const string GROUPING_SPACE_NAME = "GROUPING_SPACE";
         internal static readonly float GROUPING_SPACE;
         internal const float GROUPING_SPACE_DEFAULT = 0.2f;
+
+        // If set to true, the clustering will consider the distance to the closest living (not removed) trace
+        // If set to false it will consider also resurrectable (recently removed) traces. This latter
+        // case will support non continuous gestures like an 'x' produced with one finger that will
+        // be temporarly removed from the surface between the drawing of the two crossing lines.
+        private const string CLUSTERING_ONLY_WITH_ALIVE_TRACES_NAME = "CLUSTERING_ONLY_WITH_ALIVE_TRACES";
+        internal static readonly bool CLUSTERING_ONLY_WITH_ALIVE_TRACES;
+        internal const bool CLUSTERING_ONLY_WITH_ALIVE_TRACES_DEFAULT = true;
 
         // Maximum time in millisecond between a 'remove' of a cursor and an 'add' of another cursor, to
         // associate the cursors to the same (discontinuous) trace.
@@ -77,9 +80,9 @@ namespace Grafiti
         {
             // Default settings
             SCREEN_RATIO = SCREEN_RATIO_DEFAULT;
-            INTERSECTION_MODE = INTERSECTION_MODE_DEFAULT;
             GROUPING_SYNCH_TIME = GROUPING_SYNCH_TIME_DEFAULT;
             GROUPING_SPACE = GROUPING_SPACE_DEFAULT;
+            CLUSTERING_ONLY_WITH_ALIVE_TRACES = CLUSTERING_ONLY_WITH_ALIVE_TRACES_DEFAULT;
             TRACE_TIME_GAP = TRACE_TIME_GAP_DEFAULT;
             TRACE_SPACE_GAP = TRACE_SPACE_GAP_DEFAULT;
             LGR_TARGET_LIST = LGR_TARGET_LIST_DEFAULT;
@@ -126,17 +129,6 @@ namespace Grafiti
                     PrintParsingError(settingsFullFileName, reader, e);
                 }
 
-
-            if (reader.MoveToAttribute(INTERSECTION_MODE_NAME))
-                try
-                {
-                    //INTERSECTION_MODE = Boolean.Parse(reader.Value); // disabled.. (deprecated?)
-                }
-                catch (Exception e)
-                {
-                    PrintParsingError(settingsFullFileName, reader, e);
-                }
-
             if (reader.MoveToAttribute(GROUPING_SYNCH_TIME_NAME))
                 try
                 {
@@ -151,6 +143,16 @@ namespace Grafiti
                 try
                 {
                     GROUPING_SPACE = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
+
+            if (reader.MoveToAttribute(CLUSTERING_ONLY_WITH_ALIVE_TRACES_NAME))
+                try
+                {
+                    CLUSTERING_ONLY_WITH_ALIVE_TRACES = Boolean.Parse(reader.Value);
                 }
                 catch (Exception e)
                 {
@@ -210,10 +212,6 @@ namespace Grafiti
         {
             return SCREEN_RATIO;
         }
-        public static bool GetIntersectionMode()
-        {
-            return INTERSECTION_MODE;
-        }
         public static int GetGroupingSynchTime()
         {
             return GROUPING_SYNCH_TIME;
@@ -221,6 +219,10 @@ namespace Grafiti
         public static float GetGroupingSpace()
         {
             return GROUPING_SPACE;
+        }
+        public static bool GetClusteringOnlyWithAliveTraces()
+        {
+            return CLUSTERING_ONLY_WITH_ALIVE_TRACES;
         }
         public static int GetTraceTimeGap()
         {

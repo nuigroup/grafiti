@@ -28,9 +28,9 @@ namespace GenericDemo
 {
     class Utilities
     {
-        public static PointF GetScreenPoint(Cursor cursor)
-        {
-            return new PointF(cursor.X * MainForm.height, cursor.Y * MainForm.height);    
-        }
+        //public static PointF GetScreenPoint(Cursor cursor)
+        //{
+        //    return new PointF(cursor.X * m_form.ClientSize.Height, cursor.Y * m_form.ClientSize.Height);    
+        //}
     }
 }

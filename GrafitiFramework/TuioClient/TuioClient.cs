@@ -4,8 +4,8 @@
 
 	Copyright (c) 2005-2008 Martin Kaltenbrunner <mkalten@iua.upf.edu>
     
-    Modified by Alessandro De Nardi on 23rd June 2008 (see relative regions)
-    <alessandro.denardi@gmail.com>
+    Modified by Alessandro De Nardi between 23rd June 2008 and 11th august 2008
+    (see relative regions) <alessandro.denardi@gmail.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -174,7 +174,18 @@ namespace TUIO
 					// remove the remaining objects
 					for (int i=0;i<aliveObjectList.Count;i++) {
 						long s_id = aliveObjectList[i];
-						TuioObject removeObject = objectList[s_id];
+                        #region Modified by Alessandro De Nardi on 11th august 2008
+                        TuioObject removeObject;
+                        try
+                        {
+                            removeObject = objectList[s_id];
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("TuioClient.processMessage(OSCMessage) Exception handled");
+                            throw;
+                        } 
+                        #endregion
 						removeObject.remove();
 						objectList.Remove(s_id);
 						

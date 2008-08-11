@@ -33,17 +33,20 @@ namespace Grafiti
         // private float m_centroidX, m_centroidY;
         private float m_x, m_y;
         private int m_nFingers;
+        private IGestureListener m_dragStartingListener;
 
         public float X { get { return m_x; } }
         public float Y { get { return m_y; } }
         public int NFingers { get { return m_nFingers; } }
+        public IGestureListener DragStartingListener { get { return m_dragStartingListener; } }
 
-        public BasicMultiFingerEventArgs(string eventId, int groupId, float x, float y, int nFingers)
+        public BasicMultiFingerEventArgs(string eventId, int groupId, float x, float y, int nFingers, IGestureListener initialListener)
             : base(eventId, groupId)
         {
             m_x = x;
             m_y = y;
             m_nFingers = nFingers;
+            m_dragStartingListener = initialListener;
         }
     }
 
@@ -71,7 +74,7 @@ namespace Grafiti
         public const bool DEFAULT_IS_TRIPLE_TAP_ENABLED = false;
 
         public BasicMultiFingerGRConfigurator()
-            : this(false) { }
+            : this(false) { } // default is not exclusive
 
         public BasicMultiFingerGRConfigurator(bool exclusive)
             : this(DEFAULT_TAP_TIME, DEFAULT_HOVER_SIZE, DEFAULT_HOVER_TIME, DEFAULT_IS_TRIPLE_TAP_ENABLED, exclusive) { }
@@ -100,15 +103,20 @@ namespace Grafiti
         private bool m_newClosestCurrentTarget;
         private Dictionary<Trace, int> m_traceDownTimesDict;
         private Dictionary<Trace, Cursor> m_traceLastDownCurDict;
+        private List<Trace> m_removingTraces = new List<Trace>();
         private long m_t0;
         private bool m_haveSingleTapped, m_haveDoubleTapped, m_needResetTap;
         private int m_numberOfAliveFingers;
         private int m_maxNumberOfAliveFingers;
+        private int m_nFingersHovering;
 
         private Thread m_hoverThread;
-        private bool m_hoverEnabled;
+        private bool m_hoverEnabled = false;
+        private bool m_hoverStarted = false;
         private float m_hoverXRef, m_hoverYRef;
         private DateTime m_hoverTimeRef;
+
+        private IGestureListener m_dragStartingListener;
 
         public BasicMultiFingerGR(GRConfigurator configurator)
             : base(configurator)
@@ -122,7 +130,7 @@ namespace Grafiti
             HOVER_TIME = conf.HOVER_TIME;
             IS_TRIPLE_TAP_ENABLED = conf.IS_TRIPLE_TAP_ENABLED;
 
-            ClosestCurrentEvents = new string[] { "Down", "Up", "Tap", "DoubleTap", "TripleTap", "Hover", "Move" };
+            ClosestCurrentEvents = new string[] { "Down", "Up", "Tap", "DoubleTap", "TripleTap", "Hover", "EndHover", "Move" };
             ClosestEnteringEvents = new string[] { "Enter" };
             ClosestLeavingEvents = new string[] { "Leave" };
 
@@ -130,6 +138,7 @@ namespace Grafiti
             m_traceLastDownCurDict = new Dictionary<Trace, Cursor>();
 
             m_hoverThread = new Thread(new ThreadStart(HoverLoop));
+            m_hoverThread.Start();
             m_tapSizeOk = true;
             m_newClosestCurrentTarget = false;
             m_numberOfAliveFingers = 0;
@@ -145,20 +154,37 @@ namespace Grafiti
         public event GestureEventHandler DoubleTap;
         public event GestureEventHandler TripleTap;
         public event GestureEventHandler Hover;
+        public event GestureEventHandler EndHover;
 
 
-        protected void OnDown()      { AppendEvent(Down,     new BasicMultiFingerEventArgs("Down",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers)); }
-        protected void OnUp()        { AppendEvent(Up,       new BasicMultiFingerEventArgs("Up",        Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers)); }
-        protected void OnMove()      { AppendEvent(Move,     new BasicMultiFingerEventArgs("Move",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, Group.NOfAliveTraces)); }
-        protected void OnEnter()     { AppendEvent(Enter,    new BasicMultiFingerEventArgs("Enter",     Group.Id, Group.CentroidX, Group.CentroidY, Group.NOfAliveTraces)); }
-        protected void OnLeave()     { AppendEvent(Leave,    new BasicMultiFingerEventArgs("Leave",     Group.Id, Group.CentroidX, Group.CentroidY, Group.NOfAliveTraces)); }
-        protected void OnTap()       { AppendEvent(Tap,      new BasicMultiFingerEventArgs("Tap",       Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
-        protected void OnDoubleTap() { AppendEvent(DoubleTap,new BasicMultiFingerEventArgs("DoubleTap", Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
-        protected void OnTripleTap() { AppendEvent(TripleTap,new BasicMultiFingerEventArgs("TripleTap", Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers)); }
-        protected void OnHover()     { AppendEvent(Hover,    new BasicMultiFingerEventArgs("Hover",     Group.Id, Group.CentroidX, Group.CentroidY, m_numberOfAliveFingers)); }
+        protected void OnDown()      { AppendEvent(Down,     new BasicMultiFingerEventArgs("Down",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers, m_dragStartingListener)); }
+        protected void OnUp()        { AppendEvent(Up,       new BasicMultiFingerEventArgs("Up",        Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers, m_dragStartingListener)); }
+        protected void OnMove()      { AppendEvent(Move,     new BasicMultiFingerEventArgs("Move",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, Group.NumberOfPresentTraces, m_dragStartingListener)); }
+        protected void OnEnter()     { AppendEvent(Enter,    new BasicMultiFingerEventArgs("Enter",     Group.Id, Group.CentroidX, Group.CentroidY, Group.NumberOfPresentTraces, m_dragStartingListener)); }
+        protected void OnLeave()     { AppendEvent(Leave,    new BasicMultiFingerEventArgs("Leave",     Group.Id, Group.CentroidX, Group.CentroidY, Group.NumberOfPresentTraces, m_dragStartingListener)); }
+        protected void OnTap()       { AppendEvent(Tap,      new BasicMultiFingerEventArgs("Tap",       Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
+        protected void OnDoubleTap() { AppendEvent(DoubleTap,new BasicMultiFingerEventArgs("DoubleTap", Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
+        protected void OnTripleTap() { AppendEvent(TripleTap,new BasicMultiFingerEventArgs("TripleTap", Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
+        protected void OnHover()     { AppendEvent(Hover,    new BasicMultiFingerEventArgs("Hover",     Group.Id, Group.CentroidX, Group.CentroidY, m_nFingersHovering, m_dragStartingListener)); }
+        protected void OnEndHover()
+        {
+            if (m_hoverStarted)
+            {
+                AppendEvent(EndHover, new BasicMultiFingerEventArgs("EndHover", Group.Id, Group.CentroidX, Group.CentroidY, m_nFingersHovering, m_dragStartingListener));
+                m_hoverStarted = false;
+            }
+        }
 
         public override void Process(List<Trace> traces)
         {
+            foreach (Trace trace in traces)
+            {
+                if (trace.State == Trace.States.ADDED || trace.State == Trace.States.RESET)
+                {
+                    m_dragStartingListener = Group.ClosestCurrentTarget;
+                }
+            }
+
             OnLeave();
             OnEnter();
 
@@ -170,18 +196,21 @@ namespace Grafiti
                     break;
                 }
 
+            bool hoverReset = false;
+            if (m_newClosestCurrentTarget)
+            {
+                m_newClosestCurrentTarget = false;
+                ResetTap();
+                OnEndHover();
+                ResetHover();
+                hoverReset = true;
+                if (Group.ClosestCurrentTarget == null)
+                    m_hoverEnabled = false;
+            }
+
             foreach (Trace trace in traces)
             {
                 m_currentProcessingCursor = trace.Last;
-
-                if (m_newClosestCurrentTarget)
-                {
-                    m_newClosestCurrentTarget = false;
-                    ResetTap();
-                    ResetHover();
-                    if (Group.ClosestCurrentTarget == null)
-                        m_hoverEnabled = false;
-                }
 
                 /*** ADD ***/
                 if (trace.State == Trace.States.ADDED)
@@ -192,79 +221,29 @@ namespace Grafiti
                     m_maxNumberOfAliveFingers = Math.Max(m_maxNumberOfAliveFingers, m_numberOfAliveFingers);
 
                     OnDown();
-                    ResetHover();
-                    if (m_numberOfAliveFingers == 1)
+                    if (!hoverReset)
                     {
-                        ResetTap();
-                        m_hoverThread.Start();
+                        OnEndHover();
+                        ResetHover();
+                        hoverReset = true;
                     }
                 }
 
                 else
                 {
-                    System.Diagnostics.Debug.Assert(m_traceLastDownCurDict.ContainsKey(trace));
-
                     /*** SET ***/
                     if (trace.State == Trace.States.UPDATED)
                     {
-                        if (Group.ClosestCurrentTarget != null && !CheckHoverSize())
-                            ResetHover();
-                    }
-
-                    /*** DEL ***/
-                    else if (trace.State == Trace.States.REMOVED)
-                    {
-                        m_numberOfAliveFingers--;
-                        m_hoverEnabled = false;
-                        OnUp();
-
-                        if (!CheckTapSize(trace))
-                            m_tapSizeOk = false;
-
-                        if (m_numberOfAliveFingers == 0)
+                        if (!hoverReset && Group.ClosestCurrentTarget != null && !CheckHoverSize())
                         {
-                            if (CheckDownTimes(m_traceDownTimesDict[trace]))
-                            {
-                                if (m_tapSizeOk)
-                                {
-                                    if (!m_haveSingleTapped)
-                                    {
-                                        OnTap();
-                                        m_haveSingleTapped = true;
-                                    }
-                                    else
-                                        if (CheckTapTime())
-                                            if (!m_haveDoubleTapped)
-                                            {
-                                                OnDoubleTap();
-                                                m_haveDoubleTapped = true;
-                                                if (!IS_TRIPLE_TAP_ENABLED)
-                                                    m_needResetTap = true;
-                                            }
-                                            else
-                                            {
-                                                OnTripleTap();
-                                                m_needResetTap = true;
-                                            }
-                                        else
-                                        {
-                                            OnTap();
-                                            m_needResetTap = true;
-                                        }
-                                }
-                                else
-                                {
-                                    m_needResetTap = true;
-                                }
-                            }
-                            else
-                                foreach (Trace t in Group.Traces)
-                                    m_traceDownTimesDict[t] = 0;
+                            OnEndHover();
+                            ResetHover();
+                            hoverReset = true;
                         }
                     }
 
                     /*** RESET ***/
-                    else
+                    else if (trace.State == Trace.States.RESET)
                     {
                         m_traceDownTimesDict[trace]++;
                         m_traceLastDownCurDict[trace] = trace.Last;
@@ -279,10 +258,86 @@ namespace Grafiti
 
                             ResetTap();
                         }
-                        ResetHover();
+                        if (!hoverReset)
+                        {
+                            OnEndHover();
+                            ResetHover();
+                            hoverReset = true;
+                        }
+                    }
+
+                    /*** DEL ***/
+                    else
+                    {
+                        m_removingTraces.Add(trace);
                     }
                 }
             }
+
+            foreach (Trace trace in m_removingTraces)
+            {
+                if (trace.State == Trace.States.REMOVED)
+                {
+                    m_numberOfAliveFingers--;
+                    m_hoverEnabled = false;
+                    OnUp();
+
+                    if (!hoverReset)
+                        OnEndHover();
+
+                    if (!CheckTapSize(trace))
+                        m_tapSizeOk = false;
+
+                    if (m_numberOfAliveFingers == 0)
+                    {
+                        if (CheckDownTimes(m_traceDownTimesDict[trace]))
+                        {
+                            if (m_tapSizeOk)
+                            {
+                                if (!m_haveSingleTapped)
+                                {
+                                    OnTap();
+                                    m_haveSingleTapped = true;
+                                }
+                                else
+                                    if (CheckTapTime())
+                                        if (!m_haveDoubleTapped)
+                                        {
+                                            OnDoubleTap();
+                                            m_haveDoubleTapped = true;
+                                            if (!IS_TRIPLE_TAP_ENABLED)
+                                                m_needResetTap = true;
+                                        }
+                                        else
+                                        {
+                                            OnTripleTap();
+                                            m_needResetTap = true;
+                                        }
+                                    else
+                                    {
+                                        OnTap();
+                                        m_needResetTap = true;
+                                    }
+                            }
+                            else
+                            {
+                                m_needResetTap = true;
+                            }
+                        }
+                        else
+                            foreach (Trace t in Group.Traces)
+                                m_traceDownTimesDict[t] = 0;
+                    }
+                    else
+                        if (!hoverReset)
+                        {
+                            ResetHover();
+                            hoverReset = true;
+                        }
+                }
+            }
+
+            m_removingTraces.Clear();
 
             if (Recognizing)
                 GestureHasBeenRecognized();
@@ -291,13 +346,23 @@ namespace Grafiti
         #region TAP functions
         private void ResetTap()
         {
-            m_t0 = m_currentProcessingCursor.TimeStamp;
+            m_t0 = Group.CurrentTimeStamp;
             m_haveSingleTapped = false;
             m_haveDoubleTapped = false;
             m_needResetTap = false;
         }
         private bool CheckTapSize(Trace trace)
         {
+            #region Optional (configurable?)
+            // This works good for buttons, but not for large controls where it's not desired
+            // to have a tap without any spatial threshold. It's probably better to deal taps 
+            // at the client level by receiving only Down and Up events and by checking 
+            // the DragStartingListener property.
+            //if (Group.OnGUIControl)
+            //    return m_dragStartingListener == Group.ClosestCurrentTarget;
+            //else
+            #endregion
+
             return (trace.Last.SquareDistance(m_traceLastDownCurDict[trace]) <=
                 Settings.TRACE_SPACE_GAP * Settings.TRACE_SPACE_GAP);
         }
@@ -332,10 +397,11 @@ namespace Grafiti
         {
             while (true)
             {
-                if (m_hoverEnabled &&
-                    DateTime.Now.Subtract(m_hoverTimeRef).TotalMilliseconds >= HOVER_TIME)
+                if (m_hoverEnabled && DateTime.Now.Subtract(m_hoverTimeRef).TotalMilliseconds >= HOVER_TIME)
                 {
+                    m_nFingersHovering = m_numberOfAliveFingers;
                     OnHover();
+                    m_hoverStarted = true;
                     ResetHover();
                     m_hoverEnabled = false;
                 }
@@ -344,7 +410,18 @@ namespace Grafiti
         }
         #endregion
 
-        protected override void OnUpdateHandlers(
+        protected override void OnPreUpdateHandlers(
+            bool initial, bool final,
+            bool entering, bool current, bool leaving,
+            bool intersect, bool union,
+            bool newClosestEnt, bool newClosestCur, bool newClosestLvn,
+            bool newClosestIni, bool newClosestFin)
+        {
+            if (newClosestCur)
+                OnEndHover();
+        }
+
+        protected override void OnPostUpdateHandlers(
             bool initial, bool final,
             bool entering, bool current, bool leaving,
             bool intersect, bool union,
@@ -352,6 +429,8 @@ namespace Grafiti
             bool newClosestIni, bool newClosestFin)
         {
             m_newClosestCurrentTarget = newClosestCur;
+            if (initial)
+                m_dragStartingListener = Group.ClosestInitialTarget;
         }
     }
 }

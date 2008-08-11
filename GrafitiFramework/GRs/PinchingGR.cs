@@ -48,11 +48,13 @@ namespace Grafiti
             m_centroidY = centroidY;
         }
     }
+
     public class PinchBeginEventArgs : GestureEventArgs
     {
         public PinchBeginEventArgs(string eventId, int groupId)
             : base(eventId, groupId) { }
     }
+    
     public class PinchEventArgs : GestureEventArgs
     {
         private List<long> m_ids;
@@ -136,6 +138,7 @@ namespace Grafiti
         }
     }
 
+
     public class PinchingGRConfigurator : GRConfigurator
     {
         public static readonly PinchingGRConfigurator DEFAULT_CONFIGURATOR = new PinchingGRConfigurator();
@@ -148,20 +151,20 @@ namespace Grafiti
         public readonly float SCALE_FACTOR; // no
         public const float DEFAULT_SCALE_FACTOR = 1;
 
-        public readonly float TRASLATE_FACTOR; // no
-        public const float DEFAULT_TRASLATE_FACTOR = 1;
+        public readonly float TRANSLATE_FACTOR; // no
+        public const float DEFAULT_TRANSLATE_FACTOR = 1;
 
         public PinchingGRConfigurator()
-            : this(DEFAULT_SCALE_FACTOR, DEFAULT_TRASLATE_FACTOR) { }
+            : this(DEFAULT_SCALE_FACTOR, DEFAULT_TRANSLATE_FACTOR) { }
 
         public PinchingGRConfigurator(bool exclusive, bool isOneFingerScalingEnabled)
-            : this(exclusive, DEFAULT_SCALE_FACTOR, DEFAULT_TRASLATE_FACTOR, isOneFingerScalingEnabled) { }
+            : this(exclusive, DEFAULT_SCALE_FACTOR, DEFAULT_TRANSLATE_FACTOR, isOneFingerScalingEnabled) { }
 
         public PinchingGRConfigurator(float scaleFactor, float translateFactor)
             : base(EXCLUSIVE_DEFAULT)
         {
             SCALE_FACTOR = scaleFactor;
-            TRASLATE_FACTOR = translateFactor;
+            TRANSLATE_FACTOR = translateFactor;
             IS_ONE_FINGER_SCALING_ENABLED = DEFAULT_IS_ONE_FINGER_SCALING_ENABLED;
         }
 
@@ -169,11 +172,12 @@ namespace Grafiti
             : base(exclusive)
         {
             SCALE_FACTOR = scaleFactor;
-            TRASLATE_FACTOR = translateFactor;
+            TRANSLATE_FACTOR = translateFactor;
             IS_ONE_FINGER_SCALING_ENABLED = isOneFingerScalingEnabled;
         }
 
     }
+
 
     public class PinchingGR : LocalGestureRecognizer
     {
@@ -301,7 +305,7 @@ namespace Grafiti
                 if (m_conf.IS_ONE_FINGER_SCALING_ENABLED || Group.Traces.Count > 1)
                     GestureHasBeenRecognized();
                 else
-                    if (!Group.Alive)
+                    if (!Group.IsPresent)
                         GestureHasBeenRecognized(false);
 
 
@@ -352,7 +356,7 @@ namespace Grafiti
                 OnTranslateOrScaleBegin();
 
                 // If there are two fingers then recalculate reference angle for rotation
-                if (Group.NOfAliveTraces == 2)
+                if (Group.NumberOfPresentTraces == 2)
                 {
                     UpdateAngleRef();
                     OnRotateBegin();
@@ -362,7 +366,7 @@ namespace Grafiti
             }
 
             // Compute scaling
-            if (Group.NOfAliveTraces > 1)
+            if (Group.NumberOfPresentTraces >= 2)
             {
                 float distanceFromCentroid = GetMeanDistanceFromCentroid();
                 float newScale = (distanceFromCentroid - m_centroidDistanceRef) * m_conf.SCALE_FACTOR;
@@ -372,8 +376,8 @@ namespace Grafiti
             }
 
             // Compute translation
-            float newTranslateX = (Group.CentroidLivingX - m_centroidXRef) * m_conf.TRASLATE_FACTOR;
-            float newTranslateY = (Group.CentroidLivingY - m_centroidYRef) * m_conf.TRASLATE_FACTOR;
+            float newTranslateX = (Group.CentroidLivingX - m_centroidXRef) * m_conf.TRANSLATE_FACTOR;
+            float newTranslateY = (Group.CentroidLivingY - m_centroidYRef) * m_conf.TRANSLATE_FACTOR;
             m_translateXSpeed = (newTranslateX - m_translateX) / dt * 1000;
             m_translateYSpeed = (newTranslateY - m_translateY) / dt * 1000;
             m_translateX = newTranslateX;
@@ -381,7 +385,7 @@ namespace Grafiti
             OnTranslate();
 
             // If there are two fingers compute rotation
-            if(Group.NOfAliveTraces == 2)
+            if(Group.NumberOfPresentTraces == 2)
             {
                 float newRotation = GetAngleBetween2Traces() - m_angleRef;
                 m_rotationSpeed = (newRotation - m_rotation) / dt * 1000;
@@ -417,8 +421,8 @@ namespace Grafiti
                     dy += Math.Abs(trace.Last.Y - Group.CentroidLivingY);
                 }
             }
-            dx /= Group.NOfAliveTraces;
-            dy /= Group.NOfAliveTraces;
+            dx /= Group.NumberOfPresentTraces;
+            dy /= Group.NumberOfPresentTraces;
 
             return (float)Math.Sqrt(dx * dx + dy * dy);
         }
@@ -426,7 +430,6 @@ namespace Grafiti
         // update angle reference to the current angle defined by those traces
         private void UpdateAngleRef()
         {
-            System.Diagnostics.Debug.Assert(Group.NOfAliveTraces == 2);
             m_traceA = m_traceB = null;
             foreach (Trace trace in Group.Traces)
             {
