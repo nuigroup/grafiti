@@ -7,21 +7,38 @@ by Alessandro De Nardi
 History of major changes and notes
 ----------------------------------
 
+08-08-11
+Added touch support for GUI controls. Added some GRs. Various
+improvements in the demo app. Many other changes.
+
 08-08-05(2)
-- simplified and improved method of declaration and retrieval of the stateof a processing GR.- added auxiliar function to ovverride for client's handling of removaltarget for LGR- in GroupGRManager fixed bugs and tidy things up in Process()
+- simplified and improved method of declaration and retrieval of the state
+of a processing GR.
+- added auxiliar function to ovverride for client's handling of removal
+target for LGR
+- in GroupGRManager fixed bugs and tidy things up in Process()
 
 08-08-05
 - in groupGRManager.cs GRs coordination largely rewritten. Now all
 available GRs will start processing, despite their priority number.
 Now the first successful LGR will exclude other LGRs with different
-targets, so that the local target can be only one.- in Group.cs and GlobalGestureRecognizer.cs added new 
+targets, so that the local target can be only one.
+- in Group.cs and GlobalGestureRecognizer.cs added new 
 1-element-target-lists: closest initial target, closest new initial
-target and closest final target- in the demo project now it's possible to add and remove links 
+target and closest final target
+- in the demo project now it's possible to add and remove links 
 between two tuio objects (for the removal it has been created a 
-GGR that can use a client object as a resource)- fixed some points in the demo project that would slow down the app- fixed things that made the demo app to crash in mono - in Group.cs fixed a bug in calculating the centroid of recently
-dead traces- in many modules changed the name configuration in configurator,
-that gives more the idea of an object- in all GR classes fixed default configurator- in various classes removed many 'new's called inside Tuio's 
-refresh() method- in Settings.cs better handling of errors in retrieving data from
+GGR that can use a client object as a resource)
+- fixed some points in the demo project that would slow down the app
+- fixed things that made the demo app to crash in mono 
+- in Group.cs fixed a bug in calculating the centroid of recently
+dead traces
+- in many modules changed the name configuration in configurator,
+that gives more the idea of an object
+- in all GR classes fixed default configurator
+- in various classes removed many 'new's called inside Tuio's 
+refresh() method
+- in Settings.cs better handling of errors in retrieving data from
 setings.xml
 
 08-07-31
