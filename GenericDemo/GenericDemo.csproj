@@ -44,6 +44,15 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Controls\TouchButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\TouchPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controls\TouchRadioButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="DemoGroup.cs" />
     <Compile Include="DemoObject.cs" />
     <Compile Include="DemoTrace.cs" />

@@ -217,7 +217,7 @@ namespace GenericDemo
             }
         }
 
-        public IEnumerable<ITuioObjectGestureListener> HitTestTangibles(float x, float y)
+        public IEnumerable<ITangibleGestureListener> HitTestTangibles(float x, float y)
         {
             foreach (DemoObject t in m_currentTuioObjects)
                 if (t.ContainsPoint(x, y))

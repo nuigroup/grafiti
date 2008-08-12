@@ -7,6 +7,13 @@ by Alessandro De Nardi
 History of major changes and notes
 ----------------------------------
 
+08-08-12
+- Improved control of GRs.
+- Improved grouping.
+- Fixed/handled bugs in the demo app, but some still exist using Mono.
+- Put some helping comments.
+- ...
+
 08-08-11
 Added touch support for GUI controls. Added some GRs. Various
 improvements in the demo app. Many other changes.

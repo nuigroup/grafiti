@@ -80,7 +80,7 @@ namespace GenericDemo
             }
 
             // draw lines to target(s)
-            if (m_group.NumberOfPresentTraces >= 0 && !m_group.OnGUIControl)
+            if (m_group.NumberOfPresentTraces >= 0 && !m_group.OnSingleGUIControl)
             {
                 if (m_group.ExclusiveLocalTarget != null)
                 {

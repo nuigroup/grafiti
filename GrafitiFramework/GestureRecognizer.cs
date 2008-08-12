@@ -52,10 +52,19 @@ namespace Grafiti
     }
 
 
-    // Default event handler for gestures
-    public delegate void GestureEventHandler(object gestureRecognizer, GestureEventArgs args);
+    /// <summary>
+    /// Default event handler for gestures
+    /// </summary>
+    /// <param name="gestureRecognizer">Instance of a class deriving from GestureRecognizer that called 
+    /// the event</param>
+    /// <param name="args">The object containing the arguments data of the gesture event.</param>
+    public delegate void GestureEventHandler(object obj, GestureEventArgs args);
 
 
+    /// <summary>
+    /// Base class for gesture recognizers' configurator objects. A configurator contains all the
+    /// informations to parametrize or the behaviour of the GR, or to make it access to some resource.
+    /// </summary>
     public class GRConfigurator
     {
         protected readonly bool m_exclusive;
@@ -74,6 +83,12 @@ namespace Grafiti
         }
     }
 
+    
+    /// <summary>
+    /// Base class of gesture recognizers. Instances of this class will be created dynamically by
+    /// Grafiti. The constructor optionally expects a configurator object. A gesture recognizer 
+    /// will process the data relative to one single instance of the Group class.
+    /// </summary>
     public abstract class GestureRecognizer
     {
         private static GRConfigurator s_defaultConfigurator = null;

@@ -92,7 +92,7 @@ namespace GenericDemo
                     last.Y * screen - m_pointerSize / 2);
 
                 // draw grouping area
-                if (m_trace.Group.MaxNumberOfFingersAllowed < 0)
+                if (m_trace.Group.MaxNumberOfFingersAllowed < 0 && !m_trace.Group.OnSingleGUIControl)
                     g.FillEllipse(m_brush,
                         last.X * screen - Settings.GetGroupingSpace() * screen,
                         last.Y * screen - Settings.GetGroupingSpace() * screen,

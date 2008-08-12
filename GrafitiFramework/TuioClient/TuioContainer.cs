@@ -3,9 +3,6 @@
     http://reactivision.sourceforge.net/
  
     Copyright (c) 2005-2008 Martin Kaltenbrunner <mkalten@iua.upf.edu>
-    
-    Modified by Alessandro De Nardi on 23rd June 2008 (see relative regions)
-    <alessandro.denardi@gmail.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,17 +39,6 @@ public abstract class TuioContainer:TuioPoint {
 	public static readonly int ADDED = 0;
 	public static readonly int UPDATED = 1;
 	public static readonly int REMOVED = 2;
-
-    #region	Added by Alessandro De Nardi on 23rd June 2008
-    public float XSpeed { get { return x_speed; } }
-    public float YSpeed { get { return y_speed; } }
-    public float MotionSpeed { get { return motion_speed; } }
-    public float MotionAcceleration { get { return motion_accel; } }
-    public int State { get { return state; } set { state = value; } }
-    public long SessionId { get { return session_id; } }
-    public long TimeStamp { get { return timestamp; } }
-	#endregion
-
 		
 	public TuioContainer (long s_id, float xpos, float ypos):base(xpos,ypos) {
 		this.session_id = s_id;

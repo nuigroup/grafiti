@@ -40,6 +40,9 @@ namespace Grafiti
         public int NFingers { get { return m_nFingers; } }
         public IGestureListener DragStartingListener { get { return m_dragStartingListener; } }
 
+        public BasicMultiFingerEventArgs() 
+            : base() { }
+
         public BasicMultiFingerEventArgs(string eventId, int groupId, float x, float y, int nFingers, IGestureListener initialListener)
             : base(eventId, groupId)
         {
@@ -49,6 +52,9 @@ namespace Grafiti
             m_dragStartingListener = initialListener;
         }
     }
+
+    public delegate void BasicMultiFingerEventHandler(object obj, BasicMultiFingerEventArgs args);
+
 
     public class BasicMultiFingerGRConfigurator : GRConfigurator
     {
@@ -88,6 +94,7 @@ namespace Grafiti
             IS_TRIPLE_TAP_ENABLED = isTripleTapEnabled;
         }
     }
+
 
     public class BasicMultiFingerGR : GlobalGestureRecognizer
     {

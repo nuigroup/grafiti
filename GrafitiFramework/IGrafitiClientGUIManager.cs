@@ -38,7 +38,7 @@ namespace Grafiti
         /// <param name="x">X coordinate of the Grafiti point.</param>
         /// <param name="y">Y coordinate of the Grafiti point.</param>
         /// <returns>The tangibles listeners.</returns>
-        IEnumerable<ITuioObjectGestureListener> HitTestTangibles(float x, float y);
+        IEnumerable<ITangibleGestureListener> HitTestTangibles(float x, float y);
 
         /// <summary>
         /// Returns the GUI component at the specified Grafiti point.
@@ -49,13 +49,14 @@ namespace Grafiti
         IGestureListener HitTest(float x, float y);
 
         /// <summary>
-        /// Converts a point from Grafiti's coordinates into client's coordinates, relative
-        /// to the given GUI component.
+        /// Takes a GUI control and a point specified in Grafiti-coordinate-system and 
+        /// returns the point relative to the GUI component in client's coordinates.
         /// </summary>
         /// <param name="target">The GUI component.</param>
-        /// <param name="x">X coordinate of the Grafiti point.</param>
-        /// <param name="y">X coordinate of the Grafiti point.</param>
-        /// <returns>The point in client's coordinate relative to the component.</returns>
-        System.Drawing.Point PointToClient(IGestureListener target, float x, float y);
+        /// <param name="x">X coordinate of the point to convert.</param>
+        /// <param name="y">Y coordinate of the point to convert.</param>
+        /// <param name="cx">X coordinate of the converted point.</param>
+        /// <param name="cy">Y coordinate of the converted point.</param>
+        void PointToClient(IGestureListener target, float x, float y, out float cx, out float cy);
     }
 }

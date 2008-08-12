@@ -4,6 +4,10 @@ using System.Text;
 
 namespace Grafiti
 {
+    /// <summary>
+    /// Represents a point in the surface where a finger is or was placed. It's directely
+    /// related to the TuioCursor class.
+    /// </summary>
     public class Cursor
     {
         public enum States

@@ -73,7 +73,9 @@ namespace Grafiti
         #endregion
 
         #region Public properties
-        // Ratio of the camera resolutions (width resolution over height resolution).
+        /// <summary>
+        /// Ratio of the camera resolutions (width resolution over height resolution).
+        /// </summary>
         public const float SCREEN_RATIO = 4f / 3f; // TODO: xml configurable
         
         // The following can be used to create a visual feedback of Grafiti.
@@ -142,20 +144,20 @@ namespace Grafiti
                 m_clientGUIManager = guiManager;
             }
         }
-
         /// <summary>
         /// Takes a GUI control and point specified in Grafiti-coordinate-system and 
-        /// returns the point relative to the GUI target control in client's coordinates.
+        /// returns the point relative to the GUI component in client's coordinates.
         /// </summary>
-        /// <param name="target">The GUI target control.</param>
+        /// <param name="target">The GUI component.</param>
         /// <param name="x">X coordinate of the point to convert.</param>
         /// <param name="y">Y coordinate of the point to convert.</param>
-        /// <returns>Return the converted point in client's coordinates, relative to the target control</returns>
-        public System.Drawing.Point PointToClient(IGestureListener target, float x, float y)
+        /// <param name="cx">X coordinate of the converted point.</param>
+        /// <param name="cy">Y coordinate of the converted point.</param>
+        public void PointToClient(IGestureListener target, float x, float y, out float cx, out float cy)
         {
             lock (m_lock)
             {
-                return m_clientGUIManager.PointToClient(target, x, y);
+                m_clientGUIManager.PointToClient(target, x, y, out cx, out cy);
             }
         }
         #endregion
@@ -166,15 +168,27 @@ namespace Grafiti
         void TuioListener.removeTuioObject(TuioObject obj) { }
         void TuioListener.addTuioCursor(TuioCursor c)
         {
-            m_addingCursors.Add(new Cursor((int)(c.SessionId), c.X * SCREEN_RATIO, c.Y, Cursor.States.ADDED));
+            m_addingCursors.Add(
+                new Cursor((int)(c.getSessionID()), 
+                c.getX() * SCREEN_RATIO, 
+                c.getY(),
+                Cursor.States.ADDED));
         }
         void TuioListener.updateTuioCursor(TuioCursor c)
         {
-            m_updatingCursors.Add(new Cursor((int)(c.SessionId), c.X * SCREEN_RATIO, c.Y, Cursor.States.UPDATED));
+            m_updatingCursors.Add(
+                new Cursor((int)(c.getSessionID()),
+                c.getX() * SCREEN_RATIO,
+                c.getY(),
+                Cursor.States.UPDATED));
         }
         void TuioListener.removeTuioCursor(TuioCursor c)
         {
-            m_removingCursors.Add(new Cursor((int)(c.SessionId), c.X * SCREEN_RATIO, c.Y, Cursor.States.REMOVED));
+            m_removingCursors.Add(
+                new Cursor((int)(c.getSessionID()),
+                c.getX() * SCREEN_RATIO,
+                c.getY(),
+                Cursor.States.REMOVED));
         }
         void TuioListener.refresh(long timeStampAsLong)
         {
@@ -386,7 +400,7 @@ namespace Grafiti
             else
             {
                 m_targetIdxDistances.Clear();
-                foreach (ITuioObjectGestureListener listener in m_clientGUIManager.HitTestTangibles(x, y))
+                foreach (ITangibleGestureListener listener in m_clientGUIManager.HitTestTangibles(x, y))
                     m_targetIdxDistances.Add(new TargetDistanceData(listener, listener.GetSquareDistance(x, y)));
                 m_targetIdxDistances.Sort();
 
@@ -397,9 +411,9 @@ namespace Grafiti
         }
         private struct TargetDistanceData : IComparable
         { 
-            internal ITuioObjectGestureListener target;
+            internal ITangibleGestureListener target;
             internal float distance;
-            public TargetDistanceData(ITuioObjectGestureListener t, float dist)
+            public TargetDistanceData(ITangibleGestureListener t, float dist)
             {
                 target = t;
                 distance = dist;

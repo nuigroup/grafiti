@@ -41,15 +41,6 @@
   </Target>
   -->
   <ItemGroup>
-    <Compile Include="Controls\TouchButton.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\TouchPanel.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Controls\TouchRadioButton.cs">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="Cursor.cs" />
     <Compile Include="DoubleDictionaries.cs" />
     <Compile Include="GestureEventManager.cs" />
@@ -85,8 +76,6 @@
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Data" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.XML" />
   </ItemGroup>
 </Project>

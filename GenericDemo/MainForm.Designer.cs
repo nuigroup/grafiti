@@ -28,125 +28,134 @@ namespace GenericDemo
         /// </summary>
         private void InitializeComponent()
         {
-            this.touchPanel1 = new Grafiti.TouchControls.TouchPanel();
-            this.touchButtonClose = new Grafiti.TouchControls.TouchButton();
-            this.touchRadioButton3 = new Grafiti.TouchControls.TouchRadioButton();
-            this.touchRadioButton2 = new Grafiti.TouchControls.TouchRadioButton();
-            this.touchRadioButton1 = new Grafiti.TouchControls.TouchRadioButton();
-            this.touchButtonAdd = new Grafiti.TouchControls.TouchButton();
-            this.listBox1 = new System.Windows.Forms.ListBox();
-            this.touchButtonClear = new Grafiti.TouchControls.TouchButton();
-            this.touchPanel1.SuspendLayout();
+            this.m_touchPanel = new GenericDemo.TouchControls.TouchPanel();
+            this.m_touchButtonClose = new GenericDemo.TouchControls.TouchButton();
+            this.m_touchRadioButton3 = new GenericDemo.TouchControls.TouchRadioButton();
+            this.m_touchRadioButton2 = new GenericDemo.TouchControls.TouchRadioButton();
+            this.m_touchRadioButton1 = new GenericDemo.TouchControls.TouchRadioButton();
+            this.m_touchButtonAdd = new GenericDemo.TouchControls.TouchButton();
+            this.m_listBox = new System.Windows.Forms.ListBox();
+            this.m_touchButtonClear = new GenericDemo.TouchControls.TouchButton();
+            this.m_touchPanel.SuspendLayout();
             this.SuspendLayout();
             // 
-            // touchPanel1
+            // m_touchPanel
             // 
-            this.touchPanel1.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
-            this.touchPanel1.Controls.Add(this.touchButtonClose);
-            this.touchPanel1.Controls.Add(this.touchRadioButton3);
-            this.touchPanel1.Controls.Add(this.touchRadioButton2);
-            this.touchPanel1.Controls.Add(this.touchRadioButton1);
-            this.touchPanel1.Controls.Add(this.touchButtonAdd);
-            this.touchPanel1.Controls.Add(this.listBox1);
-            this.touchPanel1.Controls.Add(this.touchButtonClear);
-            this.touchPanel1.Location = new System.Drawing.Point(44, 59);
-            this.touchPanel1.Name = "touchPanel1";
-            this.touchPanel1.Size = new System.Drawing.Size(204, 149);
-            this.touchPanel1.TabIndex = 2;
+            this.m_touchPanel.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D;
+            this.m_touchPanel.Controls.Add(this.m_touchButtonClose);
+            this.m_touchPanel.Controls.Add(this.m_touchRadioButton3);
+            this.m_touchPanel.Controls.Add(this.m_touchRadioButton2);
+            this.m_touchPanel.Controls.Add(this.m_touchRadioButton1);
+            this.m_touchPanel.Controls.Add(this.m_touchButtonAdd);
+            this.m_touchPanel.Controls.Add(this.m_listBox);
+            this.m_touchPanel.Controls.Add(this.m_touchButtonClear);
+            this.m_touchPanel.Location = new System.Drawing.Point(121, 76);
+            this.m_touchPanel.Name = "m_touchPanel";
+            this.m_touchPanel.Size = new System.Drawing.Size(204, 149);
+            this.m_touchPanel.TabIndex = 2;
             // 
-            // touchButtonClose
+            // m_touchButtonClose
             // 
-            this.touchButtonClose.Location = new System.Drawing.Point(122, 118);
-            this.touchButtonClose.Name = "touchButtonClose";
-            this.touchButtonClose.Size = new System.Drawing.Size(75, 23);
-            this.touchButtonClose.TabIndex = 7;
-            this.touchButtonClose.Text = "Close";
-            this.touchButtonClose.UseVisualStyleBackColor = true;
+            this.m_touchButtonClose.Location = new System.Drawing.Point(122, 118);
+            this.m_touchButtonClose.Name = "m_touchButtonClose";
+            this.m_touchButtonClose.Size = new System.Drawing.Size(75, 23);
+            this.m_touchButtonClose.TabIndex = 7;
+            this.m_touchButtonClose.Text = "Close";
+            this.m_touchButtonClose.UseVisualStyleBackColor = true;
+            this.m_touchButtonClose.Click += new System.EventHandler(this.touchButtonClose_Click);
+            this.m_touchButtonClose.FingerTap += new Grafiti.BasicMultiFingerEventHandler(this.OnTouchButtonClose_FingerTap);
             // 
-            // touchRadioButton3
+            // m_touchRadioButton3
             // 
-            this.touchRadioButton3.AutoSize = true;
-            this.touchRadioButton3.Location = new System.Drawing.Point(4, 124);
-            this.touchRadioButton3.Name = "touchRadioButton3";
-            this.touchRadioButton3.Size = new System.Drawing.Size(32, 17);
-            this.touchRadioButton3.TabIndex = 6;
-            this.touchRadioButton3.TabStop = true;
-            this.touchRadioButton3.Text = "C";
-            this.touchRadioButton3.UseVisualStyleBackColor = true;
+            this.m_touchRadioButton3.AutoSize = true;
+            this.m_touchRadioButton3.Location = new System.Drawing.Point(4, 124);
+            this.m_touchRadioButton3.Name = "m_touchRadioButton3";
+            this.m_touchRadioButton3.Size = new System.Drawing.Size(32, 17);
+            this.m_touchRadioButton3.TabIndex = 6;
+            this.m_touchRadioButton3.Text = "C";
+            this.m_touchRadioButton3.UseVisualStyleBackColor = true;
             // 
-            // touchRadioButton2
+            // m_touchRadioButton2
             // 
-            this.touchRadioButton2.AutoSize = true;
-            this.touchRadioButton2.Location = new System.Drawing.Point(4, 102);
-            this.touchRadioButton2.Name = "touchRadioButton2";
-            this.touchRadioButton2.Size = new System.Drawing.Size(32, 17);
-            this.touchRadioButton2.TabIndex = 6;
-            this.touchRadioButton2.TabStop = true;
-            this.touchRadioButton2.Text = "B";
-            this.touchRadioButton2.UseVisualStyleBackColor = true;
+            this.m_touchRadioButton2.AutoSize = true;
+            this.m_touchRadioButton2.Location = new System.Drawing.Point(4, 102);
+            this.m_touchRadioButton2.Name = "m_touchRadioButton2";
+            this.m_touchRadioButton2.Size = new System.Drawing.Size(32, 17);
+            this.m_touchRadioButton2.TabIndex = 6;
+            this.m_touchRadioButton2.Text = "B";
+            this.m_touchRadioButton2.UseVisualStyleBackColor = true;
             // 
-            // touchRadioButton1
+            // m_touchRadioButton1
             // 
-            this.touchRadioButton1.AutoSize = true;
-            this.touchRadioButton1.Location = new System.Drawing.Point(4, 79);
-            this.touchRadioButton1.Name = "touchRadioButton1";
-            this.touchRadioButton1.Size = new System.Drawing.Size(32, 17);
-            this.touchRadioButton1.TabIndex = 6;
-            this.touchRadioButton1.TabStop = true;
-            this.touchRadioButton1.Text = "A";
-            this.touchRadioButton1.UseVisualStyleBackColor = true;
+            this.m_touchRadioButton1.AutoSize = true;
+            this.m_touchRadioButton1.Checked = true;
+            this.m_touchRadioButton1.Location = new System.Drawing.Point(4, 79);
+            this.m_touchRadioButton1.Name = "m_touchRadioButton1";
+            this.m_touchRadioButton1.Size = new System.Drawing.Size(32, 17);
+            this.m_touchRadioButton1.TabIndex = 6;
+            this.m_touchRadioButton1.TabStop = true;
+            this.m_touchRadioButton1.Text = "A";
+            this.m_touchRadioButton1.UseVisualStyleBackColor = true;
             // 
-            // touchButtonAdd
+            // m_touchButtonAdd
             // 
-            this.touchButtonAdd.Location = new System.Drawing.Point(46, 76);
-            this.touchButtonAdd.Name = "touchButtonAdd";
-            this.touchButtonAdd.Size = new System.Drawing.Size(75, 23);
-            this.touchButtonAdd.TabIndex = 5;
-            this.touchButtonAdd.Text = "Add";
-            this.touchButtonAdd.UseVisualStyleBackColor = true;
+            this.m_touchButtonAdd.Location = new System.Drawing.Point(46, 76);
+            this.m_touchButtonAdd.Name = "m_touchButtonAdd";
+            this.m_touchButtonAdd.Size = new System.Drawing.Size(75, 23);
+            this.m_touchButtonAdd.TabIndex = 5;
+            this.m_touchButtonAdd.Text = "Add";
+            this.m_touchButtonAdd.UseVisualStyleBackColor = true;
+            this.m_touchButtonAdd.Click += new System.EventHandler(this.touchButtonAdd_Click);
+            this.m_touchButtonAdd.FingerTap += new Grafiti.BasicMultiFingerEventHandler(this.OnTouchButtonAdd_FingerTap);
             // 
-            // listBox1
+            // m_listBox
             // 
-            this.listBox1.FormattingEnabled = true;
-            this.listBox1.Location = new System.Drawing.Point(3, 3);
-            this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new System.Drawing.Size(194, 69);
-            this.listBox1.TabIndex = 1;
+            this.m_listBox.FormattingEnabled = true;
+            this.m_listBox.Location = new System.Drawing.Point(3, 3);
+            this.m_listBox.Name = "m_listBox";
+            this.m_listBox.Size = new System.Drawing.Size(194, 69);
+            this.m_listBox.TabIndex = 1;
             // 
-            // touchButtonClear
+            // m_touchButtonClear
             // 
-            this.touchButtonClear.Location = new System.Drawing.Point(122, 76);
-            this.touchButtonClear.Name = "touchButtonClear";
-            this.touchButtonClear.Size = new System.Drawing.Size(75, 23);
-            this.touchButtonClear.TabIndex = 0;
-            this.touchButtonClear.Text = "Clear";
-            this.touchButtonClear.UseVisualStyleBackColor = true;
+            this.m_touchButtonClear.Location = new System.Drawing.Point(122, 76);
+            this.m_touchButtonClear.Name = "m_touchButtonClear";
+            this.m_touchButtonClear.Size = new System.Drawing.Size(75, 23);
+            this.m_touchButtonClear.TabIndex = 0;
+            this.m_touchButtonClear.Text = "Clear";
+            this.m_touchButtonClear.UseVisualStyleBackColor = true;
+            this.m_touchButtonClear.Click += new System.EventHandler(this.touchButtonClear_Click);
+            this.m_touchButtonClear.FingerTap += new Grafiti.BasicMultiFingerEventHandler(this.OnTouchButtonClear_FingerTap);
             // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(292, 266);
-            this.Controls.Add(this.touchPanel1);
+            this.ClientSize = new System.Drawing.Size(471, 323);
+            this.Controls.Add(this.m_touchPanel);
             this.KeyPreview = true;
             this.Name = "MainForm";
             this.ShowIcon = false;
             this.Text = "Grafiti Demo";
-            this.touchPanel1.ResumeLayout(false);
-            this.touchPanel1.PerformLayout();
+            this.SizeChanged += new System.EventHandler(this.OnResize);
+            this.Resize += new System.EventHandler(this.OnResize);
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.OnClosing);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.OnKeyDown);
+            this.m_touchPanel.ResumeLayout(false);
+            this.m_touchPanel.PerformLayout();
             this.ResumeLayout(false);
 
         }
 
         #endregion
 
-        private Grafiti.TouchControls.TouchPanel touchPanel1;
-        private Grafiti.TouchControls.TouchButton touchButtonClose;
-        private Grafiti.TouchControls.TouchRadioButton touchRadioButton3;
-        private Grafiti.TouchControls.TouchRadioButton touchRadioButton2;
-        private Grafiti.TouchControls.TouchRadioButton touchRadioButton1;
-        private Grafiti.TouchControls.TouchButton touchButtonAdd;
-        private System.Windows.Forms.ListBox listBox1;
-        private Grafiti.TouchControls.TouchButton touchButtonClear;
+        private GenericDemo.TouchControls.TouchPanel m_touchPanel;
+        private GenericDemo.TouchControls.TouchButton m_touchButtonClose;
+        private GenericDemo.TouchControls.TouchRadioButton m_touchRadioButton3;
+        private GenericDemo.TouchControls.TouchRadioButton m_touchRadioButton2;
+        private GenericDemo.TouchControls.TouchRadioButton m_touchRadioButton1;
+        private GenericDemo.TouchControls.TouchButton m_touchButtonAdd;
+        private System.Windows.Forms.ListBox m_listBox;
+        private GenericDemo.TouchControls.TouchButton m_touchButtonClear;
     }
 }

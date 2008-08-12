@@ -4,9 +4,6 @@
  
     Copyright (c) 2005-2008 Martin Kaltenbrunner <mkalten@iua.upf.edu>
     
-    Modified by Alessandro De Nardi on 23rd June 2008 (see relative regions)
-    <alessandro.denardi@gmail.com>
-
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -37,11 +34,6 @@ public class TuioCursor:TuioContainer {
 	public TuioCursor (long s_id, int f_id, float xpos, float ypos):base(s_id,xpos,ypos) {
 		this.finger_id = f_id;
 	}
-
-
-    #region	Added by Alessandro De Nardi on 23rd June 2008
-    public int FingerId { get { return finger_id; } }
-    #endregion
 	
 	public TuioCursor (TuioCursor c):base(c) {
 		this.finger_id = c.getFingerID();

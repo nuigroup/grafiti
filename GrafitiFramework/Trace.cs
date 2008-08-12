@@ -27,6 +27,9 @@ using Grafiti;
 
 namespace Grafiti
 {
+    /// <summary>
+    /// Represents a collection of Cursors, i.e. the path of a finger in the surface.
+    /// </summary>
     public class Trace : IComparable
     {
         private static int m_idCounter = 0;

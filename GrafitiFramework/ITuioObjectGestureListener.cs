@@ -21,9 +21,9 @@
 namespace Grafiti
 {
     /// <summary>
-    /// Provides functionality for Tuio objects (or related objects) for listening to gesture events.
+    /// Provides functionality to objects associated to tangible objects for listening to gesture events.
     /// </summary>
-    public interface ITuioObjectGestureListener : IGestureListener
+    public interface ITangibleGestureListener : IGestureListener
     {
         // Returns the square distance to a conventional point (e.g. the center or the point
         // on the border closest to the given coordinates), coherently with the client application.

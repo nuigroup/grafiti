@@ -26,13 +26,13 @@ using System.Collections;
 using System.Threading;
 using TUIO;
 using Grafiti;
-using Grafiti.TouchControls;
+using GenericDemo.TouchControls;
 
 namespace GenericDemo
 {
     public partial class MainForm : Form, TuioListener, IGrafitiClientGUIManager, IGestureListener
     {
-        #region Variables
+        #region Declarations
         // The Tuio client
         private TuioClient m_client;
 
@@ -51,11 +51,12 @@ namespace GenericDemo
         private int m_window_top = 0;
         private int m_screen_width = Screen.PrimaryScreen.Bounds.Width;
         private int m_screen_height = Screen.PrimaryScreen.Bounds.Height;
-        private float m_renderingOffsetX = 0, m_renderingOffsetY = 0;
+        private float m_centerScreenOffsetX = 0, m_centerScreenOffsetY = 0;
 
 
         // To simulate transparency GUI controls will be placed where they can't be seen..
         private const int OFFSET_VIRTUAL_AREA = 5000;
+        private int m_offsetVirtualArea = OFFSET_VIRTUAL_AREA;
 
         // ..and they'll be rendered into a bitmap buffer that will be drawn in the right place
         private Bitmap m_bitmapBuffer;
@@ -65,12 +66,11 @@ namespace GenericDemo
 
 
         // Auxiliar variables
+        private const string m_name = "Grafiti Demo";
         private Random m_random = new Random();
         private static object m_lock = new object();
-        private bool fullscreen, verbose;
+        private bool m_fullscreen, m_tuioGraphics;
         private long m_lastTimestampInvalidate = 0;
-        private List<double> m_debug_rr = new List<double>();
-
         #endregion
 
         #region Constructor
@@ -78,24 +78,19 @@ namespace GenericDemo
         {
             CheckForIllegalCrossThreadCalls = false;
 
-            verbose = false;
-            fullscreen = false;
+            m_fullscreen = false;
             m_width = m_window_width;
             m_height = m_window_height;
 
             InitializeComponent();
+            ClientSize = new System.Drawing.Size(m_width, m_height);
+            
+            m_tuioGraphics = true;
+            foreach (Control c in Controls)
+                c.Location = new Point(c.Location.X + m_offsetVirtualArea, c.Location.Y + m_offsetVirtualArea);
 
-            touchPanel1.Location = new Point(touchPanel1.Location.X + OFFSET_VIRTUAL_AREA,
-                touchPanel1.Location.Y + OFFSET_VIRTUAL_AREA);
+            m_bitmapBuffer = new Bitmap(m_touchPanel.Size.Width, m_touchPanel.Size.Height);
 
-            m_bitmapBuffer = new Bitmap(touchPanel1.Size.Width, touchPanel1.Size.Height);
-
-            this.ClientSize = new System.Drawing.Size(m_width, m_height);
-            this.Name = "Grafiti Generic Demo";
-            this.Text = "Grafiti Generic Demo";
-            this.Resize += new EventHandler(OnResize);
-            this.FormClosing += new FormClosingEventHandler(OnClosing);
-            this.KeyDown += new KeyEventHandler(MainForm_KeyDown);
 
             m_demoObjectManager = new DemoObjectManager(this);
 
@@ -114,56 +109,86 @@ namespace GenericDemo
 
             m_client.connect();
 
+
+            UpdateFormText();
+
             GestureEventManager.Instance.SetPriorityNumber(typeof(CircleGR), 0);
             GestureEventManager.Instance.RegisterHandler(typeof(CircleGR), "Circle", OnCircleGesture);
         }
         #endregion
 
+        #region Private members
+        private void UpdateFormText()
+        {
+            Text = m_name + (m_tuioGraphics ? "  (TUIO graphics ON)" : "  (TUIO graphics OFF)");
+        } 
+        #endregion
+
         #region GUI event handlers
+        private void touchButtonAdd_Click(object sender, EventArgs e)
+        {
+            OnTouchButtonAdd_FingerTap(this, new BasicMultiFingerEventArgs());
+        }
+        private void touchButtonClear_Click(object sender, EventArgs e)
+        {
+            OnTouchButtonClear_FingerTap(this, new BasicMultiFingerEventArgs());
+        }
+        private void touchButtonClose_Click(object sender, EventArgs e)
+        {
+            OnTouchButtonClose_FingerTap(this, new BasicMultiFingerEventArgs());
+        }
         void OnResize(object sender, EventArgs e)
         {
             if ((float)ClientSize.Width / (float)ClientSize.Height > Surface.SCREEN_RATIO)
             {
-                m_renderingOffsetX =
-                    (int)((ClientSize.Width - ClientSize.Height * Surface.SCREEN_RATIO) / 2);
-                m_renderingOffsetY = 0;
+                PointF p = new PointF(-m_centerScreenOffsetX, -m_centerScreenOffsetY);
+
+                m_centerScreenOffsetX =
+                    ((float)ClientSize.Width - ClientSize.Height * Surface.SCREEN_RATIO) / 2;
+                m_centerScreenOffsetY = 0f;
+
+                foreach (Control c in Controls)
+                    c.Location = new Point(
+                        c.Location.X + (int)(p.X + m_centerScreenOffsetX),
+                        c.Location.Y + (int)(p.Y + m_centerScreenOffsetY));
             }
             else
             {
-                m_renderingOffsetX = 0;
-                m_renderingOffsetY = 0;
+                foreach (Control c in Controls)
+                    c.Location = new Point(c.Location.X - (int)m_centerScreenOffsetX, c.Location.Y - (int)m_centerScreenOffsetY);
+
+                m_centerScreenOffsetX = 0;
+                m_centerScreenOffsetY = 0;
             }
+
             if (_backBuffer != null)
             {
-
                 _backBuffer.Dispose();
-
                 _backBuffer = null;
-
             }
             Invalidate();
-            base.OnSizeChanged(e);
         }
         void OnClosing(object sender, FormClosingEventArgs e)
         {
-            m_client.disconnect();
-            m_client.removeTuioListener(Surface.Instance);
-            m_client.removeTuioListener(m_demoObjectManager);
             m_client.removeTuioListener(this);
+            m_client.removeTuioListener(m_demoObjectManager);
+            m_client.removeTuioListener(Surface.Instance);
+            m_client.disconnect();
 
-            //Console.Write("Debug rr:");
-            //foreach (int i in m_debug_rr)
-            //    Console.Write(i + ", ");
-            //Console.WriteLine();
+            if (_backBuffer != null)
+            {
+                _backBuffer.Dispose();
+                _backBuffer = null;
+            }
 
             System.Environment.Exit(0);
         }
-        private void MainForm_KeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
+        private void OnKeyDown(object sender, System.Windows.Forms.KeyEventArgs e)
         {
 
             if (e.KeyData == Keys.F1)
             {
-                if (fullscreen == false)
+                if (m_fullscreen == false)
                 {
 
                     m_width = m_screen_width;
@@ -178,7 +203,7 @@ namespace GenericDemo
                     this.Width = m_screen_width;
                     this.Height = m_screen_height;
 
-                    fullscreen = true;
+                    m_fullscreen = true;
                 }
                 else
                 {
@@ -192,7 +217,7 @@ namespace GenericDemo
                     this.Width = m_window_width;
                     this.Height = m_window_height;
 
-                    fullscreen = false;
+                    m_fullscreen = false;
                 }
             }
             else if (e.KeyData == Keys.Escape)
@@ -200,33 +225,56 @@ namespace GenericDemo
                 this.Close();
 
             }
-            else if (e.KeyData == Keys.V)
+            else if (e.KeyData == Keys.T)
             {
-                verbose = !verbose;
+                m_tuioGraphics = !m_tuioGraphics;
+                if (m_tuioGraphics)
+                {
+                    foreach (Control c in Controls)
+                        c.Location = new Point(c.Location.X + OFFSET_VIRTUAL_AREA, c.Location.Y + OFFSET_VIRTUAL_AREA);
+                    m_offsetVirtualArea = OFFSET_VIRTUAL_AREA;
+                }
+                else
+                {
+                    foreach (Control c in Controls)
+                        c.Location = new Point(c.Location.X - OFFSET_VIRTUAL_AREA, c.Location.Y - OFFSET_VIRTUAL_AREA);
+                    m_offsetVirtualArea = 0;
+                }
+                Invalidate();
+
+                UpdateFormText();
             }
 
         }
         protected override void OnPaintBackground(PaintEventArgs e) { }
         protected override void OnPaint(PaintEventArgs e)
         {
+            if (ClientSize.Height <= 0 || ClientSize.Width <= 0)
+                return;
+
+            if (!m_tuioGraphics)
+            {
+                e.Graphics.Clear(Color.White);
+                return;
+            }
+
             if (_backBuffer == null)
-                _backBuffer = new Bitmap(this.ClientSize.Width, this.ClientSize.Height);
+                _backBuffer = new Bitmap(ClientSize.Width, ClientSize.Height);
 
             Graphics g = Graphics.FromImage(_backBuffer);
             g.Clear(Color.White);
 
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighSpeed;
 
-            //Graphics g = e.Graphics;
-            g.TranslateTransform(m_renderingOffsetX, m_renderingOffsetY);
-
-            if (touchPanel1.Visible)
+            if (m_touchPanel.Visible)
             {
-                touchPanel1.DrawToBitmap(m_bitmapBuffer, new Rectangle(0, 0, touchPanel1.Size.Width, touchPanel1.Size.Height));
+                m_touchPanel.DrawToBitmap(m_bitmapBuffer, new Rectangle(0, 0, m_touchPanel.Size.Width, m_touchPanel.Size.Height));
                 g.DrawImage(m_bitmapBuffer,
-                    touchPanel1.Location.X - OFFSET_VIRTUAL_AREA,
-                    touchPanel1.Location.Y - OFFSET_VIRTUAL_AREA);
+                    m_touchPanel.Location.X - m_offsetVirtualArea,
+                    m_touchPanel.Location.Y - m_offsetVirtualArea);
             }
+
+            g.TranslateTransform(m_centerScreenOffsetX, m_centerScreenOffsetY);
             lock (m_lock)
             {
                 // draw objects
@@ -245,19 +293,40 @@ namespace GenericDemo
         #endregion
 
         #region Gesture event handlers
-        public void OnCircleGesture(object obj, GestureEventArgs args)
+        void OnTouchButtonClose_FingerTap(object obj, BasicMultiFingerEventArgs args)
         {
-            touchPanel1.Visible = !touchPanel1.Visible;
+            m_touchPanel.Visible = false;
+        }
+        void OnTouchButtonClear_FingerTap(object obj, BasicMultiFingerEventArgs args)
+        {
+            m_listBox.Items.Clear();
+        }
+        void OnTouchButtonAdd_FingerTap(object obj, BasicMultiFingerEventArgs args)
+        {
+            TouchRadioButton radioButton;
+            if (m_touchRadioButton1.Checked)
+                radioButton = m_touchRadioButton1;
+            else
+                if (m_touchRadioButton2.Checked)
+                    radioButton = m_touchRadioButton2;
+                else
+                    radioButton = m_touchRadioButton3;
+            m_listBox.Items.Add(radioButton.Text);
 
-            if (touchPanel1.Visible)
+        }
+        public void OnCircleGesture(object gr, GestureEventArgs args)
+        {
+            m_touchPanel.Visible = !m_touchPanel.Visible;
+
+            if (m_touchPanel.Visible)
             {
-                CircleEventArgs cArgs = (CircleEventArgs)args;
-                Size s = touchPanel1.Size;
+                CircleGREventArgs cArgs = (CircleGREventArgs)args;
+                Size s = m_touchPanel.Size;
                 int w = s.Width;
                 int h = s.Height;
                 int x = (int)(cArgs.MeanCenterX * ClientSize.Height) - (int)(w / 2);
                 int y = (int)(cArgs.MeanCenterY * ClientSize.Height) - (int)(h / 2);
-                touchPanel1.Location = new Point(x + OFFSET_VIRTUAL_AREA, y + OFFSET_VIRTUAL_AREA);
+                m_touchPanel.Location = new Point(x + m_offsetVirtualArea, y + m_offsetVirtualArea);
             }
         }
         #endregion
@@ -289,14 +358,10 @@ namespace GenericDemo
                     demoGroup.Update(timestamp);
             }
 
-            if (timestamp - m_lastTimestampInvalidate >= 40)
+            if (m_tuioGraphics && timestamp - m_lastTimestampInvalidate >= 40)
             {
-                //DateTime now1, now2;
-                //now1 = DateTime.Now;
-                Invalidate();
-                //now2 = DateTime.Now;
-                //m_debug_rr.Add(now2.Subtract(now1).TotalMilliseconds);
                 m_lastTimestampInvalidate = timestamp;
+                Invalidate();
             }
         }
         #endregion
@@ -307,8 +372,8 @@ namespace GenericDemo
             xf *= ClientSize.Height;
             yf *= ClientSize.Height;
 
-            int x = (int)xf + OFFSET_VIRTUAL_AREA;
-            int y = (int)yf + OFFSET_VIRTUAL_AREA;
+            int x = (int)xf + m_offsetVirtualArea + (int)m_centerScreenOffsetX;
+            int y = (int)yf + m_offsetVirtualArea + (int)m_centerScreenOffsetY;
 
 
             #region Why GetChildAtPoint doesn't work?
@@ -348,20 +413,20 @@ namespace GenericDemo
 
             return (IGestureListener)target;
         }
-        public IEnumerable<ITuioObjectGestureListener> HitTestTangibles(float x, float y)
+        public IEnumerable<ITangibleGestureListener> HitTestTangibles(float x, float y)
         {
             return m_demoObjectManager.HitTestTangibles(x, y);
         }
-        public Point PointToClient(IGestureListener target, float x, float y)
+        public void PointToClient(IGestureListener target, float x, float y, out float cx, out float cy)
         {
-            // target location
+            // location relative to this
             Point targetLocation = PointToClient(((Control)target).PointToScreen(new Point(0, 0)));
+            x = x * ClientSize.Height + m_offsetVirtualArea;
+            y = y * ClientSize.Height + m_offsetVirtualArea;
 
-            // point location
-            x = x * ClientSize.Height + OFFSET_VIRTUAL_AREA;
-            y = y * ClientSize.Height + OFFSET_VIRTUAL_AREA;
-
-            return new Point((int)x - targetLocation.X, (int)y - targetLocation.Y);
+            // location relative to target
+            cx = x - targetLocation.X;
+            cy = y - targetLocation.Y;
         }
         #endregion
 

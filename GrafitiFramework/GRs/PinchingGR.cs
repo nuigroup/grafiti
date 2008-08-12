@@ -25,7 +25,7 @@ using Grafiti;
 
 namespace Grafiti
 {
-    public class FingerEventArgs : GestureEventArgs
+    public class PinchingFingerEventArgs : GestureEventArgs
     { 
         private long m_sessionId;
         private float m_x, m_y;
@@ -37,7 +37,10 @@ namespace Grafiti
         public float CentroidX { get { return m_centroidX; } }
         public float CentroidY { get { return m_centroidY; } }
 
-        public FingerEventArgs(string eventId, int groupId, long sessionId, float x, float y,
+        public PinchingFingerEventArgs() 
+            : base() { }
+
+        public PinchingFingerEventArgs(string eventId, int groupId, long sessionId, float x, float y,
             float centroidX, float centroidY)
             : base(eventId, groupId)
         {
@@ -49,12 +52,21 @@ namespace Grafiti
         }
     }
 
+    public delegate void PinchingFingerEventHandler(object obj, PinchingFingerEventArgs args);
+
+
     public class PinchBeginEventArgs : GestureEventArgs
     {
+        public PinchBeginEventArgs() 
+            : base() { }
+
         public PinchBeginEventArgs(string eventId, int groupId)
             : base(eventId, groupId) { }
     }
-    
+
+    public delegate void PinchBeginEventHandler(object obj, PinchBeginEventArgs args);
+
+
     public class PinchEventArgs : GestureEventArgs
     {
         private List<long> m_ids;
@@ -77,6 +89,9 @@ namespace Grafiti
         public float RotationSpeed { get { return m_rotationSpeed; } }
         public float CentroidX { get { return m_centroidX; } }
         public float CentroidY { get { return m_centroidY; } }
+
+        public PinchEventArgs() 
+            : base() { }
 
         public PinchEventArgs(string eventId, int groupId, float value, float speed,
             float centroidX, float centroidY, List<long> ids)
@@ -137,6 +152,8 @@ namespace Grafiti
             m_ids = ids;
         }
     }
+
+    public delegate void PinchEventHandler(object obj, PinchEventArgs args);
 
 
     public class PinchingGRConfigurator : GRConfigurator
@@ -250,17 +267,17 @@ namespace Grafiti
 
         protected void OnDown(long sessionId, float x, float y)
         {
-            AppendEvent(Down, new FingerEventArgs(
+            AppendEvent(Down, new PinchingFingerEventArgs(
                 "Down", Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
         }
         protected void OnUp(long sessionId, float x, float y)
         {
-            AppendEvent(Up, new FingerEventArgs(
+            AppendEvent(Up, new PinchingFingerEventArgs(
                 "Up", Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
         }
         protected void OnMove(long sessionId, float x, float y)
         {
-            AppendEvent(Move, new FingerEventArgs(
+            AppendEvent(Move, new PinchingFingerEventArgs(
                 "Move", Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
         }
         protected void OnTranslateOrScaleBegin()

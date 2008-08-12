@@ -3,9 +3,6 @@
     http://reactivision.sourceforge.net/
 
     Copyright (c) 2005-2008 Martin Kaltenbrunner <mkalten@iua.upf.edu>
-    
-    Modified by Alessandro De Nardi on 23rd June 2008 (see relative regions)
-    <alessandro.denardi@gmail.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -31,17 +28,11 @@ public class TuioPoint {
 
 	public float xpos, ypos;
 
-    #region Added by Alessandro De Nardi on 23rd June 2008
-    public float X { get { return xpos; } }
-    public float Y { get { return ypos; } } 
-    #endregion
 		
 	public TuioPoint (float xpos, float ypos) {
 		this.xpos = xpos;
 		this.ypos = ypos;
 	}
-
-
 	
 	public TuioPoint (TuioPoint p) {
 		this.xpos = p.getX();
@@ -77,16 +68,6 @@ public class TuioPoint {
 		float dy = ypos-pt.getY();
 		return (float)Math.Sqrt(dx*dx+dy*dy);
 	}
-
-    #region Added by Alessandro De Nardi on 23rd June 2008
-    public float SquareDistance(TuioPoint pt)
-    {
-        float dx = xpos - pt.getX();
-        float dy = ypos - pt.getY();
-        return dx * dx + dy * dy;
-    }
-    #endregion
-		
 
 	public float getAngle(TuioPoint tuioPoint) {
 		

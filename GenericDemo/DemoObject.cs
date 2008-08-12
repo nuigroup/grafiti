@@ -27,7 +27,7 @@ using Grafiti;
 
 namespace GenericDemo
 {
-    public class DemoObject : ITuioObjectGestureListener
+    public class DemoObject : ITangibleGestureListener
     {
         private float m_targetRadius;
         private float m_targetRadiusRef;
@@ -56,6 +56,7 @@ namespace GenericDemo
         public Color Color { get { return m_color; } }
 
         public List<DemoObjectLink> Links { get { return m_links; } }
+        public float TargetRadius { get { return m_targetRadius; } }
 
         internal bool Selected
         {
@@ -182,9 +183,7 @@ namespace GenericDemo
 
         public bool ContainsPoint(float x, float y)
         {
-            float dx = Math.Abs(x - m_x);
-            float dy = Math.Abs(y - m_y);
-            return (float)Math.Sqrt(dx * dx + dy * dy) <= m_targetRadius;
+            return GetSquareDistance(x, y) <= m_targetRadius * m_targetRadius;
         }
 
 

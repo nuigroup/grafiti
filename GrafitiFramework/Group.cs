@@ -26,6 +26,10 @@ using Grafiti;
 
 namespace Grafiti
 {
+    /// <summary>
+    /// Represents a group of instances of the Trace class, i.e. a group of fingers. A group
+    /// is expected to produce a gesture, and it will be associated with a set of gesture recognizers.
+    /// </summary>
     public class Group
     {
         #region Private and internal members
@@ -105,7 +109,7 @@ namespace Grafiti
         // If the variable is (re)set (by GroupGRManager), the change is reflected in m_lgrTargets.
         private IGestureListener m_exclusiveLocalTarget = null;
 
-        private bool m_onGUIControl;
+        private bool m_onSingleGUIControl;
 
         private SimmetricDoubleDictionary<Trace, float> m_traceSpaceCouplingTable;
         private SimmetricDoubleDictionary<Trace, int> m_traceTimeCouplingTable;
@@ -192,14 +196,14 @@ namespace Grafiti
             }
         }
 
-        public bool OnGUIControl
+        public bool OnSingleGUIControl
         {
-            get { return m_onGUIControl; }
+            get { return m_onSingleGUIControl; }
             private set
             {
-                if (m_onGUIControl != value)
+                if (m_onSingleGUIControl != value)
                 {
-                    m_onGUIControl = value;
+                    m_onSingleGUIControl = value;
                 }
             }
         }
@@ -632,18 +636,18 @@ namespace Grafiti
             #endregion
 
             
-            OnGUIControl = m_currentTargets.Count > 0 && !(m_currentTargets[0] is ITuioObjectGestureListener);
+            OnSingleGUIControl = m_currentTargets.Count > 0 && !(m_currentTargets[0] is ITangibleGestureListener);
 
 
             #region closest targets
             IGestureListener closestTarget = null;
             float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE + 1;
             float tempDist;
-            if (!(OnGUIControl))
+            if (!(OnSingleGUIControl))
             {
                 foreach (IGestureListener target in m_currentTargets)
                 {
-                    tempDist = ((ITuioObjectGestureListener)target).GetSquareDistance(m_centroidX, m_centroidY);
+                    tempDist = ((ITangibleGestureListener)target).GetSquareDistance(m_centroidX, m_centroidY);
                     if (tempDist < minDist)
                     {
                         minDist = tempDist;
@@ -806,7 +810,7 @@ namespace Grafiti
         {
             // If both the group and the cursor are on a GUI control, then such control must be the same
             // If only one of them is on a GUI control than don't accept the cursor
-            if (guiTargets != OnGUIControl ||
+            if (guiTargets != OnSingleGUIControl ||
                 (guiTargets && targets[0] != m_currentTargets[0]))
                 return false;
 

@@ -33,6 +33,9 @@ namespace Grafiti
         public float CentroidX { get { return m_centroidX; } }
         public float CentroidY { get { return m_centroidY; } }
 
+        public MultiTraceEventArgs() 
+            : base() { }
+
         public MultiTraceEventArgs(string eventId, int groupId, int nFingers, float centroidX, float centroidY)
             : base(eventId, groupId)
         {
@@ -41,6 +44,9 @@ namespace Grafiti
             m_centroidY = centroidY;
         }
     }
+
+    public delegate void MultiTraceEventHandler(object obj, MultiTraceEventArgs args);
+ 
 
     public class MultiTraceFromToEventArgs : MultiTraceEventArgs
     {
@@ -54,6 +60,9 @@ namespace Grafiti
         public float FinalCentroidX { get { return m_centroidX; } }
         public float FinalCentroidY { get { return m_centroidY; } }
 
+        public MultiTraceFromToEventArgs() 
+            : base() { }
+
         public MultiTraceFromToEventArgs(string eventId, int groupId, int nFingers, 
             IGestureListener fromTarget, IGestureListener toTarget,
             float initialCentroidX, float initialCentroidY, float finalCentroidX, float finalCentroidY)
@@ -65,6 +74,9 @@ namespace Grafiti
             m_initialCentroidY = initialCentroidY;
         }
     }
+
+    public delegate void MultiTraceFromToEventHandler(object obj, MultiTraceFromToEventArgs args);
+
 
     public class MultiTraceGRConfigurator : GRConfigurator
     {
@@ -93,6 +105,7 @@ namespace Grafiti
             m_minDistance = minDistance;
         }
     }
+
 
     public class MultiTraceGR : GlobalGestureRecognizer
     {

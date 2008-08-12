@@ -24,7 +24,7 @@ using Grafiti;
 
 namespace Grafiti
 {
-    public class CircleEventArgs : GestureEventArgs
+    public class CircleGREventArgs : GestureEventArgs
     {
         protected int m_nOfFingers;
         protected float m_meanCenterX, m_meanCenterY;
@@ -35,7 +35,10 @@ namespace Grafiti
         public float MeanCenterY { get { return m_meanCenterY; } }
         public float MeanRadius { get { return m_meanRadius; } }
 
-        public CircleEventArgs(string eventId, int groupId, int nFingers, float centroidX, float centroidY, float meanRadius)
+        public CircleGREventArgs() 
+            : base() { }
+
+        public CircleGREventArgs(string eventId, int groupId, int nFingers, float centroidX, float centroidY, float meanRadius)
             : base(eventId, groupId)
         {
             m_nOfFingers = nFingers;
@@ -44,6 +47,9 @@ namespace Grafiti
             m_meanRadius = meanRadius;
         }
     }
+
+    public delegate void CircleGREventHandler(object obj, CircleGREventArgs args);
+
 
     public class CircleGRConfigurator : GRConfigurator
     {
@@ -73,6 +79,7 @@ namespace Grafiti
             m_threshold = threshold;
         }
     }
+
 
     /// <summary>
     /// Recognize a circle, made by one or more traces (starting and ending in a synchronized way,
@@ -106,7 +113,7 @@ namespace Grafiti
 
         private void OnCircle(int n, float x, float y, float r)
         {
-            AppendEvent(Circle, new CircleEventArgs("Circle", Group.Id, n, x, y, r)); 
+            AppendEvent(Circle, new CircleGREventArgs("Circle", Group.Id, n, x, y, r)); 
         }
 
         public override void Process(List<Trace> traces)
