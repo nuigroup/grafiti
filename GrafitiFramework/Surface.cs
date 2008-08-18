@@ -45,7 +45,7 @@ namespace Grafiti
         // Accumulators for adding, updating and removing cursors.
         // These lists will be cleared at the end of every TuioListener.refresh() call,
         // thus their purpose is merely private to this class
-        private List<Cursor> m_addingCursors, m_updatingCursors, m_removingCursors;
+        private List<CursorPoint> m_addingCursors, m_updatingCursors, m_removingCursors;
 
         // List of recently died traces. A trace dies when a REMOVED cursor is added to their path,
         // (that is when the user lifts the finger from the table). Within a time specified by
@@ -54,7 +54,7 @@ namespace Grafiti
         private List<Trace> m_resurrectableTraces;
 
         // List of groups which contain some alive or resurrectable traces.
-        private List<Group> m_aliveOrResurrectableGroups;
+        private List<Group> m_activeGroups;
 
         // Accumulators for added, removed or modified alive groups (this includes also adding and removing).
         // These lists will be cleared at the beginning of every TuioListener.refresh() call, so
@@ -92,20 +92,21 @@ namespace Grafiti
         /// </summary>
         public List<Group> TouchedGroups { get { return m_touchedGroups; } }
         /// <summary>
-        /// List of groups that are currently alive or that have been recently removed.
+        /// List of groups that are currently alive or that have been recently removed so that
+        /// they still can 'resurrect'.
         /// </summary>
-        public List<Group> AliveOrResurrectableGroups { get { return m_aliveOrResurrectableGroups; } }
+        public List<Group> ActiveGroups { get { return m_activeGroups; } }
         #endregion
 
         #region Private constructor
         private Surface()
         {
             m_targetIdxDistances = new List<TargetDistanceData>();
-            m_addingCursors = new List<Cursor>();
-            m_updatingCursors = new List<Cursor>();
-            m_removingCursors = new List<Cursor>();
+            m_addingCursors = new List<CursorPoint>();
+            m_updatingCursors = new List<CursorPoint>();
+            m_removingCursors = new List<CursorPoint>();
             m_resurrectableTraces = new List<Trace>();
-            m_aliveOrResurrectableGroups = new List<Group>();
+            m_activeGroups = new List<Group>();
             m_addedGroups = new List<Group>();
             m_removedGroups = new List<Group>();
             m_touchedGroups = new List<Group>();
@@ -169,26 +170,26 @@ namespace Grafiti
         void TuioListener.addTuioCursor(TuioCursor c)
         {
             m_addingCursors.Add(
-                new Cursor((int)(c.getSessionID()), 
+                new CursorPoint((int)(c.getSessionID()), 
                 c.getX() * SCREEN_RATIO, 
                 c.getY(),
-                Cursor.States.ADDED));
+                CursorPoint.States.ADDED));
         }
         void TuioListener.updateTuioCursor(TuioCursor c)
         {
             m_updatingCursors.Add(
-                new Cursor((int)(c.getSessionID()),
+                new CursorPoint((int)(c.getSessionID()),
                 c.getX() * SCREEN_RATIO,
                 c.getY(),
-                Cursor.States.UPDATED));
+                CursorPoint.States.UPDATED));
         }
         void TuioListener.removeTuioCursor(TuioCursor c)
         {
             m_removingCursors.Add(
-                new Cursor((int)(c.getSessionID()),
+                new CursorPoint((int)(c.getSessionID()),
                 c.getX() * SCREEN_RATIO,
                 c.getY(),
-                Cursor.States.REMOVED));
+                CursorPoint.States.REMOVED));
         }
         void TuioListener.refresh(long timeStampAsLong)
         {
@@ -229,7 +230,7 @@ namespace Grafiti
         }
         private void RemoveNonResurrectableGroups(int timeStamp)
         {
-            m_aliveOrResurrectableGroups.RemoveAll(delegate(Group group)
+            m_activeGroups.RemoveAll(delegate(Group group)
             {
                 if (!group.IsPresent && timeStamp - group.CurrentTimeStamp > Settings.TRACE_TIME_GAP)
                 {
@@ -244,7 +245,7 @@ namespace Grafiti
         }
         private void ProcessCurrentAddingCursors(int timeStamp)
         {
-            foreach (Cursor cursor in m_addingCursors)
+            foreach (CursorPoint cursor in m_addingCursors)
             {
                 // set timestamp
                 cursor.TimeStamp = timeStamp;
@@ -282,7 +283,7 @@ namespace Grafiti
         }
         private void ProcessCurrentUpdatingCursors(int timeStamp)
         {
-            foreach (Cursor cursor in m_updatingCursors)
+            foreach (CursorPoint cursor in m_updatingCursors)
             {
                 // set timestamp
                 cursor.TimeStamp = timeStamp;
@@ -302,7 +303,7 @@ namespace Grafiti
         }
         private void ProcessCurrentRemovingCursors(int timeStamp)
         {
-            foreach (Cursor cursor in m_removingCursors)
+            foreach (CursorPoint cursor in m_removingCursors)
             {
                 // set timestamp
                 cursor.TimeStamp = timeStamp;
@@ -326,7 +327,7 @@ namespace Grafiti
                     m_touchedGroups.Add(trace.Group);
             }
         }
-        private Trace TryResurrectTrace(Cursor cursor)
+        private Trace TryResurrectTrace(CursorPoint cursor)
         {
             Trace resurrectingTrace = null;
             float minDist = Settings.TRACE_SPACE_GAP * Settings.TRACE_SPACE_GAP;
@@ -354,13 +355,13 @@ namespace Grafiti
         /// <param name="targets">The given cursor's targets</param>
         /// <param name="guiTargets">Flag indicating whether the given targets are GUI controls</param>
         /// <returns>The matching group where to add the given cursor-s trace.</returns>
-        private Group GetMatchingGroup(Cursor cursor, List<IGestureListener> targets, bool guiTargets)
+        private Group GetMatchingGroup(CursorPoint cursor, List<IGestureListener> targets, bool guiTargets)
         {
             Group matchingGroup = null;
             float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE;
             float tempDist;
 
-            foreach (Group group in m_aliveOrResurrectableGroups)
+            foreach (Group group in m_activeGroups)
             {
                 // filter out groups that don't accept the trace
                 if (!group.AcceptNewCursor(cursor, targets, guiTargets))
@@ -384,7 +385,7 @@ namespace Grafiti
         {
             Group group = new Group();
             m_addedGroups.Add(group);
-            m_aliveOrResurrectableGroups.Add(group);
+            m_activeGroups.Add(group);
             return group;
         }
         private bool ListTargetsAt(float x, float y, out List<IGestureListener> output)

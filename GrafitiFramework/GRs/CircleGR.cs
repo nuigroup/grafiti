@@ -22,7 +22,7 @@ using System;
 using System.Collections.Generic;
 using Grafiti;
 
-namespace Grafiti
+namespace Grafiti.GestureRecognizers
 {
     public class CircleGREventArgs : GestureEventArgs
     {
@@ -55,9 +55,14 @@ namespace Grafiti
     {
         public static readonly CircleGRConfigurator DEFAULT_CONFIGURATOR = new CircleGRConfigurator();
 
-        // maximum threshold, relative to the circle's radius for...
-        private float m_threshold;
-        private const float THRESHOLD_DEFAULT = 0.5f;
+        /// <summary>
+        /// Threshold value multiplier, that will refer to the radius length.
+        /// Distance between first and last point must be less than radius * threshold.
+        /// Distance between every point of the path and the center must be between radius +/-
+        /// radius * threshold.
+        /// </summary>
+        private readonly float m_threshold;
+        private const float THRESHOLD_DEFAULT = 0.25f;
 
         public float Threshold { get { return m_threshold; } }
 
@@ -82,16 +87,23 @@ namespace Grafiti
 
 
     /// <summary>
-    /// Recognize a circle, made by one or more traces (starting and ending in a synchronized way,
-    /// relatively to GROUPING_SYNCH_TIME). In order to be correctly recognized, the circle must
-    /// be produced with a relatively constant speed.
+    /// Circle recognizer. The gesture can be made by one or more traces (starting and ending in a 
+    /// synchronized way, relatively to GROUPING_SYNCH_TIME).
+    /// The algorythm will indistinctly recognize round paths covering the shape of a circonference
+    /// (even passing more times on the same section). However the first and the last point of the path 
+    /// must be close to each other.
+    /// A "bug" makes the GR to recognize as a circle also a 'C' if the path is closed enough (not much),
+    /// and such that the extremes of the path are close to each other (you must draw the letter twice:
+    /// forward and backward).
     /// </summary>
     public class CircleGR : GlobalGestureRecognizer
     {
         CircleGRConfigurator m_configurator;
         private int m_startingTime = -1;
-        private List<float> m_centroidXs = new List<float>();
-        private List<float> m_centroidYs = new List<float>();
+        private readonly float m_threshold;
+        private float m_left, m_right, m_top, m_bottom;
+        private List<float> m_pathXs = new List<float>();
+        private List<float> m_pathYs = new List<float>();
 
 
         // These are public only to make reflection to work.
@@ -105,9 +117,15 @@ namespace Grafiti
                 Configurator = CircleGRConfigurator.DEFAULT_CONFIGURATOR;
 
             m_configurator = (CircleGRConfigurator)Configurator;
+            m_threshold = m_configurator.Threshold;
             m_startingTime = -1;
 
             DefaultEvents = new string[] { "Circle" };
+
+            m_left = Surface.SCREEN_RATIO;
+            m_right = 0;
+            m_top = 1;
+            m_bottom = 0;
 
         }
 
@@ -120,6 +138,8 @@ namespace Grafiti
         {
             if (m_startingTime == -1)
                 m_startingTime = traces[0].Last.TimeStamp;
+
+            float x, y;
 
             foreach (Trace trace in traces)
             {
@@ -137,9 +157,16 @@ namespace Grafiti
                     return;
                 }
 
+                x = Group.CentroidX;
+                y = Group.CentroidY;
 
-                m_centroidXs.Add(Group.CentroidX);
-                m_centroidYs.Add(Group.CentroidY);
+                m_pathXs.Add(x);
+                m_pathYs.Add(y);
+
+                m_left = Math.Min(m_left, x);
+                m_top = Math.Min(m_top, y);
+                m_right = Math.Max(m_right, x);
+                m_bottom = Math.Max(m_bottom, y);
             }
 
             if (!Group.IsPresent)
@@ -154,47 +181,39 @@ namespace Grafiti
                     return;
                 }
 
-                float xs = 0, ys = 0; // sum of centroids
-                for (int i = 0; i < m_centroidXs.Count; i++)
+                float leftRight = m_right - m_left;
+                float topBottom = m_bottom - m_top;
+                float centerX = m_left + leftRight / 2;
+                float centerY = m_top + topBottom / 2;
+                float radius = leftRight < topBottom ? leftRight / 2 : topBottom / 2;
+
+                float dx, dy, d;
+
+                // Distance between first and last point must be less than radius * threshold
+                dx = m_pathXs[m_pathXs.Count - 1] - m_pathXs[0];
+                dy = m_pathYs[m_pathYs.Count - 1] - m_pathYs[0];
+                d = (float)Math.Sqrt(dx * dx + dy * dy);
+                if (d > radius * m_threshold)
                 {
-                    xs += m_centroidXs[i];
-                    ys += m_centroidYs[i];
+                    Terminate(false);
+                    return;
                 }
 
-                float xm, ym; // mean centroid
-                xm = xs / m_centroidXs.Count;
-                ym = ys / m_centroidYs.Count;
-
-                float dx, dy, d; // distances
-                float ds = 0; // sum of distances from mean centroid
-                float maxDistance = 0; // maximum distance between a centroid and the mean centroid
-                for (int i = 0; i < m_centroidXs.Count; i++)
+                // Distance between every point and the center must be between radius +/-
+                // radius * threshold
+                for (int i = 0; i < m_pathXs.Count; i++)
                 {
-                    dx = m_centroidXs[i] - xm;
-                    dy = m_centroidYs[i] - ym;
+                    dx = m_pathXs[i] - centerX;
+                    dy = m_pathYs[i] - centerY;
                     d = (float)Math.Sqrt(dx * dx + dy * dy);
-                    maxDistance = Math.Max(maxDistance, d);
-                    ds += d;
+                    if (d > radius * (1 + m_threshold) || d < radius * (1 - m_threshold))
+                    {
+                        Terminate(false);
+                        return;
+                    }
                 }
 
-                float meanRadius = ds / m_centroidXs.Count;
-
-                if (maxDistance - meanRadius > meanRadius * m_configurator.Threshold)
-                {
-                    Terminate(false);
-                    return;
-                }
-
-                // distance between first and last point
-                dx = m_centroidXs[0] - m_centroidXs[m_centroidXs.Count - 1];
-                dy = m_centroidYs[0] - m_centroidYs[m_centroidYs.Count - 1];
-                if (Math.Sqrt(dx * dx + dy * dy) > meanRadius * m_configurator.Threshold)
-                {
-                    Terminate(false);
-                    return;
-                }
-
-                OnCircle(Group.Traces.Count, xm, ym, meanRadius);
+                OnCircle(Group.Traces.Count, centerX, centerY, radius);
                 Terminate(true);
             }
         }

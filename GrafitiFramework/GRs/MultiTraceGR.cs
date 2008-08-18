@@ -22,7 +22,7 @@ using System;
 using System.Collections.Generic;
 using Grafiti;
 
-namespace Grafiti
+namespace Grafiti.GestureRecognizers
 {
     public class MultiTraceEventArgs : GestureEventArgs
     {
@@ -201,10 +201,13 @@ namespace Grafiti
             GestureHasBeenRecognized();
         }
 
-        protected override void OnPostUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving, 
+        protected override void UpdateEventHandlers(bool initial, bool final, bool entering, bool current, bool leaving, 
             bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, 
             bool newClosestIni, bool newClosestFin)
         {
+            base.UpdateEventHandlers(initial, final, entering, current, leaving,
+                intersect, union, newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
+
             if (newClosestIni)
             {
                 if (Group.ClosestInitialTarget != null)

@@ -53,7 +53,7 @@ namespace GenericDemo
         public void Update(long timestamp)
         {
             m_startPath = Math.Max(m_startPath, m_trace.Count - MAX_TAIL_LENGTH);
-            if (m_trace.Last.State == Cursor.States.REMOVED)
+            if (m_trace.Last.State == CursorPoint.States.REMOVED)
             {//
                 if (m_startPath < m_trace.Count - 1)
                     m_startPath++;
@@ -64,7 +64,7 @@ namespace GenericDemo
         
         public void Draw(Graphics g, float screen)
         {
-            Cursor last = m_trace.Last;
+            CursorPoint last = m_trace.Last;
 
             // draw path
             for (int i = m_startPath; i < m_trace.Count - 1; i++)
@@ -75,10 +75,10 @@ namespace GenericDemo
             }
 
             // draw pointer and id
-            if (!(m_startPath == m_trace.Count - 1 && last.State == Cursor.States.REMOVED))
+            if (!(m_startPath == m_trace.Count - 1 && last.State == CursorPoint.States.REMOVED))
             {
                 Brush pointerBrush;
-                if (last.State == Cursor.States.REMOVED)
+                if (last.State == CursorPoint.States.REMOVED)
                     pointerBrush = Brushes.Black;
                 else
                     pointerBrush = Brushes.Gray;

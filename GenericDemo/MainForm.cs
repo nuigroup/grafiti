@@ -26,6 +26,7 @@ using System.Collections;
 using System.Threading;
 using TUIO;
 using Grafiti;
+using Grafiti.GestureRecognizers;
 using GenericDemo.TouchControls;
 
 namespace GenericDemo
@@ -112,8 +113,8 @@ namespace GenericDemo
 
             UpdateFormText();
 
-            GestureEventManager.Instance.SetPriorityNumber(typeof(CircleGR), 0);
-            GestureEventManager.Instance.RegisterHandler(typeof(CircleGR), "Circle", OnCircleGesture);
+            GestureEventManager.SetPriorityNumber(typeof(CircleGR), 0);
+            GestureEventManager.RegisterHandler(typeof(CircleGR), "Circle", OnCircleGesture);
         }
         #endregion
 
@@ -331,7 +332,7 @@ namespace GenericDemo
         }
         #endregion
 
-        #region TuioClient interface
+        #region TuioListener members
         public void addTuioObject(TuioObject o) { }
         public void updateTuioObject(TuioObject o) { }
         public void removeTuioObject(TuioObject o) { }
@@ -419,12 +420,14 @@ namespace GenericDemo
         }
         public void PointToClient(IGestureListener target, float x, float y, out float cx, out float cy)
         {
-            // location relative to this
+            // target's location relative to this
             Point targetLocation = PointToClient(((Control)target).PointToScreen(new Point(0, 0)));
+
+            // given point's location relative to this
             x = x * ClientSize.Height + m_offsetVirtualArea;
             y = y * ClientSize.Height + m_offsetVirtualArea;
 
-            // location relative to target
+            // point relative to target
             cx = x - targetLocation.X;
             cy = y - targetLocation.Y;
         }

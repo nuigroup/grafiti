@@ -72,7 +72,7 @@ namespace GenericDemo
             {
                 if (trace.Alive)
                 {
-                    Cursor cursor = trace.Last;
+                    CursorPoint cursor = trace.Last;
                     g.DrawLine(m_pen,
                         m_group.CentroidX * screen, m_group.CentroidY * screen,
                         cursor.X * screen, cursor.Y * screen);

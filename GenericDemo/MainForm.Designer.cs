@@ -63,7 +63,7 @@ namespace GenericDemo
             this.m_touchButtonClose.Text = "Close";
             this.m_touchButtonClose.UseVisualStyleBackColor = true;
             this.m_touchButtonClose.Click += new System.EventHandler(this.touchButtonClose_Click);
-            this.m_touchButtonClose.FingerTap += new Grafiti.BasicMultiFingerEventHandler(this.OnTouchButtonClose_FingerTap);
+            this.m_touchButtonClose.FingerTap += new Grafiti.GestureRecognizers.BasicMultiFingerEventHandler(this.OnTouchButtonClose_FingerTap);
             // 
             // m_touchRadioButton3
             // 
@@ -106,7 +106,7 @@ namespace GenericDemo
             this.m_touchButtonAdd.Text = "Add";
             this.m_touchButtonAdd.UseVisualStyleBackColor = true;
             this.m_touchButtonAdd.Click += new System.EventHandler(this.touchButtonAdd_Click);
-            this.m_touchButtonAdd.FingerTap += new Grafiti.BasicMultiFingerEventHandler(this.OnTouchButtonAdd_FingerTap);
+            this.m_touchButtonAdd.FingerTap += new Grafiti.GestureRecognizers.BasicMultiFingerEventHandler(this.OnTouchButtonAdd_FingerTap);
             // 
             // m_listBox
             // 
@@ -125,7 +125,7 @@ namespace GenericDemo
             this.m_touchButtonClear.Text = "Clear";
             this.m_touchButtonClear.UseVisualStyleBackColor = true;
             this.m_touchButtonClear.Click += new System.EventHandler(this.touchButtonClear_Click);
-            this.m_touchButtonClear.FingerTap += new Grafiti.BasicMultiFingerEventHandler(this.OnTouchButtonClear_FingerTap);
+            this.m_touchButtonClear.FingerTap += new Grafiti.GestureRecognizers.BasicMultiFingerEventHandler(this.OnTouchButtonClear_FingerTap);
             // 
             // MainForm
             // 

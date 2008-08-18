@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using System.Collections;
 using TUIO;
 using Grafiti;
+using Grafiti.GestureRecognizers;
 
 namespace GenericDemo
 {
@@ -98,15 +99,15 @@ namespace GenericDemo
             m_pendingLinks = new List<DemoObjectLink>();
 
             RemovingLinkGRConfigurator removingLinkGRConf = new RemovingLinkGRConfigurator(this);
-            GestureEventManager.Instance.SetPriorityNumber(typeof(RemovingLinkGR), removingLinkGRConf, -2);
-            GestureEventManager.Instance.RegisterHandler(typeof(RemovingLinkGR), removingLinkGRConf, "RemoveLinks", OnRemoveLinks);
+            GestureEventManager.SetPriorityNumber(typeof(RemovingLinkGR), removingLinkGRConf, -2);
+            GestureEventManager.RegisterHandler(typeof(RemovingLinkGR), removingLinkGRConf, "RemoveLinks", OnRemoveLinks);
 
-            GestureEventManager.Instance.SetPriorityNumber(typeof(MultiTraceGR), -1);
-            GestureEventManager.Instance.RegisterHandler(typeof(MultiTraceGR), "MultiTraceFromTo", OnMultiTraceFromTo);
+            GestureEventManager.SetPriorityNumber(typeof(MultiTraceGR), -1);
+            GestureEventManager.RegisterHandler(typeof(MultiTraceGR), "MultiTraceFromTo", OnMultiTraceFromTo);
 
             LazoGRConfigurator lazoGRConf = new LazoGRConfigurator(m_currentTuioObjects);
-            GestureEventManager.Instance.SetPriorityNumber(typeof(LazoGR), lazoGRConf, 5);
-            GestureEventManager.Instance.RegisterHandler(typeof(LazoGR), lazoGRConf, "Lazo", OnLazo);
+            GestureEventManager.SetPriorityNumber(typeof(LazoGR), lazoGRConf, 5);
+            GestureEventManager.RegisterHandler(typeof(LazoGR), lazoGRConf, "Lazo", OnLazo);
         }
 
         #region TuioListener interface
@@ -127,6 +128,11 @@ namespace GenericDemo
         public void removeTuioCursor(TuioCursor c) { }
         public void refresh(long timestamp)
         {
+            // Add links that have been added asynchronously (by hovering)
+            foreach (DemoObjectLink link in m_pendingLinks)
+                m_links.Add(link);
+            m_pendingLinks.Clear();
+
             foreach (TuioObject o in m_tuioObjectAddedList)
             {
                 DemoObject demoObject = new DemoObject(this, m_form, (int)o.getSessionID(), o.getX() * Surface.SCREEN_RATIO, o.getY(), o.getAngle());
@@ -146,11 +152,6 @@ namespace GenericDemo
                 foreach (DemoObjectLink link in demoObject.Links)
                     m_links.Remove(link);
             }
-
-            // Add links that have been added asynchronously (by hovering)
-            foreach (DemoObjectLink link in m_pendingLinks)
-                m_links.Add(link);
-            m_pendingLinks.Clear();
 
             foreach (DemoObjectLink link in m_links)
                 link.Update();
@@ -189,9 +190,13 @@ namespace GenericDemo
                     fromObj.GetSquareDistance(cArgs.InitialCentroidX, cArgs.InitialCentroidY) <= SQUARE_MAX_DISTANCE &&
                     toObj.GetSquareDistance(cArgs.FinalCentroidX, cArgs.FinalCentroidY) <= SQUARE_MAX_DISTANCE)
                 {
-                    m_links.Add(new DemoObjectLink(m_form, fromObj, toObj, cArgs.NOfFingers));
-                    m_form.Invalidate();
-                    //Console.WriteLine("Link added");
+                    DemoObjectLink link = MakeLink(fromObj, toObj, cArgs.NOfFingers);
+                    if (link != null)
+                    {
+                        m_links.Add(link);
+                        m_form.Invalidate();
+                        //Console.WriteLine("Link added");
+                    }
                 }
             }
         }
@@ -203,11 +208,25 @@ namespace GenericDemo
                 if (!m_linkRequests.ContainsKey(channel))
                     m_linkRequests[channel] = new List<DemoObject>();
 
+                // this is asynchronous, so for efficiency the link will be actually added later 
+                DemoObjectLink link;
                 foreach (DemoObject req in m_linkRequests[channel])
-                    m_pendingLinks.Add(new DemoObjectLink(m_form, req, demoObject, channel));
+                { 
+                    link = MakeLink(req, demoObject, channel);
+                    if (link != null)
+                        m_pendingLinks.Add(link);
+                }
 
                 m_linkRequests[channel].Add(demoObject);
             }
+        }
+
+        private DemoObjectLink MakeLink(DemoObject from, DemoObject to, int n)
+        {
+            if (m_currentTuioObjects.Contains(from) && m_currentTuioObjects.Contains(to))
+                return new DemoObjectLink(m_form, from, to, n);
+            else
+                return null;
         }
         public void CloseLinkRequest(int channel, DemoObject demoObject)
         {

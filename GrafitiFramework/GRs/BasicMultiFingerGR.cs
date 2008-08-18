@@ -24,7 +24,7 @@ using System.Threading;
 using Grafiti;
 using TUIO;
 
-namespace Grafiti
+namespace Grafiti.GestureRecognizers
 {
     public class BasicMultiFingerEventArgs : GestureEventArgs
     {
@@ -105,11 +105,11 @@ namespace Grafiti
         private readonly bool IS_TRIPLE_TAP_ENABLED;
 
         private const int HOVER_THREAD_SLEEP_TIME = 5;
-        private Cursor m_currentProcessingCursor;
+        private CursorPoint m_currentProcessingCursor;
         private bool m_tapSizeOk;
         private bool m_newClosestCurrentTarget;
         private Dictionary<Trace, int> m_traceDownTimesDict;
-        private Dictionary<Trace, Cursor> m_traceLastDownCurDict;
+        private Dictionary<Trace, CursorPoint> m_traceLastDownCurDict;
         private List<Trace> m_removingTraces = new List<Trace>();
         private long m_t0;
         private bool m_haveSingleTapped, m_haveDoubleTapped, m_needResetTap;
@@ -142,7 +142,7 @@ namespace Grafiti
             ClosestLeavingEvents = new string[] { "Leave" };
 
             m_traceDownTimesDict = new Dictionary<Trace, int>();
-            m_traceLastDownCurDict = new Dictionary<Trace, Cursor>();
+            m_traceLastDownCurDict = new Dictionary<Trace, CursorPoint>();
 
             m_hoverThread = new Thread(new ThreadStart(HoverLoop));
             m_hoverThread.Start();
@@ -417,24 +417,19 @@ namespace Grafiti
         }
         #endregion
 
-        protected override void OnPreUpdateHandlers(
-            bool initial, bool final,
-            bool entering, bool current, bool leaving,
-            bool intersect, bool union,
-            bool newClosestEnt, bool newClosestCur, bool newClosestLvn,
-            bool newClosestIni, bool newClosestFin)
-        {
-            if (newClosestCur)
-                OnEndHover();
-        }
-
-        protected override void OnPostUpdateHandlers(
+        protected override void UpdateEventHandlers(
             bool initial, bool final,
             bool entering, bool current, bool leaving,
             bool intersect, bool union,
             bool newClosestEnt, bool newClosestCur, bool newClosestLvn, 
             bool newClosestIni, bool newClosestFin)
         {
+            if (newClosestCur)
+                OnEndHover();
+
+            base.UpdateEventHandlers(initial, final, entering, current, leaving,
+                intersect, union, newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
+
             m_newClosestCurrentTarget = newClosestCur;
             if (initial)
                 m_dragStartingListener = Group.ClosestInitialTarget;

@@ -24,6 +24,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Drawing;
 using Grafiti;
+using Grafiti.GestureRecognizers;
 
 namespace GenericDemo.TouchControls
 {
@@ -34,17 +35,17 @@ namespace GenericDemo.TouchControls
         public TouchPanel(int priorityNumber)
             : base()
         {
-            GestureEventManager.Instance.SetPriorityNumber(typeof(BasicMultiFingerGR), priorityNumber);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "Down", OnEvent);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "Up", OnEvent);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "Tap", OnEvent);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "DoubleTap", OnEvent);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "TripleTap", OnEvent);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "Enter", OnEvent);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "Leave", OnEvent);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "Hover", OnEvent);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "EndHover", OnEvent);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "Move", OnEvent);
+            GestureEventManager.SetPriorityNumber(typeof(BasicMultiFingerGR), priorityNumber);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Down", OnEvent);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Up", OnEvent);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Tap", OnEvent);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "DoubleTap", OnEvent);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "TripleTap", OnEvent);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Enter", OnEvent);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Leave", OnEvent);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Hover", OnEvent);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "EndHover", OnEvent);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Move", OnEvent);
         }
 
         public event BasicMultiFingerEventHandler FingerDown;

@@ -74,7 +74,7 @@ namespace Grafiti
         }
 
         private static int s_counter = 0;           // id counter
-        private int m_id;                           // id
+        private readonly int m_id;                  // id
         private List<Trace> m_traces;               // the traces of which the group is composed
         private int m_nOfPresentTraces;             // number of alive traces (fingers currently in the surface)
         private int m_nOfActiveTraces;              // number of alive (present) or resurrectable traces.
@@ -133,32 +133,57 @@ namespace Grafiti
         #endregion
 
         #region Public properties
-        // Id
+        /// <summary>
+        /// Identification number of the group.
+        /// </summary>
         public int Id { get { return m_id; } }
 
-        // Traces of which the group is composed
+        /// <summary>
+        /// Traces of which the group is composed
+        /// </summary>
         public List<Trace> Traces { get { return m_traces; } }
 
-        // Number of present traces
+        /// <summary>
+        /// Number of present traces
+        /// </summary>
         public int NumberOfPresentTraces { get { return m_nOfPresentTraces; } }
 
-        // Number of active traces
-        public int NumberOfActiveTraces { get { return m_nOfActiveTraces; } }
-
-        // The group is present iff there is at least a present trace (a finger is currently in the surface)
+        /// <summary>
+        /// True iff there is at least a present trace (a finger is currently in the surface)
+        /// </summary>
         public bool IsPresent { get { return m_nOfPresentTraces > 0; } }
 
-        // The group is terminated iff all traces have been removed since a time not lesser than Settings.TRACE_TIME_GAP
+        /// <summary>
+        /// Number of active traces
+        /// </summary>
+        public int NumberOfActiveTraces { get { return m_nOfActiveTraces; } }
+
+        /// <summary>
+        /// The group is terminated iff all traces have been removed since a time not lesser than Settings.TRACE_TIME_GAP
+        /// </summary>
         public bool IsTerminated { get { return m_nOfActiveTraces == 0; } }
 
-        // Current time stamp corresponding to when the last refresh was called
+        /// <summary>
+        /// Current time stamp corresponding to when the last refresh was called
+        /// </summary>
         public int CurrentTimeStamp { get { return m_currentTimeStamp; } }
 
-        // Centroid coordinates (calculated on the last point of the living and the resurrectable traces)
+        /// <summary>
+        /// Centroid x coordinate (calculated on the last point of the living and the resurrectable traces)
+        /// </summary>
         public float CentroidX { get { return m_centroidX; } }
+        /// <summary>
+        /// Centroid y coordinate (calculated on the last point of the living and the resurrectable traces)
+        /// </summary>
         public float CentroidY { get { return m_centroidY; } }
-        // Centroid coordinates (calculated on the last point of the living traces)
+
+        /// <summary>
+        /// Centroid x coordinate (calculated on the last point of the living traces)
+        /// </summary>
         public float CentroidLivingX { get { return m_centroidLivingX; } }
+        /// <summary>
+        /// Centroid y coordinate (calculated on the last point of the living traces)
+        /// </summary>
         public float CentroidLivingY { get { return m_centroidLivingY; } }
 
         // Target lists
@@ -177,10 +202,14 @@ namespace Grafiti
         public IGestureListener ClosestNewInitialTarget { get { return m_closestNewInitialTarget; } }
         public IGestureListener ClosestFinalTarget { get { return m_closestFinalTraget; } }
 
-        // List of targets of the currently active LGRs
+        /// <summary>
+        /// List of targets of the currently active LGRs
+        /// </summary>
         public List<IGestureListener> LGRTargets { get { return (List<IGestureListener>)m_lgrTargets; } }
 
-        // Target of the winning and exclusive LGR
+        /// <summary>
+        /// Target of the winning and exclusive LGR
+        /// </summary>
         public IGestureListener ExclusiveLocalTarget
         {
             get { return m_exclusiveLocalTarget; }
@@ -196,6 +225,9 @@ namespace Grafiti
             }
         }
 
+        /// <summary>
+        /// True iff all the traces are currently on the same GUI component.
+        /// </summary>
         public bool OnSingleGUIControl
         {
             get { return m_onSingleGUIControl; }
@@ -221,8 +253,8 @@ namespace Grafiti
             m_nOfPresentTraces = 0;
             m_initializing = true;
 
-            m_centroidX = m_centroidY = 0;
-            m_centroidLivingX = m_centroidLivingY = 0;
+            m_centroidX = m_centroidY = -1;
+            m_centroidLivingX = m_centroidLivingY = -1;
             m_currentTimeStamp = -1;
 
             m_startingSequence = new List<Trace>();
@@ -278,7 +310,7 @@ namespace Grafiti
             m_nOfActiveTraces++;
             m_nOfPresentTraces++;
 
-            Cursor firstPoint = trace.First;
+            CursorPoint firstPoint = trace.First;
             int firstPointTimeStamp = firstPoint.TimeStamp;
 
             // set initial (referential) point of the group
@@ -300,7 +332,7 @@ namespace Grafiti
             foreach (Trace t in m_traces)
                 if (t != trace)
                 {
-                    Cursor current = t[t.Count - 1];
+                    CursorPoint current = t[t.Count - 1];
                     float dx = firstPoint.X - current.X;
                     float dy = firstPoint.Y - current.Y;
                     m_traceSpaceCouplingTable[t, trace] = dx * dx + dy * dy;
@@ -373,7 +405,7 @@ namespace Grafiti
             float sx = 0, sy = 0; // coordinate accumulators for living traces
             float sxd = 0, syd = 0; // coordinate accumulators for recently dead traces
 
-            Cursor cursor;
+            CursorPoint cursor;
             foreach (Trace trace in m_traces)
             {
                 cursor = trace.Last;
@@ -786,7 +818,7 @@ namespace Grafiti
         /// will be considered also the resurrectable (i.e. recently died) traces.</param>
         /// <returns>The minimum distance between the given cursor and the nearest trace,
         /// among the considered ones (depending on the parameter onlyAliveTraces)</returns>
-        internal float SquareDistanceToNearestTrace(Cursor cursor, bool onlyAliveTraces)
+        internal float SquareDistanceToNearestTrace(CursorPoint cursor, bool onlyAliveTraces)
         {
             float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE + 1;
             foreach (Trace trace in m_traces)
@@ -806,7 +838,7 @@ namespace Grafiti
         /// <param name="targets">Targets of the given cursor.</param>
         /// <param name="guiTargets">This flag must be true iff the targets are GUI controls</param>
         /// <returns>true iff the cursor can be added to the group</returns>
-        internal bool AcceptNewCursor(Cursor cursor, List<IGestureListener> targets, bool guiTargets)
+        internal bool AcceptNewCursor(CursorPoint cursor, List<IGestureListener> targets, bool guiTargets)
         {
             // If both the group and the cursor are on a GUI control, then such control must be the same
             // If only one of them is on a GUI control than don't accept the cursor

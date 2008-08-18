@@ -23,7 +23,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Grafiti;
 
-namespace Grafiti
+namespace Grafiti.GestureRecognizers
 {
     public class PinchingFingerEventArgs : GestureEventArgs
     { 
@@ -331,15 +331,15 @@ namespace Grafiti
             // are updated
             bool allFingersHaveBeenUpdated = true;
 
-            Cursor cursor;
+            CursorPoint cursor;
 
             // Update list of cursor ids.
             foreach (Trace trace in traces)
             {
                 cursor = trace.Last;
-                if (cursor.State == Cursor.States.ADDED)
+                if (cursor.State == CursorPoint.States.ADDED)
                     m_ids.Add(cursor.SessionId);
-                else if (cursor.State == Cursor.States.REMOVED)
+                else if (cursor.State == CursorPoint.States.REMOVED)
                     m_ids.Remove(cursor.SessionId);
             }
 
@@ -348,14 +348,14 @@ namespace Grafiti
             foreach (Trace trace in traces)
             {
                 cursor = trace.Last;
-                if (cursor.State == Cursor.States.UPDATED)
+                if (cursor.State == CursorPoint.States.UPDATED)
                     OnMove(cursor.SessionId, cursor.X, cursor.Y);
                 else
                 {
                     allFingersHaveBeenUpdated = false;
-                    if (cursor.State == Cursor.States.ADDED)
+                    if (cursor.State == CursorPoint.States.ADDED)
                         OnDown(cursor.SessionId, cursor.X, cursor.Y);
-                    else if (cursor.State == Cursor.States.REMOVED)
+                    else if (cursor.State == CursorPoint.States.REMOVED)
                         OnUp(cursor.SessionId, cursor.X, cursor.Y);
                 }
             }

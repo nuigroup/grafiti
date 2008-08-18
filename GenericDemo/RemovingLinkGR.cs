@@ -76,9 +76,9 @@ namespace GenericDemo
 
         public override void Process(List<Trace> traces)
         {
-            Cursor cursor = traces[0].Last;
+            CursorPoint cursor = traces[0].Last;
 
-            if (Group.Traces.Count != 1 || cursor.State == Cursor.States.REMOVED)
+            if (Group.Traces.Count != 1 || cursor.State == CursorPoint.States.REMOVED)
             {
                 GestureHasBeenRecognized(false);
                 return;

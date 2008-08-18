@@ -26,6 +26,7 @@ using System.Data;
 using System.Text;
 using System.Windows.Forms;
 using Grafiti;
+using Grafiti.GestureRecognizers;
 
 namespace GenericDemo.TouchControls
 {
@@ -37,8 +38,8 @@ namespace GenericDemo.TouchControls
             : base()
         {
             AutoCheck = true;
-            GestureEventManager.Instance.SetPriorityNumber(typeof(BasicMultiFingerGR), priorityNumber);
-            GestureEventManager.Instance.RegisterHandler(typeof(BasicMultiFingerGR), "Enter", OnEvent);
+            GestureEventManager.SetPriorityNumber(typeof(BasicMultiFingerGR), priorityNumber);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Enter", OnEvent);
         }
 
         public void OnEvent(object obj, GestureEventArgs args)

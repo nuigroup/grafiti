@@ -26,8 +26,15 @@ using TUIO;
 
 namespace Grafiti
 {
+    /// <summary>
+    /// A GGR recognizes gestures produced anywhere. An instance of this class (or its subclasses) will be
+    /// created for each group in the surface, at the moment of its creation (when there is at least one 
+    /// registered listener). Event handlers' targets have to implement the interface IGestureListener (or 
+    /// ITangibleGestureListener).
+    /// </summary>
     public abstract class GlobalGestureRecognizer : GestureRecognizer
     {
+        #region Private or internal members
         private DoubleDictionary<EventInfo, object, List<GestureEventHandler>> m_handlerTable;
         private DoubleDictionary<TargetList, EventInfo, List<GestureEventHandler>> m_temporaryHandlerTable;
 
@@ -50,14 +57,16 @@ namespace Grafiti
             CLOSEST_FINAL
         }
 
+        // Auxiliar list used instead of creating a new instance each time.
+        private List<IGestureListener> m_temporaryTargetSingletonList; 
+        #endregion
 
-        // GR developers have to declare through these lists, the events associated to the relative target list.
+        #region Protected members
+        // GR developers have to declare through these lists the events associated to the relative target list.
         // For example, to implement a multi-trace gesture recognizer there should be declared something like
-        // <code>m_enteringEvents = new string[] { "MultiTraceEnter };</code>
-        // where the client previously specified the Events enumeration, including  MultiTraceEnter.
-        // The DefaultEvents list will include other events that are supposed to be sent to
-        // every control that subscribed to them, disregarding whether such control appears in some predefined
-        // list or not.
+        // <code>EnteringEvents = new string[] { "MultiTraceEnter" };</code>.
+        // The DefaultEvents list is for the events that are supposed to be sent to every listener that registered
+        // the relative handlers, disregarding whether such listeners appear in some other list or not.
         protected string[] EnteringEvents = new string[0] { };
         protected string[] CurrentEvents = new string[0] { };
         protected string[] LeavingEvents = new string[0] { };
@@ -66,15 +75,13 @@ namespace Grafiti
         protected string[] FinalEvents = new string[0] { };
         protected string[] IntersectionEvents = new string[0] { };
         protected string[] UnionEvents = new string[0] { };
-        protected string[] DefaultEvents = new string[0] { };
         protected string[] ClosestEnteringEvents = new string[0] { };
         protected string[] ClosestCurrentEvents = new string[0] { };
         protected string[] ClosestLeavingEvents = new string[0] { };
         protected string[] ClosestInitialEvents = new string[0] { };
         protected string[] ClosestNewInitialEvents = new string[0] { };
         protected string[] ClosestFinalEvents = new string[0] { };
-
-        private bool m_freezeEventHandlerLists = false;
+        protected string[] DefaultEvents = new string[0] { };
 
 
         // GR developers can use this (in association with the predefined lists), to manage the handlers
@@ -85,17 +92,20 @@ namespace Grafiti
         {
             get { return m_handlerTable; }
         }
+        
+        #endregion
 
-        // Auxiliar list used instead of creating a new instance each time.
-        List<IGestureListener> m_temporaryTargetSingletonList;
-
-        public GlobalGestureRecognizer(GRConfigurator configurator) : base(configurator)
+        #region Constructor
+        public GlobalGestureRecognizer(GRConfigurator configurator)
+            : base(configurator)
         {
             m_handlerTable = new DoubleDictionary<EventInfo, object, List<GestureEventHandler>>();
             m_temporaryHandlerTable = new DoubleDictionary<TargetList, EventInfo, List<GestureEventHandler>>();
             m_temporaryTargetSingletonList = new List<IGestureListener>(1);
-        }
+        } 
+        #endregion
 
+        #region Private or internal methods
         internal override sealed void AddHandler(string ev, GestureEventHandler handler)
         {
             // Check id it's a default event
@@ -122,68 +132,17 @@ namespace Grafiti
             }
 
         }
-
-        protected void FreezeEventHandlerLists()
-        {
-            m_freezeEventHandlerLists = true;
-        }
-        protected void UnFreezeEventHandlerLists()
-        {
-            m_freezeEventHandlerLists = false;
-        }
-
-
         /// <summary>
-        /// Update handlers to the events for targets appearing in the predefined target lists
+        /// Updates handlers for the events with targets appearing in the predefined target lists
         /// </summary>
-        internal void UpdateHandlers(
+        internal void UpdateHandlers1(
             bool initial, bool final, bool entering, bool current, bool leaving,
-            bool intersect, bool union, 
+            bool intersect, bool union,
             bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin)
         {
-            OnPreUpdateHandlers(initial, final, entering, current, leaving,
-                intersect, union, newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
-
-            if (!m_freezeEventHandlerLists)
-            {
-
-                if (initial)
-                {
-                    UpdateHandlers(TargetList.INITIAL);
-                    UpdateHandlers(TargetList.NEWINITIAL);
-                    UpdateHandlers(TargetList.CLOSEST_NEWINITIAL);
-                }
-                if (final)
-                    UpdateHandlers(TargetList.FINAL);
-                if (entering)
-                    UpdateHandlers(TargetList.ENTERING);
-                if (current)
-                    UpdateHandlers(TargetList.CURRENT);
-                if (leaving)
-                    UpdateHandlers(TargetList.LEAVING);
-                if (intersect)
-                    UpdateHandlers(TargetList.INTERSECT);
-                if (union)
-                    UpdateHandlers(TargetList.UNION);
-                if (newClosestEnt)
-                    UpdateHandlers(TargetList.CLOSEST_ENTERING);
-                if (newClosestCur)
-                    UpdateHandlers(TargetList.CLOSEST_CURRENT);
-                if (newClosestLvn)
-                    UpdateHandlers(TargetList.CLOSEST_LEAVING);
-                if (newClosestIni)
-                    UpdateHandlers(TargetList.CLOSEST_INITIAL);
-                if (newClosestFin)
-                    UpdateHandlers(TargetList.CLOSEST_FINAL);
-            }
-            OnPostUpdateHandlers(initial, final, entering, current, leaving,
+            UpdateEventHandlers(initial, final, entering, current, leaving,
                 intersect, union, newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
         }
-        protected virtual void OnPreUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
-            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin) { }
-
-        protected virtual void OnPostUpdateHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
-            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin) { }
 
         private void UpdateHandlers(TargetList targetList)
         {
@@ -312,6 +271,47 @@ namespace Grafiti
                             }
                 }
             }
+        }    
+        #endregion
+
+        #region Protected methods
+        /// <summary>
+        /// Updates handlers for the events with targets appearing in the predefined target lists.
+        /// You can override this funcion, to deal the changes, remebering to call the base function
+        /// before or after your code.
+        /// </summary>
+        protected virtual void UpdateEventHandlers(bool initial, bool final, bool entering, bool current, bool leaving,
+            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin)
+        {
+            if (initial)
+            {
+                UpdateHandlers(TargetList.INITIAL);
+                UpdateHandlers(TargetList.NEWINITIAL);
+                UpdateHandlers(TargetList.CLOSEST_NEWINITIAL);
+            }
+            if (final)
+                UpdateHandlers(TargetList.FINAL);
+            if (entering)
+                UpdateHandlers(TargetList.ENTERING);
+            if (current)
+                UpdateHandlers(TargetList.CURRENT);
+            if (leaving)
+                UpdateHandlers(TargetList.LEAVING);
+            if (intersect)
+                UpdateHandlers(TargetList.INTERSECT);
+            if (union)
+                UpdateHandlers(TargetList.UNION);
+            if (newClosestEnt)
+                UpdateHandlers(TargetList.CLOSEST_ENTERING);
+            if (newClosestCur)
+                UpdateHandlers(TargetList.CLOSEST_CURRENT);
+            if (newClosestLvn)
+                UpdateHandlers(TargetList.CLOSEST_LEAVING);
+            if (newClosestIni)
+                UpdateHandlers(TargetList.CLOSEST_INITIAL);
+            if (newClosestFin)
+                UpdateHandlers(TargetList.CLOSEST_FINAL);
         }
+        #endregion
     } 
 }

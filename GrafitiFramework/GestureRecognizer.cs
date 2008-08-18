@@ -51,7 +51,6 @@ namespace Grafiti
         // public abstract Clone() ?
     }
 
-
     /// <summary>
     /// Default event handler for gestures
     /// </summary>
@@ -59,7 +58,6 @@ namespace Grafiti
     /// the event</param>
     /// <param name="args">The object containing the arguments data of the gesture event.</param>
     public delegate void GestureEventHandler(object obj, GestureEventArgs args);
-
 
     /// <summary>
     /// Base class for gesture recognizers' configurator objects. A configurator contains all the
@@ -82,16 +80,17 @@ namespace Grafiti
             m_exclusive = exclusive;
         }
     }
-
     
     /// <summary>
     /// Base class of gesture recognizers. Instances of this class will be created dynamically by
     /// Grafiti. The constructor optionally expects a configurator object. A gesture recognizer 
-    /// will process the data relative to one single instance of the Group class.
+    /// will process data of a single instance of the class Group.
     /// </summary>
     public abstract class GestureRecognizer
     {
-        private static GRConfigurator s_defaultConfigurator = null;
+        #region Private or internal members
+        internal static readonly GRConfigurator DefaultConfigurator = new GRConfigurator();
+
         private GRConfigurator m_configurator;
         private int m_priorityNumber;
         private Group m_group;
@@ -99,41 +98,38 @@ namespace Grafiti
         private List<GestureEventHandler> m_bufferedHandlers;
         private List<GestureEventArgs> m_bufferedArgs;
         private int m_maxNumberOfFingersAllowed = -1;
-
-        // Result state (Don't change default values)
-        private bool m_recognizing = true; // still attempting to recognize the gesture
-        private bool m_successful = false; // gesture successfully recognized
-        private float m_probability = 1;   // probability of successful recognition (0=plain failure, 1=plain success)
-        private bool m_processing = true;  // will process further incoming input
-
-        public bool Recognizing  { get { return m_recognizing; } }
-        public bool Successful   { get { return m_successful; } }
-        public bool Processing   { get { return m_processing; } }
-        public float Probability { get { return m_probability; } }
-
-        public int MaxNumberOfFingersAllowed 
-        { 
-            get { return m_maxNumberOfFingersAllowed; } 
-            set { m_maxNumberOfFingersAllowed = value; } 
-        }
-
-
         private int m_debug_NProcessCalls = 0;
 
-        internal static GRConfigurator DefaultConfigurator
-        {
-            get
-            {
-                if (s_defaultConfigurator == null)
-                    s_defaultConfigurator = new GRConfigurator();
-                return s_defaultConfigurator; 
-            }
-        }
+        // The result state, in base of which the GRs are coordinated by the group GR manager,
+        // is composed by the following four parameters.
+        /// <summary>
+        /// Still attempting to recognize the gesture.
+        /// </summary>
+        private bool m_recognizing;
+        /// <summary>
+        /// Gesture successfully recognized.
+        /// </summary>
+        private bool m_successful;
+        /// <summary>
+        /// Probability of successful recognition (0 = plain failure, 1 = plain success).
+        /// </summary>
+        private float m_probability;
+        /// <summary>
+        /// Will process further incoming input.
+        /// </summary>
+        private bool m_processing;
+
+        // These are public but intended to be internal
+        public bool Recognizing { get { return m_recognizing; } }
+        public bool Successful { get { return m_successful; } }
+        public bool Processing { get { return m_processing; } }
+        public float Probability { get { return m_probability; } }
+
         internal int PriorityNumber { get { return m_priorityNumber; } set { m_priorityNumber = value; } }
-        internal bool Armed { get { return m_armed; } set { m_armed = value; } }
+        internal bool Armed { get { return m_armed; } set { m_armed = value; } } 
+        #endregion
 
-
-        #region CLIENT-RELATED PARAMETERS
+        #region Public members
         // This object will be passed as parameter to the constructor. It can be used to configure its
         // behaviour and/or to give it access to some resources.
         // Should be set once in the constructor.
@@ -142,25 +138,63 @@ namespace Grafiti
         // The associated group to process
         public Group Group { get { return m_group; } internal set { m_group = value; } }
 
+        /// <summary>
+        /// Max number of finger allowed. When the GR has successfully recognized a gesture, it is exclusive and
+        /// it is armed, then the group will be limited by this number of fingers. However if at the moment
+        /// of the arming there are a higher number of fingers they won't be removed: the value is
+        /// significative only when adding new fingers.
+        /// </summary>
+        public int MaxNumberOfFingersAllowed 
+        { 
+            get { return m_maxNumberOfFingersAllowed; } 
+            set { m_maxNumberOfFingersAllowed = value; } 
+        }
         #endregion
 
-
+        #region Constructor
         public GestureRecognizer(GRConfigurator configurator)
         {
             m_configurator = configurator;
             m_armed = false;
             m_bufferedHandlers = new List<GestureEventHandler>();
             m_bufferedArgs = new List<GestureEventArgs>();
+
+            m_recognizing = true;
+            m_successful = false;
+            m_probability = 1;
+            m_processing = true;
         }
+        #endregion
 
+        #region Private or internal methods
         internal abstract void AddHandler(string ev, GestureEventHandler handler);
-
         internal System.Reflection.EventInfo GetEventInfo(string ev)
         {
             Debug.Assert(GetType().GetEvent(ev) != null);
             return GetType().GetEvent(ev);
         }
+        internal void Process1(List<Trace> traces)
+        {
+            m_debug_NProcessCalls++;
+            Debug.WriteLine("N Process calls: " + m_debug_NProcessCalls + ", in " + this);
+            Process(traces);
+        }
+        internal void ProcessPendlingEvents()
+        {
+            Debug.Assert(m_armed);
 
+            for (int i = 0; i < m_bufferedHandlers.Count; i++)
+                m_bufferedHandlers[i](this, m_bufferedArgs[i]);
+            m_bufferedHandlers.Clear();
+            m_bufferedArgs.Clear();
+        }
+        internal void OnGroupRemoval1()
+        {
+            OnGroupRemoval();
+        } 
+        #endregion
+
+        #region Public or protected methods
         /// <summary>
         /// The main function that will process the user input. It will be called on every refresh
         /// of the TUIO messages.
@@ -168,13 +202,6 @@ namespace Grafiti
         /// <param name="traces">The list of the updated traces, to which one element has been added to their cursor list.</param>
         /// <returns></returns>
         public abstract void Process(List<Trace> traces);
-
-        internal void Process1(List<Trace> traces)
-        {
-            m_debug_NProcessCalls++;
-            Debug.WriteLine("N Process calls: " + m_debug_NProcessCalls + ", in " + this);
-            Process(traces);
-        }
 
         #region Changing state methods
         protected void GestureHasBeenRecognized()
@@ -206,7 +233,7 @@ namespace Grafiti
             if (m_recognizing)
                 GestureHasBeenRecognized(successfulRecognition);
             m_processing = false;
-        } 
+        }
         #endregion
 
 
@@ -230,26 +257,12 @@ namespace Grafiti
             }
         }
 
-        internal void ProcessPendlingEvents()
-        {
-            Debug.Assert(m_armed);
-
-            for (int i = 0; i < m_bufferedHandlers.Count; i++)
-                m_bufferedHandlers[i](this, m_bufferedArgs[i]);
-            m_bufferedHandlers.Clear();
-            m_bufferedArgs.Clear();
-        }
-
-        internal void OnGroupRemoval1()
-        {
-            OnGroupRemoval();
-        }
-
         /// <summary>
         /// Called when the group has been definetly removed from the surface, this happens
         /// after Settings.TRACE_TIME_GAP ms from when all the traces have been removed
         /// Override this to handle the finalization of the lgr if needed.
         /// </summary>
-        protected virtual void OnGroupRemoval() { }
+        protected virtual void OnGroupRemoval() { } 
+        #endregion
     }
 }

@@ -26,32 +26,48 @@ using TUIO;
 
 namespace Grafiti
 {
+    /// <summary>
+    /// An LGR recognizes gestures produced close by the tangible which class implements
+    /// ITangibleGestureListener. The instance related to the tangible is also the only listener
+    /// of the events that the LGR can raise. An instance of this class will be created for each
+    /// group that is born close to such tangible, if there is at least one registered listener.
+    /// </summary>
     public abstract class LocalGestureRecognizer : GestureRecognizer
     {
-        private IGestureListener m_target;
+        #region Private or internal members
+        private ITangibleGestureListener m_target;
         private float m_squareDistanceFromTarget;
+        internal float SquareDistanceFromTarget { get { return m_squareDistanceFromTarget; } set { m_squareDistanceFromTarget = value; } }  
+        #endregion
 
-        public IGestureListener Target { get { return m_target; } internal set { m_target = value; } }
-        internal float SquareDistanceFromTarget { get { return m_squareDistanceFromTarget; } set { m_squareDistanceFromTarget = value; } }
+        #region Public properties
+        public ITangibleGestureListener Target { get { return m_target; } internal set { m_target = value; } }
+        #endregion        
 
+        #region Constructor
         public LocalGestureRecognizer(GRConfigurator configurator) : base(configurator) { }
+        #endregion
 
+        #region Private or internal methods
         internal override sealed void AddHandler(string ev, GestureEventHandler handler)
         {
             GetEventInfo(ev).AddEventHandler(this, handler);
         }
 
-        internal void OnTargetRemoved1() 
+        internal void OnTargetRemoved1()
         {
             OnTargetRemoved();
-        }
+        } 
+        #endregion
 
+        #region Protected methods
         /// <summary>
         /// Called if the group removes (goes out from) the lgr's target, so that Process() 
         /// won't be called anymore This can happen if LGR_TARGET_LIST is set to 
         /// INTERSECTION_TARGET_LIST in the global settings.
         /// Override this to handle the finalization of the lgr, if needed.
         /// </summary>
-        protected virtual void OnTargetRemoved() { }
+        protected virtual void OnTargetRemoved() { } 
+        #endregion
     } 
 }

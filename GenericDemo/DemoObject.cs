@@ -24,6 +24,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using TUIO;
 using Grafiti;
+using Grafiti.GestureRecognizers;
 
 namespace GenericDemo
 {
@@ -34,7 +35,6 @@ namespace GenericDemo
 
         private Form m_form;
         private DemoObjectManager m_objectManager;
-        private static GestureEventManager m_gEvtMgr = GestureEventManager.Instance;
         private List<DemoObjectLink> m_links = new List<DemoObjectLink>();
         private bool m_selected = false;
 
@@ -85,24 +85,24 @@ namespace GenericDemo
             m_brush = new SolidBrush(m_color);
             m_font = new Font("Arial", 12.0f);
 
-            m_gEvtMgr.SetPriorityNumber(typeof(BasicMultiFingerGR), m_objectManager.BasicMultiFingerGRConf, -3);
-            m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "Hover", OnHover);
-            m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "EndHover", OnEndHover);
-            m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "Tap", OnTap);
-            //m_gEvtMgr.RegisterHandler(typeof(BasicMultiFingerGR), "DoubleTap", OnDoubleTap);
+            GestureEventManager.SetPriorityNumber(typeof(BasicMultiFingerGR), m_objectManager.BasicMultiFingerGRConf, -3);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Hover", OnHover);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "EndHover", OnEndHover);
+            GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "Tap", OnTap);
+            //GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), "DoubleTap", OnDoubleTap);
 
-            m_gEvtMgr.SetPriorityNumber(typeof(PinchingGR), m_objectManager.PinchingConf, 0);
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "Translate", OnPinchingEvent);
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "Scale", OnPinchingEvent);
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "Rotate", OnPinchingEvent);
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "TranslateOrScaleBegin", OnPinchBegin);
-            m_gEvtMgr.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "RotateBegin", OnPinchBegin);
+            GestureEventManager.SetPriorityNumber(typeof(PinchingGR), m_objectManager.PinchingConf, 0);
+            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "Translate", OnPinchingEvent);
+            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "Scale", OnPinchingEvent);
+            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "Rotate", OnPinchingEvent);
+            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "TranslateOrScaleBegin", OnPinchBegin);
+            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "RotateBegin", OnPinchBegin);
 
         }
 
         internal void RemoveFromSurface()
         {
-            GestureEventManager.Instance.UnregisterAllHandlersOf(this);
+            GestureEventManager.UnregisterAllHandlersOf(this);
         }
 
         public void OnPinchBegin(object obj, GestureEventArgs args)

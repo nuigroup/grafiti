@@ -41,7 +41,7 @@
   </Target>
   -->
   <ItemGroup>
-    <Compile Include="Cursor.cs" />
+    <Compile Include="CursorPoint.cs" />
     <Compile Include="DoubleDictionaries.cs" />
     <Compile Include="GestureEventManager.cs" />
     <Compile Include="GestureRecognizer.cs" />
@@ -55,7 +55,7 @@
     <Compile Include="GRs\PinchingGR.cs" />
     <Compile Include="IGestureListener.cs" />
     <Compile Include="IGrafitiClientGUIManager.cs" />
-    <Compile Include="ITuioObjectGestureListener.cs" />
+    <Compile Include="ITangibleGestureListener.cs" />
     <Compile Include="LocalGestureRecognizer.cs" />
     <Compile Include="OSC.NET\OSCBundle.cs" />
     <Compile Include="OSC.NET\OSCMessage.cs" />

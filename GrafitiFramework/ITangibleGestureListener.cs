@@ -25,8 +25,13 @@ namespace Grafiti
     /// </summary>
     public interface ITangibleGestureListener : IGestureListener
     {
-        // Returns the square distance to a conventional point (e.g. the center or the point
-        // on the border closest to the given coordinates), coherently with the client application.
+        /// <summary>
+        /// Returns the square distance to a conventional point (e.g. the center or the point
+        /// on the border closest to the given coordinates), coherently with the client application.
+        /// </summary>
+        /// <param name="x">X coordinate of the Grafiti point.</param>
+        /// <param name="y">Y coordinate of the Grafiti point.</param>
+        /// <returns>The square distance from the tangible to the given point.</returns>
         float GetSquareDistance(float x, float y);
     }
 }

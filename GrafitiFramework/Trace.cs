@@ -32,12 +32,13 @@ namespace Grafiti
     /// </summary>
     public class Trace : IComparable
     {
+        #region Private members
         private static int m_idCounter = 0;
         private readonly int m_id;
         private States m_state;
         private readonly Group m_group; // belonging group
-        private List<Cursor> m_path;
-        private Cursor m_first, m_last;
+        private List<CursorPoint> m_path;
+        private CursorPoint m_first, m_last;
 
         // A trace is alive when its last cursor in the path is in the state ADDED or UPDATED.
         // When the cursor is removed the trace dies, but it can "resurrect" if another ADDED cursor
@@ -48,51 +49,102 @@ namespace Grafiti
         private List<IGestureListener> m_enteringTargets, m_currentTargets, m_leavingTargets;
         private List<IGestureListener> m_intersectionTargets, m_unionTargets;
 
-        private bool m_onGUIControl;
+        private bool m_onGUIControl; 
+        #endregion
 
-
+        #region Public properties
         public enum States
         {
-            ADDED,   // cursor added, the trace has born
-            UPDATED, // cursor updated
-            REMOVED, // cursor removed
-            RESET,   // cursor added, the trace has resurrected
-            TERMINATED // when it was removed since at least a time equal to Settings.TRACE_TIME_GAP
+            /// <summary>
+            /// cursor added, the trace has born
+            /// </summary>
+            ADDED,
+            /// <summary>
+            /// cursor updated
+            /// </summary>
+            UPDATED,
+            /// <summary>
+            /// cursor removed
+            /// </summary>
+            REMOVED,
+            /// <summary>
+            /// cursor added, the trace has resurrected
+            /// </summary>
+            RESET,
+            /// <summary>
+            /// when it was removed since at least a time equal to Settings.TRACE_TIME_GAP
+            /// </summary>
+            TERMINATED
         }
-        public int Id                    { get { return m_id; } }
-        public Group Group               { get { return m_group; } }
-        public States State              { get { return m_state; } }
-        public List<Cursor> Path         { get { return m_path; } }
-        public Cursor First              { get { return m_first; } }
-        public Cursor Last               { get { return m_last; } }
-        public Cursor this[int index]    { get { return m_path[index]; } }
-        public int Count                 { get { return m_path.Count; } }
-        public bool Alive                { get { return m_alive; } }
+        /// <summary>
+        /// Identification number
+        /// </summary>
+        public int Id { get { return m_id; } }
+        /// <summary>
+        /// Belonging group
+        /// </summary>
+        public Group Group { get { return m_group; } }
+        /// <summary>
+        /// Current state
+        /// </summary>
+        public States State { get { return m_state; } }
+        /// <summary>
+        /// List of cursor points of which the trace is composed
+        /// </summary>
+        public List<CursorPoint> Path { get { return m_path; } }
+        /// <summary>
+        /// Initial cursor point
+        /// </summary>
+        public CursorPoint First { get { return m_first; } }
+        /// <summary>
+        /// Last added cursor point
+        /// </summary>
+        public CursorPoint Last { get { return m_last; } }
+        /// <summary>
+        /// The trace is indexed on the cursor points of which it is composed
+        /// </summary>
+        /// <param name="index">Index of the cursor point in the path list</param>
+        /// <returns>The cursor point at the given position in the path</returns>
+        public CursorPoint this[int index] { get { return m_path[index]; } }
+        /// <summary>
+        /// Number of cursor points of which the trace is composed
+        /// </summary>
+        public int Count { get { return m_path.Count; } }
+        /// <summary>
+        /// True iff the last added cursor point is on state 'ADDED' or 'UPDATED', iff the finger is currently
+        /// on the surface.
+        /// </summary>
+        public bool Alive { get { return m_alive; } }
 
-        public List<IGestureListener> InitialTargets      { get { return m_initialTargets; } }
-        public List<IGestureListener> FinalTargets        { get { return m_finalTargets; } }
-        public List<IGestureListener> EnteringTargets     { get { return m_enteringTargets; } }
-        public List<IGestureListener> CurrentTargets      { get { return m_currentTargets; } }
-        public List<IGestureListener> LeavingTargets      { get { return m_leavingTargets; } }
+        // Target lists
+        public List<IGestureListener> InitialTargets { get { return m_initialTargets; } }
+        public List<IGestureListener> FinalTargets { get { return m_finalTargets; } }
+        public List<IGestureListener> EnteringTargets { get { return m_enteringTargets; } }
+        public List<IGestureListener> CurrentTargets { get { return m_currentTargets; } }
+        public List<IGestureListener> LeavingTargets { get { return m_leavingTargets; } }
         public List<IGestureListener> IntersectionTargets { get { return m_intersectionTargets; } }
-        public List<IGestureListener> UnionTargets        { get { return m_unionTargets; } }
+        public List<IGestureListener> UnionTargets { get { return m_unionTargets; } }
 
+        /// <summary>
+        /// True iff the last added cursor point is on a GUI component
+        /// </summary>
         public bool OnGUIControl
-        { 
-            get { return m_onGUIControl; } 
-            private set 
+        {
+            get { return m_onGUIControl; }
+            private set
             {
                 if (m_onGUIControl != value)
                     m_onGUIControl = value;
-            } 
-        }
+            }
+        } 
+        #endregion
 
-
-        public Trace(Cursor cursor, Group group, List<IGestureListener> targets, bool guiTargets)
+        #region Internal constructor
+		internal Trace(CursorPoint cursor, Group group, List<IGestureListener> targets, bool guiTargets)
         {
             m_id = m_idCounter++;
             m_group = group;
-            m_path = new List<Cursor>();
+            m_path = new List<CursorPoint>();
             m_path.Add(cursor);
             m_first = m_last = cursor;
             m_state = States.ADDED;
@@ -109,7 +161,10 @@ namespace Grafiti
             m_group.StartTrace(this);
             UpdateTargets(targets, guiTargets);
         }
-        public void AppendAddingOrUpdatingCursor(Cursor cursor, List<IGestureListener> targets, bool guiTargets)
+	    #endregion
+
+        #region Private or internal methods
+        internal void AppendAddingOrUpdatingCursor(CursorPoint cursor, List<IGestureListener> targets, bool guiTargets)
         {
             UpdateCursorValues(cursor);
             m_path.Add(cursor);
@@ -126,7 +181,7 @@ namespace Grafiti
             m_group.UpdateTrace(this);
             UpdateTargets(targets, guiTargets);
         }
-        public void AppendRemovingCursor(Cursor cursor, List<IGestureListener> targets, bool guiTargets)
+        internal void AppendRemovingCursor(CursorPoint cursor, List<IGestureListener> targets, bool guiTargets)
         {
             UpdateCursorValues(cursor);
             m_path.Add(cursor);
@@ -143,7 +198,7 @@ namespace Grafiti
             m_state = States.TERMINATED;
             Group.TerminateTrace(this);
         }
-        private void UpdateCursorValues(Cursor cursor)
+        private void UpdateCursorValues(CursorPoint cursor)
         {
             if (m_state != States.REMOVED)
             {
@@ -187,9 +242,9 @@ namespace Grafiti
                 m_currentTargets.Remove(leavingTarget); // current -
             m_currentTargets.AddRange(m_enteringTargets); // current +
 
-            
+
             if (m_state == States.ADDED) // this happens only once, at the beginning
-            { 
+            {
                 m_initialTargets.AddRange(targets);
                 m_intersectionTargets.AddRange(targets);
             }
@@ -210,13 +265,13 @@ namespace Grafiti
 
             OnGUIControl = guiTargets;
         }
+        #endregion
 
-
-        // Traces are compared by session id
-        public int CompareTo(object obj)
+        #region IComparable Members
+        int IComparable.CompareTo(object obj)
         {
-            return (int) (m_id - ((Trace)obj).Id);
+            return (int)(m_id - ((Trace)obj).Id);
         }
-
+        #endregion
     } 
 }

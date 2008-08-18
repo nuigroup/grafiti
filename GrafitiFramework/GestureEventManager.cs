@@ -28,38 +28,12 @@ namespace Grafiti
     /// <summary>
     /// Manages the registration of gesture event handlers.
     /// </summary>
-    public class GestureEventManager
+    public static class GestureEventManager
     {
-        #region Private or internal members
-        private static GestureEventManager s_instance = null;
-        private static readonly object s_lock = new object();
-        private GestureEventRegistry s_grRegistry;
-        private GRConfigurator m_defaultGRConfigurator;
-        private DoubleDictionary<Type, GRConfigurator, int> m_priorityNumbersTable = new DoubleDictionary<Type,GRConfigurator,int>();
-        internal GestureEventRegistry GRRegistry { get { return s_grRegistry; } } 
-        #endregion
-
-        #region Private constructor
-        private GestureEventManager()
-        {
-            s_grRegistry = GestureEventRegistry.Instance;
-            m_defaultGRConfigurator = new GRConfigurator(false);
-        } 
-        #endregion
-
-        #region Singleton
-        public static GestureEventManager Instance
-        {
-            get
-            {
-                lock (s_lock)
-                {
-                    if (s_instance == null)
-                        s_instance = new GestureEventManager();
-                    return s_instance;
-                }
-            }
-        } 
+        #region Private members
+        private static readonly object m_lock = new object();
+        private static GestureEventRegistry m_grRegistry = GestureEventRegistry.Instance;
+        private static GRConfigurator m_defaultGRConfigurator = new GRConfigurator(false);
         #endregion
 
         #region Client's interface
@@ -68,29 +42,27 @@ namespace Grafiti
         /// configurator. However note that when registering a gesture event handler with the same GR type,
         /// no configurator must be passed as parameter in order to associate it with the priority number 
         /// specified.
+        /// Note that once a priority number is set it can't be changed.
         /// </summary>
         /// <param name="grType"></param>
         /// <param name="priorityNumber"></param>
-        public void SetPriorityNumber(Type grType, int priorityNumber)
+        public static void SetPriorityNumber(Type grType, int priorityNumber)
         {
             SetPriorityNumber(grType, GestureRecognizer.DefaultConfigurator, priorityNumber);
         }
         /// <summary>
         /// Sets the priority number to associate with the given gesture recognizer class and the
         /// given configurator.
+        /// Note that once a priority number is set it can't be changed.
         /// </summary>
         /// <param name="grType">Type of the gesture recognizer.</param>
         /// <param name="configurator">Configurator of the gesture recognizer.</param>
         /// <param name="priorityNumber">Priority number.</param>
-        public void SetPriorityNumber(Type grType, GRConfigurator configurator, int priorityNumber)
+        public static void SetPriorityNumber(Type grType, GRConfigurator configurator, int priorityNumber)
         {
-            lock (s_lock)
+            lock (m_lock)
             {
-                if (!m_priorityNumbersTable.ContainsKeys(grType, configurator))
-                    m_priorityNumbersTable[grType, configurator] = priorityNumber;
-                else
-                    System.Diagnostics.Debug.Assert(m_priorityNumbersTable[grType, configurator] == priorityNumber,
-                        "Attempting to reset a priority number to a different value than the one previously set.");
+                m_grRegistry.SetPriorityNumber(grType, configurator, priorityNumber);
             }
         }
         /// <summary>
@@ -99,7 +71,7 @@ namespace Grafiti
         /// <param name="grType">Type of the gesture recognizer.</param>
         /// <param name="e">The event as string.</param>
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
-        public void RegisterHandler(Type grType, string ev, GestureEventHandler handler)
+        public static void RegisterHandler(Type grType, string ev, GestureEventHandler handler)
         {
             RegisterHandler(grType, GestureRecognizer.DefaultConfigurator, ev, handler);
         }
@@ -110,30 +82,22 @@ namespace Grafiti
         /// <param name="grConf">The GR's configurator.</param>
         /// <param name="e">The event as string.</param>
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
-        public void RegisterHandler(Type grType, GRConfigurator grConf, string ev, GestureEventHandler handler)
+        public static void RegisterHandler(Type grType, GRConfigurator grConf, string ev, GestureEventHandler handler)
         {
-            lock (s_lock)
+            lock (m_lock)
             {
-                System.Diagnostics.Debug.Assert(handler.Target is IGestureListener,
-                    "Attempting to register a handler for an instance of class " +
-                    handler.Target.GetType().ToString() +
-                    " which doesn't implement the interface IGestureListener.");
-
-                if (!m_priorityNumbersTable.ContainsKeys(grType, grConf))
-                    m_priorityNumbersTable[grType, grConf] = 0;
-
-                s_grRegistry.RegisterHandler(grType, grConf, m_priorityNumbersTable[grType, grConf], ev, handler);
+                m_grRegistry.RegisterHandler(grType, grConf, ev, handler);
             }
         }
         /// <summary>
         /// Unregisters all registered handlers for the given listener.
         /// </summary>
         /// <param name="listener">The listener</param>
-        public void UnregisterAllHandlersOf(IGestureListener listener)
+        public static void UnregisterAllHandlersOf(IGestureListener listener)
         {
-            lock (s_lock)
+            lock (m_lock)
             {
-                s_grRegistry.UnregisterAllHandlers(listener);
+                m_grRegistry.UnregisterAllHandlers(listener);
             }
         }
         #endregion
