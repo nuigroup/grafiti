@@ -74,7 +74,7 @@ namespace GenericDemo
                 {
                     CursorPoint cursor = trace.Last;
                     g.DrawLine(m_pen,
-                        m_group.CentroidX * screen, m_group.CentroidY * screen,
+                        m_group.ActiveCentroidX * screen, m_group.ActiveCentroidY * screen,
                         cursor.X * screen, cursor.Y * screen);
                 }
             }
@@ -106,7 +106,7 @@ namespace GenericDemo
             {
                 DemoObject demoObj = (DemoObject)obj;
                 g.DrawLine(m_pen,
-                    m_group.CentroidX * screen, m_group.CentroidY * screen,
+                    m_group.ActiveCentroidX * screen, m_group.ActiveCentroidY * screen,
                     demoObj.X * screen, demoObj.Y * screen);
             }
         }

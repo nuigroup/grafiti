@@ -414,7 +414,7 @@ namespace GenericDemo
 
             return (IGestureListener)target;
         }
-        public IEnumerable<ITangibleGestureListener> HitTestTangibles(float x, float y)
+        public List<ITangibleGestureListener> HitTestTangibles(float x, float y)
         {
             return m_demoObjectManager.HitTestTangibles(x, y);
         }

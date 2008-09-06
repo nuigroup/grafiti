@@ -157,8 +157,8 @@ namespace Grafiti.GestureRecognizers
                     return;
                 }
 
-                x = Group.CentroidX;
-                y = Group.CentroidY;
+                x = Group.ActiveCentroidX;
+                y = Group.ActiveCentroidY;
 
                 m_pathXs.Add(x);
                 m_pathYs.Add(y);

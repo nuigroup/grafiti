@@ -32,13 +32,13 @@ namespace Grafiti
     public interface IGrafitiClientGUIManager
     {
         /// <summary>
-        /// Returns an enumerable object containing the gesture listeners associated to
-        /// tangible objects which interaction area includes the given Grafiti point.
+        /// Returns the list of objects associated to the tangibles which target area
+        /// includes the given Grafiti point.
         /// </summary>
         /// <param name="x">X coordinate of the Grafiti point.</param>
         /// <param name="y">Y coordinate of the Grafiti point.</param>
         /// <returns>The tangibles listeners.</returns>
-        IEnumerable<ITangibleGestureListener> HitTestTangibles(float x, float y);
+        List<ITangibleGestureListener> HitTestTangibles(float x, float y);
 
         /// <summary>
         /// Returns the GUI component at the specified Grafiti point.

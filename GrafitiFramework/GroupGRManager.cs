@@ -510,7 +510,7 @@ namespace Grafiti
             foreach (int pn in m_pns)
             {
                 foreach (LocalGestureRecognizer lgr in m_unarmedLGRs[pn])
-                    lgr.SquareDistanceFromTarget = ((ITangibleGestureListener)(lgr.Target)).GetSquareDistance(m_group.CentroidX, m_group.CentroidY);
+                    lgr.SquareDistanceFromTarget = ((ITangibleGestureListener)(lgr.Target)).GetSquareDistance(m_group.ActiveCentroidX, m_group.ActiveCentroidY);
                 m_unarmedLGRs[pn].Sort(new Comparison<LocalGestureRecognizer>(
                 delegate(LocalGestureRecognizer a, LocalGestureRecognizer b)
                 {

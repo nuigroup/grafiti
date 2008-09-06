@@ -167,17 +167,17 @@ namespace Grafiti.GestureRecognizers
         protected void OnDown()      { AppendEvent(Down,     new BasicMultiFingerEventArgs("Down",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers, m_dragStartingListener)); }
         protected void OnUp()        { AppendEvent(Up,       new BasicMultiFingerEventArgs("Up",        Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers, m_dragStartingListener)); }
         protected void OnMove()      { AppendEvent(Move,     new BasicMultiFingerEventArgs("Move",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, Group.NumberOfPresentTraces, m_dragStartingListener)); }
-        protected void OnEnter()     { AppendEvent(Enter,    new BasicMultiFingerEventArgs("Enter",     Group.Id, Group.CentroidX, Group.CentroidY, Group.NumberOfPresentTraces, m_dragStartingListener)); }
-        protected void OnLeave()     { AppendEvent(Leave,    new BasicMultiFingerEventArgs("Leave",     Group.Id, Group.CentroidX, Group.CentroidY, Group.NumberOfPresentTraces, m_dragStartingListener)); }
-        protected void OnTap()       { AppendEvent(Tap,      new BasicMultiFingerEventArgs("Tap",       Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
-        protected void OnDoubleTap() { AppendEvent(DoubleTap,new BasicMultiFingerEventArgs("DoubleTap", Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
-        protected void OnTripleTap() { AppendEvent(TripleTap,new BasicMultiFingerEventArgs("TripleTap", Group.Id, Group.CentroidX, Group.CentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
-        protected void OnHover()     { AppendEvent(Hover,    new BasicMultiFingerEventArgs("Hover",     Group.Id, Group.CentroidX, Group.CentroidY, m_nFingersHovering, m_dragStartingListener)); }
+        protected void OnEnter()     { AppendEvent(Enter,    new BasicMultiFingerEventArgs("Enter",     Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, Group.NumberOfPresentTraces, m_dragStartingListener)); }
+        protected void OnLeave()     { AppendEvent(Leave,    new BasicMultiFingerEventArgs("Leave",     Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, Group.NumberOfPresentTraces, m_dragStartingListener)); }
+        protected void OnTap()       { AppendEvent(Tap,      new BasicMultiFingerEventArgs("Tap",       Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
+        protected void OnDoubleTap() { AppendEvent(DoubleTap,new BasicMultiFingerEventArgs("DoubleTap", Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
+        protected void OnTripleTap() { AppendEvent(TripleTap,new BasicMultiFingerEventArgs("TripleTap", Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
+        protected void OnHover()     { AppendEvent(Hover,    new BasicMultiFingerEventArgs("Hover",     Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_nFingersHovering, m_dragStartingListener)); }
         protected void OnEndHover()
         {
             if (m_hoverStarted)
             {
-                AppendEvent(EndHover, new BasicMultiFingerEventArgs("EndHover", Group.Id, Group.CentroidX, Group.CentroidY, m_nFingersHovering, m_dragStartingListener));
+                AppendEvent(EndHover, new BasicMultiFingerEventArgs("EndHover", Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_nFingersHovering, m_dragStartingListener));
                 m_hoverStarted = false;
             }
         }
@@ -390,15 +390,15 @@ namespace Grafiti.GestureRecognizers
         #region HOVER functions
         private void ResetHover()
         {
-            m_hoverXRef = Group.CentroidX;
-            m_hoverYRef = Group.CentroidY;
+            m_hoverXRef = Group.ActiveCentroidX;
+            m_hoverYRef = Group.ActiveCentroidY;
             m_hoverTimeRef = DateTime.Now;
             m_hoverEnabled = true;
         }
         private bool CheckHoverSize()
         {
-            return Math.Abs(Group.CentroidX - m_hoverXRef) <= HOVER_SIZE &&
-                   Math.Abs(Group.CentroidY - m_hoverYRef) <= HOVER_SIZE;
+            return Math.Abs(Group.ActiveCentroidX - m_hoverXRef) <= HOVER_SIZE &&
+                   Math.Abs(Group.ActiveCentroidY - m_hoverYRef) <= HOVER_SIZE;
         }
         private void HoverLoop()
         {

@@ -164,9 +164,9 @@ namespace Grafiti
         #endregion
 
         #region TuioListener, members of
-        void TuioListener.addTuioObject(TuioObject obj) { }
-        void TuioListener.updateTuioObject(TuioObject obj) { }
-        void TuioListener.removeTuioObject(TuioObject obj) { }
+        void TuioListener.addTuioObject(TuioObject obj) { /*Console.WriteLine("ADD");*/}
+        void TuioListener.updateTuioObject(TuioObject obj) { /*Console.WriteLine("UPDATE");*/ }
+        void TuioListener.removeTuioObject(TuioObject obj) { /*Console.WriteLine("REMOVE");*/ }
         void TuioListener.addTuioCursor(TuioCursor c)
         {
             m_addingCursors.Add(

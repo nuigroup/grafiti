@@ -268,17 +268,17 @@ namespace Grafiti.GestureRecognizers
         protected void OnDown(long sessionId, float x, float y)
         {
             AppendEvent(Down, new PinchingFingerEventArgs(
-                "Down", Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
+                "Down", Group.Id, sessionId, x, y, Group.LivingCentroidX, Group.LivingCentroidY));
         }
         protected void OnUp(long sessionId, float x, float y)
         {
             AppendEvent(Up, new PinchingFingerEventArgs(
-                "Up", Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
+                "Up", Group.Id, sessionId, x, y, Group.LivingCentroidX, Group.LivingCentroidY));
         }
         protected void OnMove(long sessionId, float x, float y)
         {
             AppendEvent(Move, new PinchingFingerEventArgs(
-                "Move", Group.Id, sessionId, x, y, Group.CentroidLivingX, Group.CentroidLivingY));
+                "Move", Group.Id, sessionId, x, y, Group.LivingCentroidX, Group.LivingCentroidY));
         }
         protected void OnTranslateOrScaleBegin()
         {
@@ -292,26 +292,26 @@ namespace Grafiti.GestureRecognizers
         {
             AppendEvent(Scale, new PinchEventArgs(
                 "Scale", Group.Id, m_scale, m_scaleSpeed,
-                Group.CentroidLivingX, Group.CentroidLivingY, m_ids)); 
+                Group.LivingCentroidX, Group.LivingCentroidY, m_ids)); 
         }
         protected void OnTranslate() 
         {
             AppendEvent(Translate, new PinchEventArgs(
                 "Translate", Group.Id, m_translateX, m_translateY, m_translateXSpeed, m_translateYSpeed,
-                Group.CentroidLivingX, Group.CentroidLivingY, m_ids));
+                Group.LivingCentroidX, Group.LivingCentroidY, m_ids));
         }
         protected void OnRotate() 
         {
             AppendEvent(Rotate, new PinchEventArgs(
                 "Rotate", Group.Id, m_rotation, m_rotationSpeed,
-                Group.CentroidLivingX, Group.CentroidLivingY, m_ids)); 
+                Group.LivingCentroidX, Group.LivingCentroidY, m_ids)); 
         }
         protected void OnPinch()
         {
             AppendEvent(Pinch, new PinchEventArgs(
                 "Pinch", Group.Id, m_scale, m_scaleSpeed,
                 m_translateX, m_translateY, m_translateXSpeed, m_translateYSpeed, m_rotation, m_rotationSpeed,
-                Group.CentroidLivingX, Group.CentroidLivingY, m_ids));
+                Group.LivingCentroidX, Group.LivingCentroidY, m_ids));
         }
 
         public override void Process(List<Trace> traces)
@@ -393,8 +393,8 @@ namespace Grafiti.GestureRecognizers
             }
 
             // Compute translation
-            float newTranslateX = (Group.CentroidLivingX - m_centroidXRef) * m_conf.TRANSLATE_FACTOR;
-            float newTranslateY = (Group.CentroidLivingY - m_centroidYRef) * m_conf.TRANSLATE_FACTOR;
+            float newTranslateX = (Group.LivingCentroidX - m_centroidXRef) * m_conf.TRANSLATE_FACTOR;
+            float newTranslateY = (Group.LivingCentroidY - m_centroidYRef) * m_conf.TRANSLATE_FACTOR;
             m_translateXSpeed = (newTranslateX - m_translateX) / dt * 1000;
             m_translateYSpeed = (newTranslateY - m_translateY) / dt * 1000;
             m_translateX = newTranslateX;
@@ -418,8 +418,8 @@ namespace Grafiti.GestureRecognizers
         // set centroid reference to the current centroid (calculated on the living traces)
         private void UpdateCentroidRef()
         {
-            m_centroidXRef = Group.CentroidLivingX;
-            m_centroidYRef = Group.CentroidLivingY;
+            m_centroidXRef = Group.LivingCentroidX;
+            m_centroidYRef = Group.LivingCentroidY;
         }
         // set distance-to-centroid reference to the current distance to centroid
         private void UpdateDistanceFromCentroidRef()
@@ -434,8 +434,8 @@ namespace Grafiti.GestureRecognizers
             {
                 if (trace.Alive)
                 {
-                    dx += Math.Abs(trace.Last.X - Group.CentroidLivingX);
-                    dy += Math.Abs(trace.Last.Y - Group.CentroidLivingY);
+                    dx += Math.Abs(trace.Last.X - Group.LivingCentroidX);
+                    dy += Math.Abs(trace.Last.Y - Group.LivingCentroidY);
                 }
             }
             dx /= Group.NumberOfPresentTraces;

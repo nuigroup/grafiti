@@ -80,9 +80,12 @@ namespace Grafiti
         private int m_nOfActiveTraces;              // number of alive (present) or resurrectable traces.
         private float m_x0, m_y0;                   // initial coordinates of the first added trace
         private int m_t0, m_currentTimeStamp;       // initial and last time stamp
-        private float m_centroidX, m_centroidY;     // centroid coordinates, calculated on the last points of the
-        private float m_centroidLivingX, m_centroidLivingY;
-
+        
+        // centroid coordinates, calculated on the last points of the active traces
+        private float m_activeCentroidX, m_activeCentroidY;
+        // centroid coordinates, calculated on the last points of the living traces
+        private float m_livingCentroidX, m_livingCentroidY;
+        
         private GroupGRManager m_groupGRManager;    // gesture recognition manager
         private bool m_initializing;
         private bool m_processing;
@@ -169,22 +172,22 @@ namespace Grafiti
         public int CurrentTimeStamp { get { return m_currentTimeStamp; } }
 
         /// <summary>
-        /// Centroid x coordinate (calculated on the last point of the living and the resurrectable traces)
+        /// Centroid x coordinate, calculated on the last point of the active traces
         /// </summary>
-        public float CentroidX { get { return m_centroidX; } }
+        public float ActiveCentroidX { get { return m_activeCentroidX; } }
         /// <summary>
-        /// Centroid y coordinate (calculated on the last point of the living and the resurrectable traces)
+        /// Centroid y coordinate, calculated on the last point of the active traces
         /// </summary>
-        public float CentroidY { get { return m_centroidY; } }
+        public float ActiveCentroidY { get { return m_activeCentroidY; } }
 
         /// <summary>
-        /// Centroid x coordinate (calculated on the last point of the living traces)
+        /// Centroid x coordinate calculated on the last point of the living traces
         /// </summary>
-        public float CentroidLivingX { get { return m_centroidLivingX; } }
+        public float LivingCentroidX { get { return m_livingCentroidX; } }
         /// <summary>
-        /// Centroid y coordinate (calculated on the last point of the living traces)
+        /// Centroid y coordinate calculated on the last point of the living traces
         /// </summary>
-        public float CentroidLivingY { get { return m_centroidLivingY; } }
+        public float LivingCentroidY { get { return m_livingCentroidY; } }
 
         // Target lists
         public List<IGestureListener> InitialTargets { get { return (List<IGestureListener>)m_initialTargets; } }
@@ -253,8 +256,8 @@ namespace Grafiti
             m_nOfPresentTraces = 0;
             m_initializing = true;
 
-            m_centroidX = m_centroidY = -1;
-            m_centroidLivingX = m_centroidLivingY = -1;
+            m_activeCentroidX = m_activeCentroidY = -1;
+            m_livingCentroidX = m_livingCentroidY = -1;
             m_currentTimeStamp = -1;
 
             m_startingSequence = new List<Trace>();
@@ -431,12 +434,12 @@ namespace Grafiti
             int sn = n + nd;
             if (sn != 0)
             {
-                m_centroidX = (sx + sxd) / sn;
-                m_centroidY = (sy + syd) / sn;
+                m_activeCentroidX = (sx + sxd) / sn;
+                m_activeCentroidY = (sy + syd) / sn;
                 if (n != 0)
                 {
-                    m_centroidLivingX = sx / n;
-                    m_centroidLivingY = sy / n;
+                    m_livingCentroidX = sx / n;
+                    m_livingCentroidY = sy / n;
                 }
             }
 
@@ -679,7 +682,7 @@ namespace Grafiti
             {
                 foreach (IGestureListener target in m_currentTargets)
                 {
-                    tempDist = ((ITangibleGestureListener)target).GetSquareDistance(m_centroidX, m_centroidY);
+                    tempDist = ((ITangibleGestureListener)target).GetSquareDistance(m_activeCentroidX, m_activeCentroidY);
                     if (tempDist < minDist)
                     {
                         minDist = tempDist;

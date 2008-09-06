@@ -73,6 +73,7 @@ namespace GenericDemo
         private const float MAX_DISTANCE_FOR_LINKING = 0.3f;
         private const float SQUARE_MAX_DISTANCE = MAX_DISTANCE_FOR_LINKING * MAX_DISTANCE_FOR_LINKING;
         private Form m_form;
+        private List<ITangibleGestureListener> m_tempTangibleList = new List<ITangibleGestureListener>();
         private List<TuioObject> m_tuioObjectAddedList, m_tuioObjectUpdatedList, m_tuioObjectRemovedList;
         private List<DemoObject> m_currentTuioObjects = new List<DemoObject>();
         private Dictionary<long, DemoObject> m_idDemoObjectTable;
@@ -236,11 +237,13 @@ namespace GenericDemo
             }
         }
 
-        public IEnumerable<ITangibleGestureListener> HitTestTangibles(float x, float y)
+        public List<ITangibleGestureListener> HitTestTangibles(float x, float y)
         {
+            m_tempTangibleList.Clear();
             foreach (DemoObject t in m_currentTuioObjects)
                 if (t.ContainsPoint(x, y))
-                    yield return t;
+                    m_tempTangibleList.Add(t);
+            return m_tempTangibleList;
         }
 
         public void Draw(Graphics g, float screen)

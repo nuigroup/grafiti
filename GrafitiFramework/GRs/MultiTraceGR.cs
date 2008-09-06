@@ -144,16 +144,16 @@ namespace Grafiti.GestureRecognizers
             m_nOfFingers = 0;
         }
 
-        private void OnMultiTraceStart()       { AppendEvent(MultiTraceStarted, new MultiTraceEventArgs("MultiTraceStarted", Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
-        private void OnMultiTraceEnd()         { AppendEvent(MultiTraceEnd,     new MultiTraceEventArgs("MultiTraceEnd",     Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
-        private void OnMultiTraceGestureDown() { AppendEvent(MultiTraceDown,    new MultiTraceEventArgs("MultiTraceDown",    Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
-        private void OnMultiTraceGestureMove() { AppendEvent(MultiTraceMove,    new MultiTraceEventArgs("MultiTraceMove",    Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
-        private void OnMultiTraceGestureUp()   { AppendEvent(MultiTraceUp,      new MultiTraceEventArgs("MultiTraceUp",      Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
-        private void OnMultiTraceGestureEnter(){ AppendEvent(MultiTraceEnter,   new MultiTraceEventArgs("MultiTraceEnter",   Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
-        private void OnMultiTraceGestureLeave(){ AppendEvent(MultiTraceLeave,   new MultiTraceEventArgs("MultiTraceLeave",   Group.Id, m_nOfFingers, Group.CentroidX, Group.CentroidY)); }
+        private void OnMultiTraceStart()       { AppendEvent(MultiTraceStarted, new MultiTraceEventArgs("MultiTraceStarted", Group.Id, m_nOfFingers, Group.ActiveCentroidX, Group.ActiveCentroidY)); }
+        private void OnMultiTraceEnd()         { AppendEvent(MultiTraceEnd,     new MultiTraceEventArgs("MultiTraceEnd",     Group.Id, m_nOfFingers, Group.ActiveCentroidX, Group.ActiveCentroidY)); }
+        private void OnMultiTraceGestureDown() { AppendEvent(MultiTraceDown,    new MultiTraceEventArgs("MultiTraceDown",    Group.Id, m_nOfFingers, Group.ActiveCentroidX, Group.ActiveCentroidY)); }
+        private void OnMultiTraceGestureMove() { AppendEvent(MultiTraceMove,    new MultiTraceEventArgs("MultiTraceMove",    Group.Id, m_nOfFingers, Group.ActiveCentroidX, Group.ActiveCentroidY)); }
+        private void OnMultiTraceGestureUp()   { AppendEvent(MultiTraceUp,      new MultiTraceEventArgs("MultiTraceUp",      Group.Id, m_nOfFingers, Group.ActiveCentroidX, Group.ActiveCentroidY)); }
+        private void OnMultiTraceGestureEnter(){ AppendEvent(MultiTraceEnter,   new MultiTraceEventArgs("MultiTraceEnter",   Group.Id, m_nOfFingers, Group.ActiveCentroidX, Group.ActiveCentroidY)); }
+        private void OnMultiTraceGestureLeave(){ AppendEvent(MultiTraceLeave,   new MultiTraceEventArgs("MultiTraceLeave",   Group.Id, m_nOfFingers, Group.ActiveCentroidX, Group.ActiveCentroidY)); }
         private void OnMultiTraceFromTo()      { AppendEvent(MultiTraceFromTo,  new MultiTraceFromToEventArgs(
             "MultiTraceFromTo",  Group.Id, m_nOfFingers, Group.ClosestInitialTarget, Group.ClosestFinalTarget,
-            m_initialCentroidX, m_initialCentroidY, Group.CentroidX, Group.CentroidY)); }
+            m_initialCentroidX, m_initialCentroidY, Group.ActiveCentroidX, Group.ActiveCentroidY)); }
 
         public override void Process(List<Trace> traces)
         {
@@ -212,8 +212,8 @@ namespace Grafiti.GestureRecognizers
             {
                 if (Group.ClosestInitialTarget != null)
                 {
-                    m_initialCentroidX = Group.CentroidX;
-                    m_initialCentroidY = Group.CentroidY;
+                    m_initialCentroidX = Group.ActiveCentroidX;
+                    m_initialCentroidY = Group.ActiveCentroidY;
                 }
             }
         }
