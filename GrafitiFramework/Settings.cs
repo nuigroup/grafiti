@@ -29,22 +29,26 @@ namespace Grafiti
 
         // Attributes' names, values and default values:
 
+
         // Touch surface size ratio (width / height).
         // The unit, in all the transmitted coordinates data, will correspond to the height of the screen.
         private const string SCREEN_RATIO_NAME = "SCREEN_RATIO";
         internal static readonly float SCREEN_RATIO;
-        internal const float SCREEN_RATIO_DEFAULT = 1.333333f; // 4/3
+        internal const float SCREEN_RATIO_DEFAULT = (float)(4d / 3d);
+
 
         // The maximum time in milliseconds between cursors to determine the group's INITIAL and FINAL lists
         private const string GROUPING_SYNCH_TIME_NAME = "GROUPING_SYNCH_TIME";
         internal static readonly int GROUPING_SYNCH_TIME;
         internal const int GROUPING_SYNCH_TIME_DEFAULT = 200;//2000;
 
+
         // Maximum space between traces to be grouped together
         private const string GROUPING_SPACE_NAME = "GROUPING_SPACE";
         internal static readonly float GROUPING_SPACE;
         internal const float GROUPING_SPACE_DEFAULT = 0.2f;
 
+        
         // If set to true, the clustering will consider the distance to the closest living (not removed) trace
         // If set to false it will consider also resurrectable (recently removed) traces. This latter
         // case will support non continuous gestures like an 'x' produced with one finger that will
@@ -53,11 +57,13 @@ namespace Grafiti
         internal static readonly bool CLUSTERING_ONLY_WITH_ALIVE_TRACES;
         internal const bool CLUSTERING_ONLY_WITH_ALIVE_TRACES_DEFAULT = true;
 
+
         // Maximum time in millisecond between a 'remove' of a cursor and an 'add' of another cursor, to
         // associate the cursors to the same (discontinuous) trace.
         private const string TRACE_TIME_GAP_NAME = "TRACE_TIME_GAP";
         internal static readonly int TRACE_TIME_GAP;
         internal const int TRACE_TIME_GAP_DEFAULT = 200; //2000;
+
 
         // Maximum space between a 'remove' of a cursor and an 'add' of another cursor, to
         // associate the cursors to the same (discontinuous) trace.
@@ -65,16 +71,33 @@ namespace Grafiti
         internal static readonly float TRACE_SPACE_GAP;
         internal const float TRACE_SPACE_GAP_DEFAULT = 0.02f;
 
+
         // Group's target lists used to determine which LGRs will be called
+        private const string LGR_TARGET_LIST_NAME = "LGR_TARGET_LIST";
+        internal static readonly LGRTargetLists LGR_TARGET_LIST;
+        internal const LGRTargetLists LGR_TARGET_LIST_DEFAULT = LGRTargetLists.INTERSECTION_TARGET_LIST;
         internal enum LGRTargetLists
         {
             INITIAL_TARGET_LIST = 0,
             INTERSECTION_TARGET_LIST = 1,
             //FINAL_TARGET_LIST = 2
         }
-        private const string LGR_TARGET_LIST_NAME = "LGR_TARGET_LIST";
-        internal static readonly LGRTargetLists LGR_TARGET_LIST;
-        internal const LGRTargetLists LGR_TARGET_LIST_DEFAULT = LGRTargetLists.INTERSECTION_TARGET_LIST;
+
+
+        // Precedence to GGRs over LGRs in case of same priority number
+        private const string PRECEDENCE_GGRS_OVER_LGRS_NAME = "PRECEDENCE_GGRS_OVER_LGRS";
+        internal static readonly bool PRECEDENCE_GGRS_OVER_LGRS;
+        internal const bool PRECEDENCE_GGRS_OVER_LGRS_DEFAULT = true;
+
+
+        // Behaviour of exclusive GRs. If this flag is set to true then a winning exclusive GR, when
+        // it's armed it will block the other unarmed GRs *and* the currently interpreting which
+        // priority number is non-negative. If the flag is set to false, as by default, a winning exclusive
+        // GR, when it's armed it will block only the other unarmed GRs.
+        private const string EXCLUSIVE_BLOCK_INTERPRETING_NAME = "EXCLUSIVE_BLOCK_INTERPRETING";
+        internal static readonly bool EXCLUSIVE_BLOCK_INTERPRETING;
+        internal const bool EXCLUSIVE_BLOCK_INTERPRETING_DEFAULT = false;
+
 
         static Settings()
         {
@@ -86,6 +109,8 @@ namespace Grafiti
             TRACE_TIME_GAP = TRACE_TIME_GAP_DEFAULT;
             TRACE_SPACE_GAP = TRACE_SPACE_GAP_DEFAULT;
             LGR_TARGET_LIST = LGR_TARGET_LIST_DEFAULT;
+            PRECEDENCE_GGRS_OVER_LGRS = PRECEDENCE_GGRS_OVER_LGRS_DEFAULT;
+            EXCLUSIVE_BLOCK_INTERPRETING = EXCLUSIVE_BLOCK_INTERPRETING_DEFAULT;
 
 
             // Get settings.xml file path
@@ -198,6 +223,26 @@ namespace Grafiti
                 {
                     PrintParsingError(settingsFullFileName, reader, e);
                 }
+
+            if (reader.MoveToAttribute(PRECEDENCE_GGRS_OVER_LGRS_NAME))
+                try
+                {
+                    PRECEDENCE_GGRS_OVER_LGRS = Boolean.Parse(reader.Value);
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
+
+            if (reader.MoveToAttribute(EXCLUSIVE_BLOCK_INTERPRETING_NAME))
+                try
+                {
+                    EXCLUSIVE_BLOCK_INTERPRETING = Boolean.Parse(reader.Value);
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
         }
 
         private static void PrintParsingError(string settingsFullFileName, XmlReader reader, Exception e)
@@ -235,6 +280,14 @@ namespace Grafiti
         public static int GetLGRTargetList()
         {
             return (int)LGR_TARGET_LIST;
+        }
+        public static bool GetPrecedeceGGRsOverLGRs()
+        {
+            return PRECEDENCE_GGRS_OVER_LGRS; ;
+        }
+        public static bool GetExclusiveBlockInterpreting()
+        {
+            return EXCLUSIVE_BLOCK_INTERPRETING; ;
         }
 
     }

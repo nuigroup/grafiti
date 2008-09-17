@@ -48,7 +48,7 @@ namespace Grafiti
             m_groupId = groupId;
         }
 
-        // public abstract Clone() ?
+        public virtual GestureEventArgs Clone() { return this; }
     }
 
     /// <summary>
@@ -141,8 +141,8 @@ namespace Grafiti
         /// <summary>
         /// Max number of finger allowed. When the GR has successfully recognized a gesture, it is exclusive and
         /// it is armed, then the group will be limited by this number of fingers. However if at the moment
-        /// of the arming there are a higher number of fingers they won't be removed: the value is
-        /// significative only when adding new fingers.
+        /// of the arming there is a higher number of fingers they won't be removed: the value is
+        /// significative only when adding new fingers (i.e. addings will be inhibited).
         /// </summary>
         public int MaxNumberOfFingersAllowed 
         { 
@@ -188,9 +188,10 @@ namespace Grafiti
             m_bufferedHandlers.Clear();
             m_bufferedArgs.Clear();
         }
-        internal void OnGroupRemoval1()
+        internal void OnTerminating1()
         {
-            OnGroupRemoval();
+            //Console.WriteLine("Terminating GR " + this);
+            OnTerminating();
         } 
         #endregion
 
@@ -258,11 +259,19 @@ namespace Grafiti
         }
 
         /// <summary>
-        /// Called when the group has been definetly removed from the surface, this happens
-        /// after Settings.TRACE_TIME_GAP ms from when all the traces have been removed
-        /// Override this to handle the finalization of the lgr if needed.
+        /// Called when the GR is going to be removed from the list of active GRs and thus it won't
+        /// be called anymore. Override this to handle the finalization of the GR if needed,
+        /// like terminating threads, freeing resources, send terminating events...
+        /// State changes (about the gesture recognition) made here will be ignored.
+        /// Note: at least one of the following reasons causes this method to be called:
+        /// - previously the GR has been explicitly put in the 'terminated' state.
+        /// - the group ceased to be active
+        /// - the GR has been blocked by an exclusive winner
+        /// In case of an LGR the following reasons are also possible:
+        /// - its target has been removed from the group's LGR-list
+        /// - an LGR with different target has succeeded and has the precedence
         /// </summary>
-        protected virtual void OnGroupRemoval() { } 
+        protected virtual void OnTerminating() { } 
         #endregion
     }
 }

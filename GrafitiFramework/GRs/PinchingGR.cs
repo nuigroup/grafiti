@@ -160,39 +160,31 @@ namespace Grafiti.GestureRecognizers
     {
         public static readonly PinchingGRConfigurator DEFAULT_CONFIGURATOR = new PinchingGRConfigurator();
 
-        private const bool EXCLUSIVE_DEFAULT = false;
+        public readonly int MIN_N_OF_FINGERS_TO_RECOGNIZE;
+        public const int DEFAULT_MIN_N_OF_FINGERS_TO_RECOGNIZE = 1;
 
-        public readonly bool IS_ONE_FINGER_SCALING_ENABLED;
-        public const bool DEFAULT_IS_ONE_FINGER_SCALING_ENABLED = true;
-
-        public readonly float SCALE_FACTOR; // no
-        public const float DEFAULT_SCALE_FACTOR = 1;
-
-        public readonly float TRANSLATE_FACTOR; // no
-        public const float DEFAULT_TRANSLATE_FACTOR = 1;
+        public readonly int MAX_N_OF_FINGERS_TO_RECOGNIZE;
+        public const int DEFAULT_MAX_N_OF_FINGERS_TO_RECOGNIZE = -1;
 
         public PinchingGRConfigurator()
-            : this(DEFAULT_SCALE_FACTOR, DEFAULT_TRANSLATE_FACTOR) { }
+            : this(DEFAULT_MIN_N_OF_FINGERS_TO_RECOGNIZE, DEFAULT_MAX_N_OF_FINGERS_TO_RECOGNIZE) { }
 
-        public PinchingGRConfigurator(bool exclusive, bool isOneFingerScalingEnabled)
-            : this(exclusive, DEFAULT_SCALE_FACTOR, DEFAULT_TRANSLATE_FACTOR, isOneFingerScalingEnabled) { }
+        public PinchingGRConfigurator(bool exclusive)
+            : this(exclusive, DEFAULT_MIN_N_OF_FINGERS_TO_RECOGNIZE, DEFAULT_MAX_N_OF_FINGERS_TO_RECOGNIZE) { }
 
-        public PinchingGRConfigurator(float scaleFactor, float translateFactor)
-            : base(EXCLUSIVE_DEFAULT)
+        public PinchingGRConfigurator(int minNOfFingerToRecognize, int maxNOfFingerToRecognize)
+            : base()
         {
-            SCALE_FACTOR = scaleFactor;
-            TRANSLATE_FACTOR = translateFactor;
-            IS_ONE_FINGER_SCALING_ENABLED = DEFAULT_IS_ONE_FINGER_SCALING_ENABLED;
+            MIN_N_OF_FINGERS_TO_RECOGNIZE = minNOfFingerToRecognize;
+            MAX_N_OF_FINGERS_TO_RECOGNIZE = maxNOfFingerToRecognize;           
         }
 
-        public PinchingGRConfigurator(bool exclusive, float scaleFactor, float translateFactor, bool isOneFingerScalingEnabled)
+        public PinchingGRConfigurator(bool exclusive, int minNOfFingerToRecognize, int maxNOfFingerToRecognize)
             : base(exclusive)
         {
-            SCALE_FACTOR = scaleFactor;
-            TRANSLATE_FACTOR = translateFactor;
-            IS_ONE_FINGER_SCALING_ENABLED = isOneFingerScalingEnabled;
+            MIN_N_OF_FINGERS_TO_RECOGNIZE = minNOfFingerToRecognize;
+            MAX_N_OF_FINGERS_TO_RECOGNIZE = maxNOfFingerToRecognize;
         }
-
     }
 
 
@@ -319,11 +311,25 @@ namespace Grafiti.GestureRecognizers
             // While there has been only one trace, if scaling with one finger is disabled then
             // return a 'recognizing' result
             if (Recognizing)
-                if (m_conf.IS_ONE_FINGER_SCALING_ENABLED || Group.Traces.Count > 1)
-                    GestureHasBeenRecognized();
+                if (Group.NumberOfPresentTraces >= m_conf.MIN_N_OF_FINGERS_TO_RECOGNIZE)
+                {
+                    if (m_conf.MAX_N_OF_FINGERS_TO_RECOGNIZE < 0 ||
+                        Group.NumberOfPresentTraces <= m_conf.MAX_N_OF_FINGERS_TO_RECOGNIZE)
+                    {
+                        GestureHasBeenRecognized();
+                    }
+                    else
+                    {
+                        Terminate(false);
+                        return;
+                    }
+                }
                 else
                     if (!Group.IsPresent)
-                        GestureHasBeenRecognized(false);
+                    {
+                        Terminate(false);
+                        return;
+                    }
 
 
             // If a cursor has been added or removed this flag is set to true
@@ -386,15 +392,15 @@ namespace Grafiti.GestureRecognizers
             if (Group.NumberOfPresentTraces >= 2)
             {
                 float distanceFromCentroid = GetMeanDistanceFromCentroid();
-                float newScale = (distanceFromCentroid - m_centroidDistanceRef) * m_conf.SCALE_FACTOR;
+                float newScale = distanceFromCentroid - m_centroidDistanceRef;
                 m_scaleSpeed = (newScale - m_scale) / dt * 1000;
                 m_scale = newScale;
                 OnScale(); 
             }
 
             // Compute translation
-            float newTranslateX = (Group.LivingCentroidX - m_centroidXRef) * m_conf.TRANSLATE_FACTOR;
-            float newTranslateY = (Group.LivingCentroidY - m_centroidYRef) * m_conf.TRANSLATE_FACTOR;
+            float newTranslateX = Group.LivingCentroidX - m_centroidXRef;
+            float newTranslateY = Group.LivingCentroidY - m_centroidYRef;
             m_translateXSpeed = (newTranslateX - m_translateX) / dt * 1000;
             m_translateYSpeed = (newTranslateY - m_translateY) / dt * 1000;
             m_translateX = newTranslateX;

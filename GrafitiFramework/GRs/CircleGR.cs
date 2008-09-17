@@ -122,7 +122,7 @@ namespace Grafiti.GestureRecognizers
 
             DefaultEvents = new string[] { "Circle" };
 
-            m_left = Surface.SCREEN_RATIO;
+            m_left = Settings.GetScreenRatio();
             m_right = 0;
             m_top = 1;
             m_bottom = 0;
@@ -193,7 +193,7 @@ namespace Grafiti.GestureRecognizers
                 dx = m_pathXs[m_pathXs.Count - 1] - m_pathXs[0];
                 dy = m_pathYs[m_pathYs.Count - 1] - m_pathYs[0];
                 d = (float)Math.Sqrt(dx * dx + dy * dy);
-                if (d > radius * m_threshold)
+                if (d > radius * 2 * m_threshold)
                 {
                     Terminate(false);
                     return;

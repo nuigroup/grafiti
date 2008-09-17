@@ -412,7 +412,14 @@ namespace Grafiti.GestureRecognizers
                     ResetHover();
                     m_hoverEnabled = false;
                 }
-                Thread.Sleep(HOVER_THREAD_SLEEP_TIME);
+                try
+                {
+                    Thread.Sleep(HOVER_THREAD_SLEEP_TIME);
+                }
+                catch (ThreadInterruptedException e)
+                {
+                    break;
+                }
             }
         }
         #endregion
@@ -433,6 +440,12 @@ namespace Grafiti.GestureRecognizers
             m_newClosestCurrentTarget = newClosestCur;
             if (initial)
                 m_dragStartingListener = Group.ClosestInitialTarget;
+        }
+
+        protected override void OnTerminating()
+        {
+            m_hoverThread.Interrupt();
+            OnEndHover();
         }
     }
 }

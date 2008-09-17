@@ -27,7 +27,7 @@ namespace Grafiti
     /// Provides functionality to manage the comunication between Grafiti and the client
     /// about the targets (GUI controls and tangible objects).
     /// All functions use the Grafiti's coordinate system, that is
-    /// [0,1] for height, [0,Grafiti.Surface.SCREEN_RATIO] for width.
+    /// [0,1] for height, [0,Settings.SCREEN_RATIO] for width.
     /// </summary>
     public interface IGrafitiClientGUIManager
     {

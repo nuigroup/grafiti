@@ -82,33 +82,42 @@ namespace Grafiti.GestureRecognizers
     {
         public static readonly MultiTraceGRConfigurator DEFAULT_CONFIGURATOR = new MultiTraceGRConfigurator();
 
-        private float m_minDistance; // not used
-        private const float MIN_DIST_DEFAULT = 0.2f;
-        
-        public float MinimumDistance { get { return m_minDistance; } }
+        public readonly float MAX_SQUARE_DISTANCE;
+        private const float DEFAULT_MAX_SQUARE_DISTANCE = -1;
+
+        public readonly bool RECOGNIZE_WHEN_ENDED;
+        private const bool DEFAULT_RECOGNIZE_WHEN_ENDED = true;
+
+        public readonly bool ALLOW_AUTOLINK;
+        private const bool DEFAULT_ALLOW_AUTOLINK = true;
 
         public MultiTraceGRConfigurator()
-            : this(MIN_DIST_DEFAULT) { }
+            : this(DEFAULT_MAX_SQUARE_DISTANCE, DEFAULT_RECOGNIZE_WHEN_ENDED, DEFAULT_ALLOW_AUTOLINK) { }
 
         public MultiTraceGRConfigurator(bool exclusive)
-            : this(exclusive, MIN_DIST_DEFAULT) { }
+            : this(exclusive, DEFAULT_MAX_SQUARE_DISTANCE, DEFAULT_RECOGNIZE_WHEN_ENDED, DEFAULT_ALLOW_AUTOLINK) { }
 
-        public MultiTraceGRConfigurator(float minDistance)
+        public MultiTraceGRConfigurator(float maxSquareDistance, bool recognizeWhenEnded, bool allowAutolink)
             : base()
         {
-            m_minDistance = minDistance;
+            MAX_SQUARE_DISTANCE = maxSquareDistance;
+            RECOGNIZE_WHEN_ENDED = recognizeWhenEnded;
+            ALLOW_AUTOLINK = allowAutolink;
         }
 
-        public MultiTraceGRConfigurator(bool exclusive, float minDistance)
+        public MultiTraceGRConfigurator(bool exclusive, float maxSquareDistance, bool recognizeWhenEnded, bool allowAutolink)
             : base(exclusive)
         {
-            m_minDistance = minDistance;
+            MAX_SQUARE_DISTANCE = maxSquareDistance;
+            RECOGNIZE_WHEN_ENDED = recognizeWhenEnded;
+            ALLOW_AUTOLINK = allowAutolink;
         }
     }
 
 
     public class MultiTraceGR : GlobalGestureRecognizer
     {
+        private MultiTraceGRConfigurator m_conf;
         private int m_startingTime = -1;
         private List<Trace> m_startingTraces;
         private int m_nOfFingers;
@@ -130,7 +139,7 @@ namespace Grafiti.GestureRecognizers
             if (!(configurator is MultiTraceGRConfigurator))
                 Configurator = MultiTraceGRConfigurator.DEFAULT_CONFIGURATOR;
 
-            MultiTraceGRConfigurator conf = (MultiTraceGRConfigurator)Configurator;
+            m_conf = (MultiTraceGRConfigurator)Configurator;
             
             ClosestInitialEvents  = new string[] { "MultiTraceStarted" };
             ClosestEnteringEvents = new string[] { "MultiTraceEnter" };
@@ -160,6 +169,9 @@ namespace Grafiti.GestureRecognizers
             if (m_startingTime == -1)
                 m_startingTime = traces[0].Last.TimeStamp;
 
+            if (!m_conf.RECOGNIZE_WHEN_ENDED)
+                GestureHasBeenRecognized();
+
             m_nOfFingers = Group.NumberOfPresentTraces;
 
             OnMultiTraceGestureLeave();
@@ -181,24 +193,33 @@ namespace Grafiti.GestureRecognizers
                 else
                 {
                     OnMultiTraceGestureUp();
-                    if (!Group.IsPresent)
-                    {
-                        m_nOfFingers = 0;
-                        int endTime = trace.Last.TimeStamp;
-                        foreach (Trace startinTrace in m_startingTraces)
-                        {
-                            if (endTime - startinTrace.Last.TimeStamp <= Settings.GetGroupingSynchTime())
-                                m_nOfFingers++;
-                        }
-                        OnMultiTraceStart();
-                        OnMultiTraceEnd();
-                        if(Group.ClosestInitialTarget != null && Group.ClosestFinalTarget != null)
-                            OnMultiTraceFromTo();
-                    }
                 }
             }
 
-            GestureHasBeenRecognized();
+            if (!Group.IsPresent)
+            {
+                m_nOfFingers = 0;
+                int endTime = Group.CurrentTimeStamp;
+                foreach (Trace startingTrace in m_startingTraces)
+                {
+                    if (endTime - startingTrace.Last.TimeStamp <= Settings.GetGroupingSynchTime())
+                        m_nOfFingers++;
+                }
+                OnMultiTraceStart();
+                OnMultiTraceEnd();
+
+                // If both initial and final target exist and their distance to the initial and final group's centroids are less or equal to the threshold,
+                if (Group.ClosestInitialTarget != null && Group.ClosestFinalTarget != null &&
+                    (m_conf.ALLOW_AUTOLINK || Group.ClosestInitialTarget != Group.ClosestFinalTarget) &&
+                    (!(Group.ClosestInitialTarget is ITangibleGestureListener) || ((ITangibleGestureListener)(Group.ClosestInitialTarget)).GetSquareDistance(m_initialCentroidX, m_initialCentroidY) <= m_conf.MAX_SQUARE_DISTANCE) &&
+                    (!(Group.ClosestFinalTarget is ITangibleGestureListener) || ((ITangibleGestureListener)(Group.ClosestFinalTarget)).GetSquareDistance(Group.ActiveCentroidX, Group.ActiveCentroidY) <= m_conf.MAX_SQUARE_DISTANCE))
+                {
+                    OnMultiTraceFromTo();
+                    Terminate(true);
+                }
+                else
+                    Terminate(false);
+            }
         }
 
         protected override void UpdateEventHandlers(bool initial, bool final, bool entering, bool current, bool leaving, 

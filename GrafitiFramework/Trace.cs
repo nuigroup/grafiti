@@ -268,7 +268,7 @@ namespace Grafiti
         #endregion
 
         #region IComparable Members
-        int IComparable.CompareTo(object obj)
+        public int CompareTo(object obj)
         {
             return (int)(m_id - ((Trace)obj).Id);
         }

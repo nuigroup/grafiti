@@ -32,7 +32,6 @@ namespace Grafiti
     {
         #region Private members
         private static readonly object m_lock = new object();
-        private static GestureEventRegistry m_grRegistry = GestureEventRegistry.Instance;
         private static GRConfigurator m_defaultGRConfigurator = new GRConfigurator(false);
         #endregion
 
@@ -62,7 +61,7 @@ namespace Grafiti
         {
             lock (m_lock)
             {
-                m_grRegistry.SetPriorityNumber(grType, configurator, priorityNumber);
+                GestureEventRegistry.SetPriorityNumber(grType, configurator, priorityNumber);
             }
         }
         /// <summary>
@@ -86,7 +85,7 @@ namespace Grafiti
         {
             lock (m_lock)
             {
-                m_grRegistry.RegisterHandler(grType, grConf, ev, handler);
+                GestureEventRegistry.RegisterHandler(grType, grConf, ev, handler);
             }
         }
         /// <summary>
@@ -97,7 +96,7 @@ namespace Grafiti
         {
             lock (m_lock)
             {
-                m_grRegistry.UnregisterAllHandlers(listener);
+                GestureEventRegistry.UnregisterAllHandlers(listener);
             }
         }
         #endregion

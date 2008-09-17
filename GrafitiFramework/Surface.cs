@@ -33,7 +33,6 @@ namespace Grafiti
     public class Surface : TuioListener
     {
         #region Private members
-
         // The instance object
         private static Surface m_instance = null;
         // Locking object
@@ -41,6 +40,11 @@ namespace Grafiti
 
         // Client's GUI manager used for hit tests.
         private IGrafitiClientGUIManager m_clientGUIManager;
+
+        /// <summary>
+        /// Ratio of the camera resolutions (width resolution over height resolution).
+        /// </summary>
+        private readonly float SCREEN_RATIO;
 
         // Accumulators for adding, updating and removing cursors.
         // These lists will be cleared at the end of every TuioListener.refresh() call,
@@ -69,15 +73,10 @@ namespace Grafiti
         private DateTime m_startTime;
 
         // Auxiliary variable used for sorting targets in base of their distance to a point
-        List<TargetDistanceData> m_targetIdxDistances;
+        private List<TargetDistanceData> m_targetIdxDistances;
         #endregion
 
         #region Public properties
-        /// <summary>
-        /// Ratio of the camera resolutions (width resolution over height resolution).
-        /// </summary>
-        public const float SCREEN_RATIO = 4f / 3f; // TODO: xml configurable
-        
         // The following can be used to create a visual feedback of Grafiti.
         /// <summary>
         /// List of groups that have been added during the last refresh() call.
@@ -115,36 +114,32 @@ namespace Grafiti
             m_startTime = DateTime.Now;
 
             Settings.Initialize();
-        }
-        #endregion
-
-        #region Singleton
-        public static Surface Instance
-        {
-            get
-            {
-                lock (m_lock)
-                {
-                    if (m_instance == null)
-                        m_instance = new Surface();
-                    return m_instance;
-                }
-            }
+            SCREEN_RATIO = Settings.SCREEN_RATIO;
         }
         #endregion
 
         #region Public members
         /// <summary>
-        /// Sets the client's GUI manager.
+        /// Initializes the surface and set the client's GUI manager.
         /// </summary>
-        /// <param name="guiManager">The client's GUI manager.</param>
-        public void SetGUIManager(IGrafitiClientGUIManager guiManager)
+        /// <param name="guiManager">Client's GUI manager to set.</param>
+        public static void Initialize(IGrafitiClientGUIManager guiManager)
         {
             lock (m_lock)
             {
-                m_clientGUIManager = guiManager;
-            }
+                if (m_instance == null)
+                {
+                    m_instance = new Surface();
+                    m_instance.m_clientGUIManager = guiManager;
+                }
+                else
+                    throw new Exception("Attempting to reinitialize Surface.");
+            }            
         }
+        /// <summary>
+        /// The instance.
+        /// </summary>
+        public static Surface Instance { get { return m_instance; } }
         /// <summary>
         /// Takes a GUI control and point specified in Grafiti-coordinate-system and 
         /// returns the point relative to the GUI component in client's coordinates.
@@ -156,18 +151,15 @@ namespace Grafiti
         /// <param name="cy">Y coordinate of the converted point.</param>
         public void PointToClient(IGestureListener target, float x, float y, out float cx, out float cy)
         {
-            lock (m_lock)
-            {
-                m_clientGUIManager.PointToClient(target, x, y, out cx, out cy);
-            }
+            m_clientGUIManager.PointToClient(target, x, y, out cx, out cy);
         }
         #endregion
 
         #region TuioListener, members of
-        void TuioListener.addTuioObject(TuioObject obj) { /*Console.WriteLine("ADD");*/}
-        void TuioListener.updateTuioObject(TuioObject obj) { /*Console.WriteLine("UPDATE");*/ }
-        void TuioListener.removeTuioObject(TuioObject obj) { /*Console.WriteLine("REMOVE");*/ }
-        void TuioListener.addTuioCursor(TuioCursor c)
+        public void addTuioObject(TuioObject obj) { /*Console.WriteLine("ADD");*/}
+        public void updateTuioObject(TuioObject obj) { /*Console.WriteLine("UPDATE");*/ }
+        public void removeTuioObject(TuioObject obj) { /*Console.WriteLine("REMOVE");*/ }
+        public void addTuioCursor(TuioCursor c)
         {
             m_addingCursors.Add(
                 new CursorPoint((int)(c.getSessionID()), 
@@ -175,7 +167,7 @@ namespace Grafiti
                 c.getY(),
                 CursorPoint.States.ADDED));
         }
-        void TuioListener.updateTuioCursor(TuioCursor c)
+        public void updateTuioCursor(TuioCursor c)
         {
             m_updatingCursors.Add(
                 new CursorPoint((int)(c.getSessionID()),
@@ -183,7 +175,7 @@ namespace Grafiti
                 c.getY(),
                 CursorPoint.States.UPDATED));
         }
-        void TuioListener.removeTuioCursor(TuioCursor c)
+        public void removeTuioCursor(TuioCursor c)
         {
             m_removingCursors.Add(
                 new CursorPoint((int)(c.getSessionID()),
@@ -191,7 +183,7 @@ namespace Grafiti
                 c.getY(),
                 CursorPoint.States.REMOVED));
         }
-        void TuioListener.refresh(long timeStampAsLong)
+        public void refresh(long timeStampAsLong)
         {
             m_addedGroups.Clear();
             m_removedGroups.Clear();

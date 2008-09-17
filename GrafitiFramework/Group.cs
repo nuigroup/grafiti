@@ -114,8 +114,8 @@ namespace Grafiti
 
         private bool m_onSingleGUIControl;
 
-        private SimmetricDoubleDictionary<Trace, float> m_traceSpaceCouplingTable;
-        private SimmetricDoubleDictionary<Trace, int> m_traceTimeCouplingTable;
+        //private SimmetricDoubleDictionary<Trace, float> m_traceSpaceCouplingTable;
+        //private SimmetricDoubleDictionary<Trace, int> m_traceTimeCouplingTable;
 
         // temp auxiliary variables
         private List<List<IGestureListener>> m_currentInitialTargetLists = new List<List<IGestureListener>>();
@@ -247,9 +247,6 @@ namespace Grafiti
         #region Internal constructor
         internal Group()
         {
-            m_groupGRManager = new GroupGRManager(this);
-            m_processing = true;
-
             m_id = s_counter++;
             m_traces = new List<Trace>();
             m_nOfActiveTraces = 0;
@@ -270,8 +267,8 @@ namespace Grafiti
             m_currentResettingTraces = new List<Trace>();
             m_allCurrentTraces = new List<Trace>();
 
-            m_traceSpaceCouplingTable = new SimmetricDoubleDictionary<Trace, float>(10);
-            m_traceTimeCouplingTable = new SimmetricDoubleDictionary<Trace, int>(10);
+            //m_traceSpaceCouplingTable = new SimmetricDoubleDictionary<Trace, float>(10);
+            //m_traceTimeCouplingTable = new SimmetricDoubleDictionary<Trace, int>(10);
 
             m_initialTargets = new TargetList();
             m_newInitialTargets = new TargetList();
@@ -288,6 +285,11 @@ namespace Grafiti
             m_closestNewInitialTarget = null;
             m_closestFinalTraget = null;
 
+            // First set the GR manager...
+            m_groupGRManager = new GroupGRManager(this);
+            m_processing = true;
+
+            // ... then set the LGR target list
             if (Settings.LGR_TARGET_LIST == Settings.LGRTargetLists.INITIAL_TARGET_LIST)
             {
                 m_initialTargets = new TargetList(m_groupGRManager);
@@ -338,8 +340,8 @@ namespace Grafiti
                     CursorPoint current = t[t.Count - 1];
                     float dx = firstPoint.X - current.X;
                     float dy = firstPoint.Y - current.Y;
-                    m_traceSpaceCouplingTable[t, trace] = dx * dx + dy * dy;
-                    m_traceTimeCouplingTable[t, trace] = firstPointTimeStamp - current.TimeStamp;
+                    //m_traceSpaceCouplingTable[t, trace] = dx * dx + dy * dy;
+                    //m_traceTimeCouplingTable[t, trace] = firstPointTimeStamp - current.TimeStamp;
                 }
 
             m_currentStartingTraces.Add(trace);
@@ -389,7 +391,7 @@ namespace Grafiti
                 UpdateTargetsAndHandlers();
 
                 // process
-                if (!m_groupGRManager.Process(m_allCurrentTraces, false))
+                if (!m_groupGRManager.Process(m_allCurrentTraces, true))
                     m_processing = false;
 
                 // clear temp lists

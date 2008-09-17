@@ -53,21 +53,6 @@ namespace Grafiti
         {
             GetEventInfo(ev).AddEventHandler(this, handler);
         }
-
-        internal void OnTargetRemoved1()
-        {
-            OnTargetRemoved();
-        } 
-        #endregion
-
-        #region Protected methods
-        /// <summary>
-        /// Called if the group removes (goes out from) the lgr's target, so that Process() 
-        /// won't be called anymore This can happen if LGR_TARGET_LIST is set to 
-        /// INTERSECTION_TARGET_LIST in the global settings.
-        /// Override this to handle the finalization of the lgr, if needed.
-        /// </summary>
-        protected virtual void OnTargetRemoved() { } 
         #endregion
     } 
 }
