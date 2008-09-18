@@ -137,7 +137,7 @@ namespace Grafiti
         /// Initializes the surface and set the client's GUI manager.
         /// </summary>
         /// <param name="guiManager">Client's GUI manager to set.</param>
-        public static void Initialize(IGrafitiClientGUIManager guiManager)
+        public static Surface Initialize(IGrafitiClientGUIManager guiManager)
         {
             lock (s_lock)
             {
@@ -148,7 +148,8 @@ namespace Grafiti
                 }
                 else
                     throw new Exception("Attempting to reinitialize Surface.");
-            }            
+            }
+            return s_instance;
         }
         /// <summary>
         /// The instance.

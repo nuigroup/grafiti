@@ -40,7 +40,7 @@ namespace GrafitiDemo
         // Tuio listeners:
         //
         // Grafiti's surface (listens to TuioCursors messages)
-        private static Surface s_GrafitiSurface;
+        private static Surface s_grafitiSurface;
         //
         // Manages tuio objects (listens to TuioObject messages).
         private static DemoObjectManager s_demoObjectManager;
@@ -126,7 +126,7 @@ namespace GrafitiDemo
             lock (s_lock)
             {
                 // Add demo groups
-                foreach (Group group in Surface.Instance.AddedGroups)
+                foreach (Group group in s_grafitiSurface.AddedGroups)
                 {
                     m_demoGroups.Add(new DemoGroup(this, group, new MyColor(m_random.NextDouble(),m_random.NextDouble(),m_random.NextDouble())));
                 }
@@ -134,7 +134,7 @@ namespace GrafitiDemo
                 // Remove demo groups
                 m_demoGroups.RemoveAll(delegate(DemoGroup demoGroup)
                 {
-                    return (Surface.Instance.RemovedGroups.Contains(demoGroup.Group));
+                    return (s_grafitiSurface.RemovedGroups.Contains(demoGroup.Group));
                 });
 
                 foreach (DemoGroup demoGroup in m_demoGroups)
@@ -222,14 +222,14 @@ namespace GrafitiDemo
                 s_viewer = new Viewer();
 
             // instantiate Grafiti
-            Surface.Initialize(s_viewer);
+            s_grafitiSurface = Surface.Initialize(s_viewer);
 
             // instantiate objects' manager
             s_demoObjectManager = new DemoObjectManager(s_viewer);
 
             // Tuio connections
             s_client = new TuioClient(port);            
-            s_client.addTuioListener(Surface.Instance);
+            s_client.addTuioListener(s_grafitiSurface);
             s_client.addTuioListener(s_demoObjectManager);
             s_client.addTuioListener(s_viewer);
             s_client.connect();
@@ -250,18 +250,22 @@ namespace GrafitiDemo
 
             // enter the main loop. Glut will be here permanently from now on
             // until we quit the program
-            Glut.glutMainLoop();
+            try
+            {
+                Glut.glutMainLoop();
+            }
+            catch (ThreadAbortException e)
+            {
+                Exit();
+            }
         }
 
         private static void Exit()
         {
+            s_client.disconnect();
             s_client.removeTuioListener(s_viewer);
             s_client.removeTuioListener(s_demoObjectManager);
-            s_client.removeTuioListener(Surface.Instance);
-            s_client.disconnect();
-
-            Glut.glutLeaveMainLoop();
-
+            s_client.removeTuioListener(s_grafitiSurface);
             System.Environment.Exit(0);
         }
 
@@ -296,6 +300,8 @@ namespace GrafitiDemo
             //Gl.glDepthFunc(Gl.GL_LEQUAL);
             //Gl.glHint(Gl.GL_PERSPECTIVE_CORRECTION_HINT, Gl.GL_NICEST);
             //Gl.glCullFace(Gl.GL_BACK);
+
+            Glut.glutShowWindow();
         }
 
         /// <summary>
@@ -427,6 +433,30 @@ namespace GrafitiDemo
         }
 
 
+        private void ToggleFullScreen()
+        {
+            m_fullscreen = !m_fullscreen;
+            if (m_fullscreen)
+            {
+                // get the size of the window
+                int[] viewport = new int[4];
+                Gl.glGetIntegerv(Gl.GL_VIEWPORT, viewport);
+                m_window_width = viewport[2];
+                m_window_height = viewport[3];
+
+                //RECT rect = new RECT();
+                //if (GetWindowRect( ?, out rect))
+                m_window_left = 0;// xPos;
+                m_window_top = 0;// yPos;
+                Glut.glutFullScreen();
+            }
+            else
+            {
+                Glut.glutPositionWindow(m_window_left, m_window_top);
+                Glut.glutReshapeWindow(m_window_width, m_window_height);
+            }
+        }
+
         #region Keyboard input functions
         /// <summary>
         /// handles 'normal' key presses. 
@@ -442,46 +472,16 @@ namespace GrafitiDemo
         {
             switch (key)
             {
-                case (byte)'q':
-                    Exit();
+                case (byte)27: // ESC
+                    Thread.CurrentThread.Abort();
                     break;
 
                 case (byte)'c':
                     m_displayCalibrationGrid = !m_displayCalibrationGrid;
                     break;
 
-                case (byte)'t':
-                    if (s_timerTime > 10)
-                        s_timerTime--;
-                    Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
-                    break;
-
-                case (byte)'T':
-                    s_timerTime++;
-                    Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
-                    break;
-
                 case (byte)'f':
-                    m_fullscreen = !m_fullscreen;
-                    if (m_fullscreen)
-                    {
-                        // get the size of the window
-                        int[] viewport = new int[4];
-                        Gl.glGetIntegerv(Gl.GL_VIEWPORT, viewport);
-                        m_window_width = viewport[2];
-                        m_window_height = viewport[3];
-
-                        //RECT rect = new RECT();
-                        //if (GetWindowRect( ?, out rect))
-                        m_window_left = 0;// xPos;
-                        m_window_top = 0;// yPos;
-                        Glut.glutFullScreen();
-                    }
-                    else
-                    {
-                        Glut.glutPositionWindow(m_window_left, m_window_top);
-                        Glut.glutReshapeWindow(m_window_width, m_window_height);
-                    }
+                    ToggleFullScreen();
                     break;
             }
 
@@ -570,6 +570,25 @@ namespace GrafitiDemo
                 }
             }
 
+            switch ((char)key)
+            {
+                case (char)Glut.GLUT_KEY_F1:
+                    ToggleFullScreen();
+                    break;
+
+                case (char)Glut.GLUT_KEY_F2:
+                    if (s_timerTime > 10)
+                    {
+                        s_timerTime--;
+                        Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
+                    }
+                    break;
+
+                case (char)Glut.GLUT_KEY_F3:
+                    s_timerTime++;
+                    Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
+                    break;
+            }
 
             // force re-display
             Glut.glutPostRedisplay();
