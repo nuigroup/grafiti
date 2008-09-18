@@ -30,68 +30,69 @@ using System.Runtime.InteropServices;
 
 namespace GrafitiDemo
 {
-    public class MainClass : TuioListener, IGrafitiClientGUIManager, IGestureListener
+    public class Viewer : TuioListener, IGrafitiClientGUIManager, IGestureListener
     {
         #region Declarations
-        private static MainClass s_instance = null;
 
-        private static object m_lock = new object();
+        // Tuio client
+        private static TuioClient s_client;
 
-        // The Tuio client
-        private TuioClient m_client;
+        // Tuio listeners:
+        //
+        // Grafiti's surface (listens to TuioCursors messages)
+        private static Surface s_GrafitiSurface;
+        //
+        // Manages tuio objects (listens to TuioObject messages).
+        private static DemoObjectManager s_demoObjectManager;
+        //
+        // The instance of this class is an auxiliar listener.
+        // Retrieves data from Grafiti synchronously to output a visual feedback.
+        // Also calls the display function of the Tuio objects' manager.
+        private static Viewer s_viewer;
 
-        // Manages tuio objects
-        private DemoObjectManager m_demoObjectManager;
 
         // Manages the visual feedback of Grafiti's groups of fingers
         private List<DemoGroup> m_demoGroups = new List<DemoGroup>();
 
 
-        private bool m_teapotEnabled = false;
-        private float m_teapotX = 0.5f, m_teapotY = 0.5f, m_teapotScale = 0.2f;
-
-
         // Coordinates stuff
-        internal int m_width, m_height;
-        private int m_window_width = 640;
-        private int m_window_height = 480;
         private int m_window_left = 0;
         private int m_window_top = 0;
-        private float m_centerScreenOffsetX = 0;
+        private int m_window_width = 640;
+        private int m_window_height = 480;
+        private float m_projectionX = 0.44f;
+        private float m_projectionY = 0.82f;
+        private float m_projectionW = 10.08f;
+        private float m_projectionH = 10f;
+        private float m_projectionYAngle = -8.5f;
 
+        // Graphic variables
+        private bool m_displayCalibrationGrid = true;
+        private static int m_timerTime = 30;
+        private bool m_fullscreen = false;
+
+        private bool m_displayTeapot = false;
+        private float m_teapotX = 0.5f, m_teapotY = 0.5f, m_teapotScale = 0.2f;
 
         // Auxiliar variables
-        private const string m_name = "Grafiti Demo";
+        private static object s_lock = new object();
         internal Random m_random = new Random();
-        private bool m_fullscreen = false;
-        private long m_lastTimestampInvalidate = 0;
+        private const string m_name = "Grafiti Demo";
         #endregion
 
-        #region Constructor
-        private MainClass(int port)
+        #region Constructors
+        private Viewer()
         {
-            m_width = m_window_width;
-            m_height = m_window_height;
-
-            m_demoObjectManager = new DemoObjectManager(this);
-
-            Surface.Initialize(this);
-
-            m_client = new TuioClient(port);
-
-            // Grafiti main listener - Tuio cursor listener
-            m_client.addTuioListener(Surface.Instance);
-
-            // Tuio object listener
-            m_client.addTuioListener(m_demoObjectManager);
-
-            // Auxiliar listener, that retrieves data from grafiti synchronously to output a visual feedback
-            m_client.addTuioListener(this);
-
-            m_client.connect();
-
             GestureEventManager.SetPriorityNumber(typeof(CircleGR), 2);
             GestureEventManager.RegisterHandler(typeof(CircleGR), "Circle", OnCircleGesture);
+        }
+        private Viewer(float x, float y, float w, float h, float a) : this()
+        {
+            m_projectionX = x;
+            m_projectionY = y;
+            m_projectionW = w;
+            m_projectionH = h;
+            m_projectionYAngle = a;
         }
         #endregion
 
@@ -100,10 +101,10 @@ namespace GrafitiDemo
         {
             CircleGREventArgs cArgs = (CircleGREventArgs)args;
             
-            lock (m_lock)
+            lock (s_lock)
             {
-                m_teapotEnabled = !m_teapotEnabled;
-                if (m_teapotEnabled)
+                m_displayTeapot = !m_displayTeapot;
+                if (m_displayTeapot)
                 {
                     m_teapotX = cArgs.MeanCenterX;
                     m_teapotY = cArgs.MeanCenterY;
@@ -122,7 +123,7 @@ namespace GrafitiDemo
         public void removeTuioCursor(TuioCursor c) { }
         public void refresh(long timestamp)
         {
-            lock (m_lock)
+            lock (s_lock)
             {
                 // Add demo groups
                 foreach (Group group in Surface.Instance.AddedGroups)
@@ -139,13 +140,6 @@ namespace GrafitiDemo
                 foreach (DemoGroup demoGroup in m_demoGroups)
                     demoGroup.Update(timestamp);
             }
-
-            if (timestamp - m_lastTimestampInvalidate >= 40)
-            {
-                m_lastTimestampInvalidate = timestamp;
-                //Invalidate();
-            }
-            //refresh
         }
         #endregion
 
@@ -156,7 +150,7 @@ namespace GrafitiDemo
         }
         public List<ITangibleGestureListener> HitTestTangibles(float x, float y)
         {
-            return m_demoObjectManager.HitTestTangibles(x, y);
+            return s_demoObjectManager.HitTestTangibles(x, y);
         }
         public void PointToClient(IGestureListener target, float x, float y, out float cx, out float cy)
         {
@@ -173,50 +167,83 @@ namespace GrafitiDemo
         [STAThread]
         static void Main(String[] argv)
         {
+            float x = 0, y = 0, w = 0, h = 0, a = 0;
+            bool projectionParameters = false;
 
-            int port = 0;
+            int port = 3333;
             switch (argv.Length)
             {
+                case 0:
+                    break;
+
                 case 1:
                     port = int.Parse(argv[0], null);
                     if (port == 0) goto default;
                     break;
-                case 0:
-                    port = 3333;
+
+                case 5:
+                    x = float.Parse(argv[0], null);
+                    y = float.Parse(argv[1], null);
+                    w = float.Parse(argv[2], null);
+                    h = float.Parse(argv[3], null);
+                    a = float.Parse(argv[4], null);
+                    projectionParameters = true;
                     break;
+
+                case 6:
+                    x = float.Parse(argv[1], null);
+                    y = float.Parse(argv[2], null);
+                    w = float.Parse(argv[3], null);
+                    h = float.Parse(argv[4], null);
+                    a = float.Parse(argv[5], null);
+                    projectionParameters = true;
+                    goto case 1;
+                    break;
+
                 default:
-                    Console.WriteLine("usage: [mono] GrafitiGenericDemo [port]");
+                    Console.WriteLine("Usage: [mono] GrafitiGenericDemo [port] [x y w h a]");
                     System.Environment.Exit(0);
                     break;
             }
 
-            // these will force the compilation of the GR classes
+            // Force compilation of GR classes
             new PinchingGR(new GRConfigurator());
             new BasicMultiFingerGR(new GRConfigurator());
             new MultiTraceGR(new GRConfigurator());
             new RemovingLinkGR(new GRConfigurator());
             new CircleGR(new GRConfigurator());
 
-            s_instance = new MainClass(port);
+
+            // instantiate viewer
+
+            if(projectionParameters)
+                s_viewer = new Viewer(x, y, w, h, a);
+            else
+                s_viewer = new Viewer();
+
+            // instantiate Grafiti
+            Surface.Initialize(s_viewer);
+
+            // instantiate objects' manager
+            s_demoObjectManager = new DemoObjectManager(s_viewer);
+
+            // Tuio connections
+            s_client = new TuioClient(port);            
+            s_client.addTuioListener(Surface.Instance);
+            s_client.addTuioListener(s_demoObjectManager);
+            s_client.addTuioListener(s_viewer);
+            s_client.connect();
 
 
-
-
-            // initialise glut library
+            // initialize glut library
             Glut.glutInit();
 
-            // initialise the window settings
-            Glut.glutInitDisplayMode(Glut.GLUT_DOUBLE | Glut.GLUT_RGB);
-            Glut.glutInitWindowSize(300, 300);
-            Glut.glutCreateWindow("Grafiti Demo");
+            // do our own initialization
+            s_viewer.Init();
 
-            // do our own initialisation
-            Init();
-
-            // keyboard callback functions
+            // callback functions
             Glut.glutKeyboardFunc(new Glut.KeyboardCallback(S_KeyPressed));
-
-            // set the callback functions
+            Glut.glutSpecialFunc(new Glut.SpecialCallback(S_SpecialKeyPressed));
             Glut.glutDisplayFunc(new Glut.DisplayCallback(S_Display));
             Glut.glutReshapeFunc(new Glut.ReshapeCallback(S_Reshape));
             Glut.glutTimerFunc(40, new Glut.TimerCallback(S_Timer), 0);
@@ -226,28 +253,35 @@ namespace GrafitiDemo
             Glut.glutMainLoop();
         }
 
-
-        #region Private members
-        private void Exit()
+        private static void Exit()
         {
-            m_client.removeTuioListener(this);
-            m_client.removeTuioListener(m_demoObjectManager);
-            m_client.removeTuioListener(Surface.Instance);
-            m_client.disconnect();
+            s_client.removeTuioListener(s_viewer);
+            s_client.removeTuioListener(s_demoObjectManager);
+            s_client.removeTuioListener(Surface.Instance);
+            s_client.disconnect();
 
             Glut.glutLeaveMainLoop();
 
             System.Environment.Exit(0);
         }
-        #endregion
 
+
+
+        #region Graphic functions
 
         /// <summary>
         /// initialises the openGL settings
         /// </summary>
-        private static void Init()
-        { 
+        private void Init()
+        {
+            // initialize the window settings
+            Glut.glutInitDisplayMode(Glut.GLUT_DOUBLE | Glut.GLUT_RGB);
+            Glut.glutInitWindowSize(m_window_width, m_window_height);
+            Glut.glutCreateWindow(m_name);
+
             Gl.glClearColor(0.0f, 0.0f, 0.3f, 1.0f);
+            Gl.glClearDepth(1.0f);
+            Gl.glHint(Gl.GL_PERSPECTIVE_CORRECTION_HINT, Gl.GL_NICEST);
             //Gl.glShadeModel(Gl.GL_SMOOTH);
             Gl.glPushAttrib(Gl.GL_DEPTH_BUFFER_BIT);
             Gl.glDisable(Gl.GL_DEPTH_TEST);
@@ -271,7 +305,7 @@ namespace GrafitiDemo
         /// <param name="h">ne height of the window</param>
         private static void S_Reshape(int w, int h)
         {
-            s_instance.Reshape(w, h);
+            s_viewer.Reshape(w, h);
         }
         private void Reshape(int w, int h)
         {
@@ -282,83 +316,116 @@ namespace GrafitiDemo
 
             Gl.glMatrixMode(Gl.GL_PROJECTION);
             Gl.glLoadIdentity();
+
             //int[] vPort = new int[4];
             //Gl.glGetIntegerv(Gl.GL_VIEWPORT, vPort);
             //Gl.glOrtho(vPort[0], vPort[0] + vPort[2], vPort[1] + vPort[3], vPort[1], -1, 1);
 
-            //Glu.gluPerspective(45f, 4f / 3f, 0.1, 5);
-            //Gl.glFrustum(0, w, h, 0, 20, 500);
-            
-            Gl.glOrtho(0, w, h, 0, -1, 1);
+            Glu.gluPerspective(90f, 4f / 3f, 0.1f, 100f);
+            //Gl.glFrustum(0, w, h, 0, 0.1, 500);
+            //Gl.glOrtho(0, w, h, 0, -1, 1);
 
             Gl.glMatrixMode(Gl.GL_MODELVIEW);
-
-
-            if ((float)w / (float)h > Settings.GetScreenRatio())
-                m_centerScreenOffsetX = ((float)w - h * Settings.GetScreenRatio()) / 2;
-            else
-                m_centerScreenOffsetX = 0;
-
-            m_width = w;
-            m_height = h;
         }
 
         private static void S_Timer(int val)
         {
             Glut.glutPostRedisplay();
-            Glut.glutTimerFunc(42, S_Timer, 0);
-            Thread.Sleep(30);
+            Glut.glutTimerFunc(m_timerTime, S_Timer, 0);
+            Thread.Sleep(m_timerTime - 10);
         }
 
         /// <summary>
-        /// the display callback function 
+        /// the display callback function
         /// </summary>
         private static void S_Display()
         {
-            s_instance.Display();
+            s_viewer.Display();
         }
         private void Display()
         {
             Gl.glClear(Gl.GL_COLOR_BUFFER_BIT);
             Gl.glLoadIdentity();
-            Gl.glTranslatef(m_centerScreenOffsetX + 0.375f, 0.375f, 0f);
+            Gl.glScalef(1, -1, 1);
+            Gl.glTranslatef(m_projectionX - m_projectionW / 2, m_projectionY - m_projectionH / 2, -5f);
+            Gl.glTranslatef(m_projectionW / 2, m_projectionH / 2, 0);
+            Gl.glRotatef(m_projectionYAngle, 1, 0, 0);
+            Gl.glTranslatef(-m_projectionW / 2, -m_projectionH / 2, 0);
+            Gl.glScalef(m_projectionW, m_projectionH, 0);
 
-            //Gl.glRotatef(45, 1, 0, 0);
-
-            Gl.glPushMatrix();
-                Gl.glScalef(m_height, m_height, 1f);
-                lock (m_lock)
-                {
-                    // teapot
-                    if (m_teapotEnabled)
-                    {
-                        Gl.glColor3d(1, 1, 1);
-                        Gl.glPushMatrix();
-                            Gl.glTranslatef(m_teapotX, m_teapotY, 0f);
-                            Gl.glScalef(1, -1, 1);
-                            Glut.glutSolidTeapot(m_teapotScale);
-                        Gl.glPopMatrix();
-                    }
-
-                    // draw finger groups
-                    foreach (DemoGroup demoGroup in m_demoGroups)
-                        demoGroup.Draw();
-                }
-
-
-            // draw objects
-            m_demoObjectManager.Draw();
-            Gl.glPopMatrix();
-
-
-
-            //Gl.glBlendFunc(Gl.GL_SRC_ALPHA, Gl.GL_ONE_MINUS_SRC_ALPHA);
-            //Gl.glEnable(Gl.GL_BLEND);
             //Gl.glEnable(Gl.GL_LINE_SMOOTH);
             //Gl.glLineWidth(2.0f);
 
+            lock (s_lock)
+            {
+                // teapot
+                if (m_displayTeapot)
+                {
+                    Gl.glColor3d(1, 1, 1);
+                    Gl.glPushMatrix();
+                    Gl.glTranslatef(m_teapotX, m_teapotY, 0f);
+                    Gl.glScalef(1, -1, 1);
+                    Glut.glutSolidTeapot(m_teapotScale);
+                    Gl.glPopMatrix();
+                }
+
+                // draw finger groups
+                foreach (DemoGroup demoGroup in m_demoGroups)
+                    demoGroup.Draw();
+            }
+
+
+            // draw objects
+            s_demoObjectManager.Draw();
+
+
+            if (m_displayCalibrationGrid)
+                DisplayCalibrationGrid();
+
             Glut.glutSwapBuffers();
         }
+
+
+        private void DisplayCalibrationGrid()
+        {
+            float grid_width = 7, grid_height = 7;
+
+            Gl.glPushMatrix();
+            Gl.glColor4d(1, 1, 1, 1);
+            Gl.glLineWidth(3.0f);
+
+            // grid
+            Gl.glBegin(Gl.GL_LINES);
+            for (float k = -0f; k < 1; k += 0.999f / (grid_width - 1.0f))
+            {
+                Gl.glVertex2f(k, 0.0f);
+                Gl.glVertex2f(k, 1.0f);
+            }
+
+            for (float k = -0f; k < 1; k += 0.999f / (grid_height - 1.0f))
+            {
+                Gl.glVertex2f(0f, k);
+                Gl.glVertex2f(1.0f, k);
+            }
+            Gl.glEnd();
+            // circles
+            Gl.glBegin(Gl.GL_LINE_LOOP);
+            for (float angle = 0.0f; angle < Math.PI * 2; angle += ((float)Math.PI / 40.0f))
+                Gl.glVertex2d((Math.Sin(angle) / 2) + 0.5, (Math.Cos(angle) / 2) + 0.5);
+            Gl.glEnd();
+
+            Gl.glBegin(Gl.GL_LINE_LOOP);
+            for (float angle = 0.0f; angle < Math.PI * 2; angle += ((float)Math.PI / 30.0f))
+                Gl.glVertex2d(Math.Sin(angle) * 0.33 + 0.5, Math.Cos(angle) * 0.33 + 0.5);
+            Gl.glEnd();
+
+            Gl.glBegin(Gl.GL_LINE_LOOP);
+            for (float angle = 0.0f; angle < Math.PI * 2; angle += ((float)Math.PI / 30.0f))
+                Gl.glVertex2d(Math.Sin(angle) * 0.165 + 0.5, Math.Cos(angle) * 0.165 + 0.5);
+            Gl.glEnd();
+            Gl.glPopMatrix();
+        }
+
 
         #region Keyboard input functions
         /// <summary>
@@ -369,17 +436,31 @@ namespace GrafitiDemo
         /// <param name="y"> the y coord of the mouse at the time </param>
         private static void S_KeyPressed(byte key, int x, int y)
         {
-            s_instance.KeyPressed(key, x, y);
+            s_viewer.KeyPressed(key, x, y);
         }
         private void KeyPressed(byte key, int x, int y)
         {
             switch (key)
             {
-                case (byte)'a':
-                    break;
                 case (byte)'q':
                     Exit();
                     break;
+
+                case (byte)'c':
+                    m_displayCalibrationGrid = !m_displayCalibrationGrid;
+                    break;
+
+                case (byte)'t':
+                    if (m_timerTime > 10)
+                        m_timerTime--;
+                    Console.WriteLine("Redraw timer cycle: " + m_timerTime + "ms (~" + (int)(1000f / (float)m_timerTime) + " fps).");
+                    break;
+
+                case (byte)'T':
+                    m_timerTime++;
+                    Console.WriteLine("Redraw timer cycle: " + m_timerTime + "ms (~" + (int)(1000f / (float)m_timerTime) + " fps).");
+                    break;
+
                 case (byte)'f':
                     m_fullscreen = !m_fullscreen;
                     if (m_fullscreen)
@@ -402,13 +483,109 @@ namespace GrafitiDemo
                         Glut.glutReshapeWindow(m_window_width, m_window_height);
                     }
                     break;
-                // etc 
             }
+
+            if (m_displayCalibrationGrid)
+            {
+                switch (key)
+                {
+                    case (byte)'a':
+                        m_projectionYAngle += 0.1f;
+                        PrintProjectionParameters();
+                        break;
+
+                    case (byte)'z':
+                        m_projectionYAngle -= 0.1f;
+                        PrintProjectionParameters();
+                        break;
+                }
+            }
+
+
             // force re-display
             Glut.glutPostRedisplay();
 
             //HWND z;
         }
+
+        /// <summary>
+        /// handles 'special' key presses. F1-F12 and cursor keys
+        /// </summary>
+        /// <param name="key"> the key that was pressed </param>
+        /// <param name="x"> the x coord of the mouse at the time </param>
+        /// <param name="y"> the y coord of the mouse at the time </param>
+        private static void S_SpecialKeyPressed(int key, int x, int y)
+        {
+            s_viewer.SpecialKeyPressed(key, x, y);
+        }
+        private void SpecialKeyPressed(int key, int x, int y)
+        {
+            bool shift = (Glut.glutGetModifiers() & Glut.GLUT_ACTIVE_SHIFT) == 1;
+
+            if (m_displayCalibrationGrid)
+            {
+                if (!shift)
+                {
+                    switch ((char)key)
+                    {
+                        case (char)Glut.GLUT_KEY_RIGHT:
+                            m_projectionX += 0.01f;
+                            PrintProjectionParameters();
+                            break;
+                        case (char)Glut.GLUT_KEY_LEFT:
+                            m_projectionX -= 0.01f;
+                            PrintProjectionParameters();
+                            break;
+                        case (char)Glut.GLUT_KEY_DOWN:
+                            m_projectionY += 0.01f;
+                            PrintProjectionParameters();
+                            break;
+                        case (char)Glut.GLUT_KEY_UP:
+                            m_projectionY -= 0.01f;
+                            PrintProjectionParameters();
+                            break;
+                    }
+                }
+                else
+                {
+                    switch ((char)key)
+                    {
+                        case (char)Glut.GLUT_KEY_RIGHT:
+                            m_projectionW += 0.01f;
+                            PrintProjectionParameters();
+                            break;
+                        case (char)Glut.GLUT_KEY_LEFT:
+                            m_projectionW -= 0.01f;
+                            PrintProjectionParameters();
+                            break;
+                        case (char)Glut.GLUT_KEY_DOWN:
+                            m_projectionH -= 0.01f;
+                            PrintProjectionParameters();
+                            break;
+                        case (char)Glut.GLUT_KEY_UP:
+                            m_projectionH += 0.01f;
+                            PrintProjectionParameters();
+                            break;
+                    }
+                }
+            }
+
+
+            // force re-display
+            Glut.glutPostRedisplay();
+        }
+
+        private void PrintProjectionParameters()
+        {
+            Console.Write("Projection params:");
+            Console.Write(" X = " + m_projectionX);
+            Console.Write(", Y = " + m_projectionY);
+            Console.Write(", W = " + m_projectionW);
+            Console.Write(", H = " + m_projectionH);
+            Console.Write(", Ay = " + m_projectionYAngle);
+            Console.WriteLine();
+        }
+
 
         //[DllImport("user32.dll", SetLastError = true)] 
         //static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
@@ -421,5 +598,7 @@ namespace GrafitiDemo
         //    public int Height;
         //}
         #endregion
+        #endregion
+ 
     }
 }

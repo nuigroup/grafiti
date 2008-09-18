@@ -30,7 +30,7 @@ namespace GrafitiDemo
 {
     public class DemoObjectLink
     {
-        private MainClass m_mainClass;
+        private Viewer m_viewer;
         private DemoObject m_fromObject, m_toObject;
         private float m_xm, m_ym; // mean point
         private int m_nFingers;
@@ -40,9 +40,9 @@ namespace GrafitiDemo
         public DemoObject FromObject { get { return m_fromObject; } }
         public DemoObject ToObject { get { return m_toObject; } }
 
-        public DemoObjectLink(MainClass mainClass, DemoObject from, DemoObject to, int nFingers)
+        public DemoObjectLink(Viewer viewer, DemoObject from, DemoObject to, int nFingers)
         {
-            m_mainClass = mainClass;
+            m_viewer = viewer;
             m_fromObject = from;
             m_toObject = to;
             m_nFingers = nFingers;
@@ -75,8 +75,10 @@ namespace GrafitiDemo
     public class DemoObjectManager : TuioListener, IGestureListener
     {
         #region Variables
+        private readonly float CAM_RESO_RATIO = Settings.GetCameraResolutionRatio();
+        private readonly float OFFSET_X = Surface.Instance.OffsetX;
         private const float MAX_SQUARE_DISTANCE_FOR_LINKING = 0.25f * 0.25f;
-        private MainClass m_mainClass;
+        private Viewer m_viewer;
         private List<ITangibleGestureListener> m_tempTangibleList = new List<ITangibleGestureListener>();
         private List<TuioObject> m_tuioObjectAddedList, m_tuioObjectUpdatedList, m_tuioObjectRemovedList;
         private List<DemoObject> m_currentTuioObjects = new List<DemoObject>();
@@ -95,9 +97,9 @@ namespace GrafitiDemo
         
         #endregion
 
-        public DemoObjectManager(MainClass mainClass)
+        public DemoObjectManager(Viewer viewer)
         {
-            m_mainClass = mainClass;
+            m_viewer = viewer;
             m_tuioObjectAddedList = new List<TuioObject>();
             m_tuioObjectUpdatedList = new List<TuioObject>();
             m_tuioObjectRemovedList = new List<TuioObject>();
@@ -145,18 +147,18 @@ namespace GrafitiDemo
 
                 foreach (TuioObject o in m_tuioObjectAddedList)
                 {
-                    DemoObject demoObject = new DemoObject(this, m_mainClass, (int)o.getSessionID(), o.getX() * Settings.GetScreenRatio(), o.getY(), o.getAngle());
+                    DemoObject demoObject = new DemoObject(this, m_viewer, (int)o.getSessionID(), (o.getX() + OFFSET_X) * Settings.GetCameraResolutionRatio(), o.getY(), o.getAngle());
                     m_idDemoObjectTable[o.getSessionID()] = demoObject;
                     m_currentTuioObjects.Add(demoObject);
                 }
                 foreach (TuioObject o in m_tuioObjectUpdatedList)
                 {
-                    m_idDemoObjectTable[o.getSessionID()].Update(o.getX() * Settings.GetScreenRatio(), o.getY(), o.getAngle());
+                    m_idDemoObjectTable[o.getSessionID()].Update((o.getX() + OFFSET_X) * Settings.GetCameraResolutionRatio(), o.getY(), o.getAngle());
                 }
                 foreach (TuioObject o in m_tuioObjectRemovedList)
                 {
                     DemoObject demoObject = m_idDemoObjectTable[o.getSessionID()];
-                    demoObject.RemoveFromSurface();
+                    demoObject.Remove((o.getX() + OFFSET_X) * Settings.GetCameraResolutionRatio(), o.getY(), o.getAngle());
                     m_idDemoObjectTable.Remove(o.getSessionID());
                     m_currentTuioObjects.Remove(demoObject);
                     foreach (DemoObjectLink link in demoObject.Links)
@@ -233,7 +235,7 @@ namespace GrafitiDemo
         private DemoObjectLink MakeLink(DemoObject from, DemoObject to, int n)
         {
             if (m_currentTuioObjects.Contains(from) && m_currentTuioObjects.Contains(to))
-                return new DemoObjectLink(m_mainClass, from, to, n);
+                return new DemoObjectLink(m_viewer, from, to, n);
             else
                 return null;
         }

@@ -30,11 +30,18 @@ namespace Grafiti
         // Attributes' names, values and default values:
 
 
-        // Touch surface size ratio (width / height).
+        // Camera resolution ratio (width resolution over height resolution).
         // The unit, in all the transmitted coordinates data, will correspond to the height of the screen.
-        private const string SCREEN_RATIO_NAME = "SCREEN_RATIO";
-        internal static readonly float SCREEN_RATIO;
-        internal const float SCREEN_RATIO_DEFAULT = (float)(4d / 3d);
+        private const string CAM_RESO_RATIO_NAME = "CAMERA_RESOLUTION_RATIO";
+        internal static readonly float CAM_RESO_RATIO;
+        internal const float CAM_RESO_RATIO_DEFAULT = (float)(4d / 3d);
+
+        // Offset for Tuio's x coordinates can be 0 for rectangular touch table or
+        // (1f - 1f / CAMERA_RESOLUTION_RATIO) / 2 for round or square tables (ratio 1:1),
+        // to adjust the origin such the origin corresponds to the upper left corner of the table.
+        private const string RECTANGULAR_TABLE_NAME = "RECTANGULAR_TABLE";
+        internal static readonly bool RECTANGULAR_TABLE;
+        internal const bool RECTANGULAR_TABLE_DEFAULT = false;
 
 
         // The maximum time in milliseconds between cursors to determine the group's INITIAL and FINAL lists
@@ -102,7 +109,8 @@ namespace Grafiti
         static Settings()
         {
             // Default settings
-            SCREEN_RATIO = SCREEN_RATIO_DEFAULT;
+            CAM_RESO_RATIO = CAM_RESO_RATIO_DEFAULT;
+            RECTANGULAR_TABLE = RECTANGULAR_TABLE_DEFAULT;
             GROUPING_SYNCH_TIME = GROUPING_SYNCH_TIME_DEFAULT;
             GROUPING_SPACE = GROUPING_SPACE_DEFAULT;
             CLUSTERING_ONLY_WITH_ALIVE_TRACES = CLUSTERING_ONLY_WITH_ALIVE_TRACES_DEFAULT;
@@ -144,10 +152,20 @@ namespace Grafiti
 
             // Parse attributes and initialize values
 
-            if (reader.MoveToAttribute(SCREEN_RATIO_NAME))
+            if (reader.MoveToAttribute(CAM_RESO_RATIO_NAME))
                 try
                 {
-                    SCREEN_RATIO = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
+                    CAM_RESO_RATIO = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
+
+            if (reader.MoveToAttribute(RECTANGULAR_TABLE_NAME))
+                try
+                {
+                    RECTANGULAR_TABLE = Boolean.Parse(reader.Value);
                 }
                 catch (Exception e)
                 {
@@ -253,9 +271,13 @@ namespace Grafiti
 
         public static void Initialize() { }
 
-        public static float GetScreenRatio()
+        public static float GetCameraResolutionRatio()
         {
-            return SCREEN_RATIO;
+            return CAM_RESO_RATIO;
+        }
+        public static bool GetRectangularTable()
+        {
+            return RECTANGULAR_TABLE;
         }
         public static int GetGroupingSynchTime()
         {

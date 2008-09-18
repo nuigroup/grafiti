@@ -21,11 +21,6 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <OutputType>Exe</OutputType>
-    <AssemblyName>GrafitiDemo</AssemblyName>
-    <RootNamespace>GrafitiDemo</RootNamespace>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -34,12 +29,6 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <OutputType>Exe</OutputType>
-    <AssemblyName>GrafitiDemo</AssemblyName>
-    <DebugSymbols>true</DebugSymbols>
-    <RootNamespace>GrafitiDemo</RootNamespace>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
@@ -53,14 +42,6 @@
     <Reference Include="System" />
     <Reference Include="Tao.FreeGlut, Version=2.4.0.2, Culture=neutral, PublicKeyToken=6e602a6ad6c0d06d, processorArchitecture=MSIL" />
     <Reference Include="Tao.OpenGl, Version=2.1.0.12, Culture=neutral, PublicKeyToken=1ca010269a4501ef, processorArchitecture=MSIL" />
-    <Reference Include="Tao.FreeGlut, Version=2.4.0.2, Culture=neutral, PublicKeyToken=6e602a6ad6c0d06d">
-      <HintPath>..\..\..\..\..\..\Library\Frameworks\Mono.framework\Versions\1.9\lib\mono\gac\Tao.FreeGlut\2.4.0.2__6e602a6ad6c0d06d\Tao.FreeGlut.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-    </Reference>
-    <Reference Include="Tao.OpenGl, Version=2.1.0.12, Culture=neutral, PublicKeyToken=1ca010269a4501ef">
-      <HintPath>..\..\..\..\..\..\Library\Frameworks\Mono.framework\Versions\1.9\lib\mono\gac\Tao.OpenGl\2.1.0.12__1ca010269a4501ef\Tao.OpenGl.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DemoGroup.cs" />

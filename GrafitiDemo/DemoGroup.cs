@@ -29,7 +29,7 @@ namespace GrafitiDemo
 {
     public class DemoGroup
     {
-        MainClass m_mainClass;
+        Viewer m_viewer;
         Group m_group;
         MyColor m_color;
         List<DemoTrace> m_demoTraces = new List<DemoTrace>();
@@ -37,9 +37,9 @@ namespace GrafitiDemo
         public Group Group { get { return m_group; } }
         public MyColor Color { get { return m_color; } }
         
-        public DemoGroup(MainClass mainClass, Group group, MyColor color)
+        public DemoGroup(Viewer viewer, Group group, MyColor color)
         {
-            m_mainClass = mainClass;
+            m_viewer = viewer;
             m_group = group;
             m_color = color;
         }
@@ -53,7 +53,7 @@ namespace GrafitiDemo
                 {
                     return (demoTrace.Trace == trace);
                 }))
-                    m_demoTraces.Add(new DemoTrace(m_mainClass, this, trace));
+                    m_demoTraces.Add(new DemoTrace(m_viewer, this, trace));
             }
 
             foreach (DemoTrace demoTrace in m_demoTraces)

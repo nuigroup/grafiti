@@ -30,7 +30,7 @@ namespace GrafitiDemo
 {
     public class DemoObject : ITangibleGestureListener
     {
-        private MainClass m_mainClass;
+        private Viewer m_viewer;
         private DemoObjectManager m_objectManager;
         private List<DemoObjectLink> m_links = new List<DemoObjectLink>();
         private bool m_selected = false;
@@ -50,12 +50,12 @@ namespace GrafitiDemo
         internal bool Selected { get { return m_selected; } set { m_selected = value; } }
 
 
-        public DemoObject(DemoObjectManager objectManager, MainClass mainClass, int fiducialId, float x, float y, float angle)
+        public DemoObject(DemoObjectManager objectManager, Viewer viewer, int fiducialId, float x, float y, float angle)
         {
             m_targetRadius = 0.4f;
 
             m_objectManager = objectManager;
-            m_mainClass = mainClass;
+            m_viewer = viewer;
             m_id = fiducialId++;
             m_x = x;
             m_y = y;
@@ -78,9 +78,18 @@ namespace GrafitiDemo
             GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "RotateBegin", OnPinchBegin);
 
         }
-
-        internal void RemoveFromSurface()
+        internal void Update(float x, float y, float angle)
         {
+            m_x = x;
+            m_y = y;
+            m_angle = angle;
+        }
+
+        internal void Remove(float x, float y, float angle)
+        {
+            m_x = x;
+            m_y = y;
+            m_angle = angle;
             GestureEventManager.UnregisterAllHandlersOf(this);
         }
 
@@ -125,14 +134,6 @@ namespace GrafitiDemo
             //Console.WriteLine("end hover on {0} ({1} fingers)", m_id, cArgs.NFingers);
             if (cArgs.NFingers > 2)
                 m_objectManager.CloseLinkRequest(cArgs.NFingers, this);
-        }
-
-
-        internal void Update(float x, float y, float angle)
-        {
-            m_x = x;
-            m_y = y;
-            m_angle = angle;
         }
 
         public void Draw()

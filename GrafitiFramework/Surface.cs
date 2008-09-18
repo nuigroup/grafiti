@@ -44,7 +44,12 @@ namespace Grafiti
         /// <summary>
         /// Ratio of the camera resolutions (width resolution over height resolution).
         /// </summary>
-        private readonly float SCREEN_RATIO;
+        private readonly float CAMERA_RESOLUTION_RATIO;
+
+        /// <summary>
+        /// Offset for x coordinates
+        /// </summary>
+        private readonly float OFFSET_X;
 
         // Accumulators for adding, updating and removing cursors.
         // These lists will be cleared at the end of every TuioListener.refresh() call,
@@ -78,6 +83,11 @@ namespace Grafiti
 
         #region Public properties
         // The following can be used to create a visual feedback of Grafiti.
+        /// <summary>
+        /// Offset for Tuio's x coordinates.
+        /// </summary>
+        /// <returns>The offset for Tuio's x coordinates.</returns>
+        public float OffsetX { get { return OFFSET_X; } }
         /// <summary>
         /// List of groups that have been added during the last refresh() call.
         /// </summary>
@@ -114,7 +124,11 @@ namespace Grafiti
             m_startTime = DateTime.Now;
 
             Settings.Initialize();
-            SCREEN_RATIO = Settings.SCREEN_RATIO;
+            CAMERA_RESOLUTION_RATIO = Settings.CAM_RESO_RATIO;
+            if (Settings.RECTANGULAR_TABLE)
+                OFFSET_X = 0;
+            else
+                OFFSET_X = - (1f - 1f / CAMERA_RESOLUTION_RATIO) / 2;
         }
         #endregion
 
@@ -162,8 +176,8 @@ namespace Grafiti
         public void addTuioCursor(TuioCursor c)
         {
             m_addingCursors.Add(
-                new CursorPoint((int)(c.getSessionID()), 
-                c.getX() * SCREEN_RATIO, 
+                new CursorPoint((int)(c.getSessionID()),
+                (c.getX() + OFFSET_X) * CAMERA_RESOLUTION_RATIO, 
                 c.getY(),
                 CursorPoint.States.ADDED));
         }
@@ -171,7 +185,7 @@ namespace Grafiti
         {
             m_updatingCursors.Add(
                 new CursorPoint((int)(c.getSessionID()),
-                c.getX() * SCREEN_RATIO,
+                (c.getX() + OFFSET_X) * CAMERA_RESOLUTION_RATIO,
                 c.getY(),
                 CursorPoint.States.UPDATED));
         }
@@ -179,7 +193,7 @@ namespace Grafiti
         {
             m_removingCursors.Add(
                 new CursorPoint((int)(c.getSessionID()),
-                c.getX() * SCREEN_RATIO,
+                (c.getX() + OFFSET_X) * CAMERA_RESOLUTION_RATIO,
                 c.getY(),
                 CursorPoint.States.REMOVED));
         }

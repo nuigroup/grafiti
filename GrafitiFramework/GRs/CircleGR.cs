@@ -122,7 +122,7 @@ namespace Grafiti.GestureRecognizers
 
             DefaultEvents = new string[] { "Circle" };
 
-            m_left = Settings.GetScreenRatio();
+            m_left = Settings.GetCameraResolutionRatio();
             m_right = 0;
             m_top = 1;
             m_bottom = 0;
