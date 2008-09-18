@@ -61,27 +61,25 @@ namespace Grafiti
             }
         }
 
-        private static readonly object m_lock = new object();
-
         // Registry of priority numbers. Once an entry is stored it can't be changed, nor removed.
-        private static DoubleDictionary<Type, GRConfigurator, int> m_priorityNumbersTable = new DoubleDictionary<Type, GRConfigurator, int>();
+        private static DoubleDictionary<Type, GRConfigurator, int> s_priorityNumbersTable = new DoubleDictionary<Type, GRConfigurator, int>();
 
         // Registries of listeners' registrations
-        private static List<RegistrationInfo> m_ggrRegistry; // global
-        private static List<RegistrationInfo> m_lgrRegistry; // local
+        private static List<RegistrationInfo> s_ggrRegistry; // global
+        private static List<RegistrationInfo> s_lgrRegistry; // local
 
         // List of GroupGRManager's to be updated when a new handler is registered
-        private static List<GroupGRManager> m_subscribedGRManagers;
+        private static List<GroupGRManager> s_subscribedGRManagers;
 
-        internal static List<RegistrationInfo> LGRRegistry { get { return m_lgrRegistry; } }
+        internal static List<RegistrationInfo> LGRRegistry { get { return s_lgrRegistry; } }
         #endregion
 
         #region Internal constructor
         static GestureEventRegistry()
         {
-            m_ggrRegistry = new List<RegistrationInfo>();
-            m_lgrRegistry = new List<RegistrationInfo>();
-            m_subscribedGRManagers = new List<GroupGRManager>();
+            s_ggrRegistry = new List<RegistrationInfo>();
+            s_lgrRegistry = new List<RegistrationInfo>();
+            s_subscribedGRManagers = new List<GroupGRManager>();
         }   
         #endregion
 
@@ -89,22 +87,22 @@ namespace Grafiti
         #region Called by GroupGRManager (subscriptions)
         internal static void Subscribe(GroupGRManager grManager)
         {
-            m_subscribedGRManagers.Add(grManager);
-            grManager.InitializeGGRs(m_ggrRegistry);
+            s_subscribedGRManagers.Add(grManager);
+            grManager.InitializeGGRs(s_ggrRegistry);
         }
         internal static void Unsubscribe(GroupGRManager grManager)
         {
-            m_subscribedGRManagers.Remove(grManager);
+            s_subscribedGRManagers.Remove(grManager);
         }
         #endregion
 
         #region Called by GestureEventManager (handler registrations)
         internal static void SetPriorityNumber(Type grType, GRConfigurator configurator, int priorityNumber)
         {
-            if (!m_priorityNumbersTable.ContainsKeys(grType, configurator))
-                m_priorityNumbersTable[grType, configurator] = priorityNumber;
+            if (!s_priorityNumbersTable.ContainsKeys(grType, configurator))
+                s_priorityNumbersTable[grType, configurator] = priorityNumber;
             else
-                System.Diagnostics.Debug.Assert(m_priorityNumbersTable[grType, configurator] == priorityNumber,
+                System.Diagnostics.Debug.Assert(s_priorityNumbersTable[grType, configurator] == priorityNumber,
                     "Attempting to reset a priority number to a different value than the one previously set.");
         }
         internal static void RegisterHandler(Type grType, GRConfigurator grConf, string ev, GestureEventHandler handler)
@@ -115,35 +113,35 @@ namespace Grafiti
                 " which doesn't implement the interface IGestureListener.");
 
             int priorityNumber;
-            if (!m_priorityNumbersTable.ContainsKeys(grType, grConf))
+            if (!s_priorityNumbersTable.ContainsKeys(grType, grConf))
             {
                 priorityNumber = 0;
-                m_priorityNumbersTable[grType, grConf] = priorityNumber;
+                s_priorityNumbersTable[grType, grConf] = priorityNumber;
             }
             else
-                priorityNumber = m_priorityNumbersTable[grType, grConf];
+                priorityNumber = s_priorityNumbersTable[grType, grConf];
 
             RegistrationInfo grInfo = new RegistrationInfo(grType, grConf, priorityNumber, ev, handler);
 
             if (grType.IsSubclassOf(typeof(GlobalGestureRecognizer)))
             {
-                m_ggrRegistry.Add(grInfo);
+                s_ggrRegistry.Add(grInfo);
 
                 // update subscribed GRManagers
-                foreach (GroupGRManager grManager in m_subscribedGRManagers)
+                foreach (GroupGRManager grManager in s_subscribedGRManagers)
                     grManager.UpdateGGR(grInfo);
             }
             else
             {
-                m_lgrRegistry.Add(grInfo);
+                s_lgrRegistry.Add(grInfo);
 
                 // TODO: if LGRs are associated to the group's FINAL target list then dynamic update should be done
             }
         }
         internal static void UnregisterAllHandlers(object listener)
         {
-            m_ggrRegistry.RemoveAll(delegate(RegistrationInfo ggrInfo) { return ggrInfo.Handler.Target == listener; });
-            m_lgrRegistry.RemoveAll(delegate(RegistrationInfo ggrInfo) { return ggrInfo.Handler.Target == listener; });
+            s_ggrRegistry.RemoveAll(delegate(RegistrationInfo ggrInfo) { return ggrInfo.Handler.Target == listener; });
+            s_lgrRegistry.RemoveAll(delegate(RegistrationInfo ggrInfo) { return ggrInfo.Handler.Target == listener; });
         }
         #endregion
     }

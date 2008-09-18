@@ -106,7 +106,7 @@ namespace GrafitiDemo
                         if (m_trace.Group.MaxNumberOfFingersAllowed < 0 && !m_trace.Group.OnSingleGUIControl)
                         {
                             Gl.glColor4d(m_color.R, m_color.G, m_color.B, 0.2);
-                            Utilities.DrawPlainCircle(Settings.GetGroupingSpace());
+                            Utilities.DrawPlainCircle(Settings.GroupingSpace);
                         }
                         Gl.glDisable(Gl.GL_BLEND);
                     }

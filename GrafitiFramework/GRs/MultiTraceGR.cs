@@ -185,7 +185,7 @@ namespace Grafiti.GestureRecognizers
                 }
                 else if (trace.State == Trace.States.ADDED)
                 {
-                    if (trace.Last.TimeStamp - m_startingTime <= Settings.GetGroupingSynchTime())
+                    if (trace.Last.TimeStamp - m_startingTime <= Settings.GroupingSynchTime)
                         m_startingTraces.Add(trace);
                     
                     OnMultiTraceGestureDown();
@@ -202,7 +202,7 @@ namespace Grafiti.GestureRecognizers
                 int endTime = Group.CurrentTimeStamp;
                 foreach (Trace startingTrace in m_startingTraces)
                 {
-                    if (endTime - startingTrace.Last.TimeStamp <= Settings.GetGroupingSynchTime())
+                    if (endTime - startingTrace.Last.TimeStamp <= Settings.GroupingSynchTime)
                         m_nOfFingers++;
                 }
                 OnMultiTraceStart();

@@ -31,8 +31,8 @@ namespace Grafiti
     public static class GestureEventManager
     {
         #region Private members
-        private static readonly object m_lock = new object();
-        private static GRConfigurator m_defaultGRConfigurator = new GRConfigurator(false);
+        private static readonly object s_lock = new object();
+        private static GRConfigurator s_defaultGRConfigurator = new GRConfigurator(false);
         #endregion
 
         #region Client's interface
@@ -59,7 +59,7 @@ namespace Grafiti
         /// <param name="priorityNumber">Priority number.</param>
         public static void SetPriorityNumber(Type grType, GRConfigurator configurator, int priorityNumber)
         {
-            lock (m_lock)
+            lock (s_lock)
             {
                 GestureEventRegistry.SetPriorityNumber(grType, configurator, priorityNumber);
             }
@@ -83,7 +83,7 @@ namespace Grafiti
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
         public static void RegisterHandler(Type grType, GRConfigurator grConf, string ev, GestureEventHandler handler)
         {
-            lock (m_lock)
+            lock (s_lock)
             {
                 GestureEventRegistry.RegisterHandler(grType, grConf, ev, handler);
             }
@@ -94,7 +94,7 @@ namespace Grafiti
         /// <param name="listener">The listener</param>
         public static void UnregisterAllHandlersOf(IGestureListener listener)
         {
-            lock (m_lock)
+            lock (s_lock)
             {
                 GestureEventRegistry.UnregisterAllHandlers(listener);
             }

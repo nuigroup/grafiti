@@ -33,7 +33,7 @@ namespace Grafiti
     public class Trace : IComparable
     {
         #region Private members
-        private static int m_idCounter = 0;
+        private static int s_idCounter = 0;
         private readonly int m_id;
         private States m_state;
         private readonly Group m_group; // belonging group
@@ -142,7 +142,7 @@ namespace Grafiti
         #region Internal constructor
 		internal Trace(CursorPoint cursor, Group group, List<IGestureListener> targets, bool guiTargets)
         {
-            m_id = m_idCounter++;
+            m_id = s_idCounter++;
             m_group = group;
             m_path = new List<CursorPoint>();
             m_path.Add(cursor);

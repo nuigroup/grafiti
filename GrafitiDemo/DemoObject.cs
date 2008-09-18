@@ -41,6 +41,7 @@ namespace GrafitiDemo
         private float m_targetRadiusRef;
         private float m_size = 0.1f;
         private MyColor m_color;
+        private static Random s_random = new Random();
 
         public float X { get { return m_x; } }
         public float Y { get { return m_y; } }
@@ -61,8 +62,8 @@ namespace GrafitiDemo
             m_y = y;
             m_angle = angle;
 
-            Random random = new Random();
-            m_color = new MyColor(random.NextDouble(), random.NextDouble(), random.NextDouble());
+            
+            m_color = new MyColor(s_random.NextDouble(), s_random.NextDouble(), s_random.NextDouble());
 
             GestureEventManager.SetPriorityNumber(typeof(BasicMultiFingerGR), m_objectManager.BasicMultiFingerGRConf, 0);
             GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), m_objectManager.BasicMultiFingerGRConf, "Hover", OnHover);
@@ -136,25 +137,32 @@ namespace GrafitiDemo
                 m_objectManager.CloseLinkRequest(cArgs.NFingers, this);
         }
 
-        public void Draw()
+        public void Draw(int layer)
         {
             Gl.glPushMatrix();
                 Gl.glTranslatef(m_x, m_y, 0f);
                 Gl.glRotatef((float)(m_angle / Math.PI * 180.0f), 0f, 0f, 1);
-                if (m_selected)
+
+                if (layer == 1)
                 {
-                    Gl.glColor3d(1, 1, 0);
-                    Utilities.DrawPlainSquare(m_size * 1.15f);
+                    Gl.glLineWidth(1);
+                    Gl.glColor3d(m_color.R, m_color.G, m_color.B);
+                    Utilities.DrawEmptyCircle(m_targetRadius);
                 }
-                Gl.glColor3d(m_color.R, m_color.G, m_color.B);
-                Utilities.DrawPlainSquare(m_size);
-                Gl.glLineWidth(1);
-                Utilities.DrawEmptyCircle(m_targetRadius);
+                
+                if (layer == 2)
+                {
+                    if (m_selected)
+                    {
+                        Gl.glColor3d(1, 1, 0);
+                        Utilities.DrawPlainSquare(m_size * 1.15f);
+                    }
+                    Gl.glColor3d(m_color.R, m_color.G, m_color.B);
+                    Utilities.DrawPlainSquare(m_size);
+                }
+                
                 //g.DrawString(m_id.ToString(), m_font, white, x - 10, y - 10);
-
-
             Gl.glPopMatrix();
-
         }
 
         public bool ContainsPoint(float x, float y)

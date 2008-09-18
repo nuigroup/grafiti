@@ -61,6 +61,7 @@ namespace GrafitiDemo
         private const float SQUARE_DISTANCE_THRESHOLD = 0.02f * 0.02f;
 
         private DemoObjectManager m_demoObjectManager;
+        List<DemoObjectLink> m_links;
         private List<DemoObjectLink> m_linksToRemove;
         private float x1, y1, x2, y2; // coordinates of the last two points
 
@@ -79,6 +80,12 @@ namespace GrafitiDemo
 
         public override void Process(List<Trace> traces)
         {
+            // Note: don't use iterators as the list of links might change asynchronously.
+            // However some elements may be added, not removed.
+
+            if(m_links == null)
+                m_links = m_demoObjectManager.Links;
+
             CursorPoint cursor = traces[0].Last;
 
             if (Group.Traces.Count > 1)
@@ -94,14 +101,14 @@ namespace GrafitiDemo
 
                 // If the added finger is over the middle point of a link then
                 // notify immediately about that link (the first found) and exit.
-                float dx, dy;
-                foreach (DemoObjectLink link in m_demoObjectManager.Links)
+                float dx, dy;                
+                for (int i = 0; i < m_links.Count; i++)
                 {
-                    dx = x2 - link.Xm;
-                    dy = y2 - link.Ym;
+                    dx = x2 - m_links[i].Xm;
+                    dy = y2 - m_links[i].Ym;
                     if (dx * dx + dy * dy <= SQUARE_DISTANCE_THRESHOLD)
                     {
-                        m_linksToRemove.Add(link);
+                        m_linksToRemove.Add(m_links[i]);
                         AppendEvent(RemoveLinks, new RemovingLinkGREventArgs("RemoveLink", Group.Id, m_linksToRemove));
                         Terminate(true);
                         break;
@@ -114,15 +121,14 @@ namespace GrafitiDemo
             x2 = cursor.X;
             y2 = cursor.Y;
 
-
-            foreach (DemoObjectLink link in m_demoObjectManager.Links)
+            for (int i = 0; i < m_links.Count; i++)
             {
-                if (m_linksToRemove.Contains(link))
+                if (m_linksToRemove.Contains(m_links[i]))
                     continue;
 
                 if (Intersect(x1, y1, x2, y2,
-                    link.FromObject.X, link.FromObject.Y, link.ToObject.X, link.ToObject.Y))
-                    m_linksToRemove.Add(link);
+                    m_links[i].FromObject.X, m_links[i].FromObject.Y, m_links[i].ToObject.X, m_links[i].ToObject.Y))
+                    m_linksToRemove.Add(m_links[i]);
             }
 
 

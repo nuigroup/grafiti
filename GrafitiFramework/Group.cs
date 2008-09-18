@@ -829,7 +829,7 @@ namespace Grafiti
             foreach (Trace trace in m_traces)
             {
                 if (trace.Alive || 
-                    (!onlyAliveTraces && cursor.TimeStamp - trace.Last.TimeStamp <= Settings.GetTraceTimeGap())) // recently dead
+                    (!onlyAliveTraces && cursor.TimeStamp - trace.Last.TimeStamp <= Settings.TraceTimeGap)) // recently dead
                     minDist = Math.Min(trace.Last.SquareDistance(cursor), minDist);
             }
 

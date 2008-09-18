@@ -122,7 +122,7 @@ namespace Grafiti.GestureRecognizers
 
             DefaultEvents = new string[] { "Circle" };
 
-            m_left = Settings.GetCameraResolutionRatio();
+            m_left = Settings.CameraResolutionRatio;
             m_right = 0;
             m_top = 1;
             m_bottom = 0;
@@ -145,7 +145,7 @@ namespace Grafiti.GestureRecognizers
             {
                 if (trace.State == Trace.States.ADDED)
                 {
-                    if (!(trace.Last.TimeStamp - m_startingTime <= Settings.GetGroupingSynchTime()))
+                    if (!(trace.Last.TimeStamp - m_startingTime <= Settings.GroupingSynchTime))
                     {
                         Terminate(false);
                         return;
@@ -174,7 +174,7 @@ namespace Grafiti.GestureRecognizers
                 int endTime = Group.CurrentTimeStamp;
                 if (!Group.Traces.TrueForAll(delegate(Trace t)
                 {
-                    return endTime - t.Last.TimeStamp <= Settings.GetGroupingSynchTime();
+                    return endTime - t.Last.TimeStamp <= Settings.GroupingSynchTime;
                 }))
                 {
                     Terminate(false);

@@ -55,7 +55,7 @@ namespace Grafiti
         internal static readonly float GROUPING_SPACE;
         internal const float GROUPING_SPACE_DEFAULT = 0.2f;
 
-        
+
         // If set to true, the clustering will consider the distance to the closest living (not removed) trace
         // If set to false it will consider also resurrectable (recently removed) traces. This latter
         // case will support non continuous gestures like an 'x' produced with one finger that will
@@ -104,6 +104,18 @@ namespace Grafiti
         private const string EXCLUSIVE_BLOCK_INTERPRETING_NAME = "EXCLUSIVE_BLOCK_INTERPRETING";
         internal static readonly bool EXCLUSIVE_BLOCK_INTERPRETING;
         internal const bool EXCLUSIVE_BLOCK_INTERPRETING_DEFAULT = false;
+
+
+        public static float CameraResolutionRatio { get { return CAM_RESO_RATIO; } }
+        public static bool GetRectangularTable { get { return RECTANGULAR_TABLE; } }
+        public static int GroupingSynchTime { get { return GROUPING_SYNCH_TIME; } }
+        public static float GroupingSpace { get { return GROUPING_SPACE; } }
+        public static bool ClusteringOnlyWithAliveTraces { get { return CLUSTERING_ONLY_WITH_ALIVE_TRACES; } }
+        public static int TraceTimeGap { get { return TRACE_TIME_GAP; } }
+        public static float TraceSpaceGap { get { return TRACE_SPACE_GAP; } }
+        public static int LGRTargetList { get { return (int)LGR_TARGET_LIST; } }
+        public static bool PrecedeceGGRsOverLGRs { get { return PRECEDENCE_GGRS_OVER_LGRS; } }
+        public static bool ExclusiveBlockInterpreting { get { return EXCLUSIVE_BLOCK_INTERPRETING; } }        
 
 
         static Settings()
@@ -270,47 +282,5 @@ namespace Grafiti
         }
 
         public static void Initialize() { }
-
-        public static float GetCameraResolutionRatio()
-        {
-            return CAM_RESO_RATIO;
-        }
-        public static bool GetRectangularTable()
-        {
-            return RECTANGULAR_TABLE;
-        }
-        public static int GetGroupingSynchTime()
-        {
-            return GROUPING_SYNCH_TIME;
-        }
-        public static float GetGroupingSpace()
-        {
-            return GROUPING_SPACE;
-        }
-        public static bool GetClusteringOnlyWithAliveTraces()
-        {
-            return CLUSTERING_ONLY_WITH_ALIVE_TRACES;
-        }
-        public static int GetTraceTimeGap()
-        {
-            return TRACE_TIME_GAP;
-        }
-        public static float GetTraceSpaceGap()
-        {
-            return TRACE_SPACE_GAP;
-        }
-        public static int GetLGRTargetList()
-        {
-            return (int)LGR_TARGET_LIST;
-        }
-        public static bool GetPrecedeceGGRsOverLGRs()
-        {
-            return PRECEDENCE_GGRS_OVER_LGRS; ;
-        }
-        public static bool GetExclusiveBlockInterpreting()
-        {
-            return EXCLUSIVE_BLOCK_INTERPRETING; ;
-        }
-
     }
 }

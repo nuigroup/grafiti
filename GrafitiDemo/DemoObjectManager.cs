@@ -75,7 +75,7 @@ namespace GrafitiDemo
     public class DemoObjectManager : TuioListener, IGestureListener
     {
         #region Variables
-        private readonly float CAM_RESO_RATIO = Settings.GetCameraResolutionRatio();
+        private readonly float CAM_RESO_RATIO = Settings.CameraResolutionRatio;
         private readonly float OFFSET_X = Surface.Instance.OffsetX;
         private const float MAX_SQUARE_DISTANCE_FOR_LINKING = 0.25f * 0.25f;
         private Viewer m_viewer;
@@ -83,13 +83,13 @@ namespace GrafitiDemo
         private List<TuioObject> m_tuioObjectAddedList, m_tuioObjectUpdatedList, m_tuioObjectRemovedList;
         private List<DemoObject> m_currentTuioObjects = new List<DemoObject>();
         private Dictionary<long, DemoObject> m_idDemoObjectTable;
-        private List<DemoObjectLink> m_links, m_pendingLinks;
+        private List<DemoObjectLink> m_links = new List<DemoObjectLink>();
+        private List<DemoObjectLink> m_pendingLinks = new List<DemoObjectLink>();
         
         private PinchingGRConfigurator m_pinchingGRConf = new PinchingGRConfigurator(true, 2, -1);
         private BasicMultiFingerGRConfigurator m_basicMultiFingerGRConf = new BasicMultiFingerGRConfigurator();
         private Dictionary<int, List<DemoObject>> m_linkRequests = new Dictionary<int, List<DemoObject>>();
-        private static object m_LinkageLock = new object();
-        private static object m_lock = new object();
+        private static object s_lock = new object();
 
         internal List<DemoObjectLink> Links { get { return m_links; } }
         internal PinchingGRConfigurator PinchingConf { get { return m_pinchingGRConf; } }
@@ -104,8 +104,6 @@ namespace GrafitiDemo
             m_tuioObjectUpdatedList = new List<TuioObject>();
             m_tuioObjectRemovedList = new List<TuioObject>();
             m_idDemoObjectTable = new Dictionary<long,DemoObject>();
-            m_links = new List<DemoObjectLink>();
-            m_pendingLinks = new List<DemoObjectLink>();
 
             RemovingLinkGRConfigurator removingLinkGRConf = new RemovingLinkGRConfigurator(this);
             GestureEventManager.SetPriorityNumber(typeof(RemovingLinkGR), removingLinkGRConf, 1);
@@ -138,27 +136,22 @@ namespace GrafitiDemo
         public void removeTuioCursor(TuioCursor c) { }
         public void refresh(long timestamp)
         {
-            lock (m_lock)
+            lock (s_lock)
             {
-                // Add links that have been added asynchronously (by hovering)
-                foreach (DemoObjectLink link in m_pendingLinks)
-                    m_links.Add(link);
-                m_pendingLinks.Clear();
-
                 foreach (TuioObject o in m_tuioObjectAddedList)
                 {
-                    DemoObject demoObject = new DemoObject(this, m_viewer, (int)o.getSessionID(), (o.getX() + OFFSET_X) * Settings.GetCameraResolutionRatio(), o.getY(), o.getAngle());
+                    DemoObject demoObject = new DemoObject(this, m_viewer, (int)o.getSessionID(), (o.getX() + OFFSET_X) * Settings.CameraResolutionRatio, o.getY(), o.getAngle());
                     m_idDemoObjectTable[o.getSessionID()] = demoObject;
                     m_currentTuioObjects.Add(demoObject);
                 }
                 foreach (TuioObject o in m_tuioObjectUpdatedList)
                 {
-                    m_idDemoObjectTable[o.getSessionID()].Update((o.getX() + OFFSET_X) * Settings.GetCameraResolutionRatio(), o.getY(), o.getAngle());
+                    m_idDemoObjectTable[o.getSessionID()].Update((o.getX() + OFFSET_X) * Settings.CameraResolutionRatio, o.getY(), o.getAngle());
                 }
                 foreach (TuioObject o in m_tuioObjectRemovedList)
                 {
                     DemoObject demoObject = m_idDemoObjectTable[o.getSessionID()];
-                    demoObject.Remove((o.getX() + OFFSET_X) * Settings.GetCameraResolutionRatio(), o.getY(), o.getAngle());
+                    demoObject.Remove((o.getX() + OFFSET_X) * Settings.CameraResolutionRatio, o.getY(), o.getAngle());
                     m_idDemoObjectTable.Remove(o.getSessionID());
                     m_currentTuioObjects.Remove(demoObject);
                     foreach (DemoObjectLink link in demoObject.Links)
@@ -186,10 +179,13 @@ namespace GrafitiDemo
         public void OnRemoveLinks(object obj, GestureEventArgs args)
         {
             RemovingLinkGREventArgs cArgs = (RemovingLinkGREventArgs)args;
-            foreach (DemoObjectLink link in cArgs.Links)
+            lock (s_lock)
             {
-                m_links.Remove(link);
-                //Console.WriteLine("Link removed");
+                foreach (DemoObjectLink link in cArgs.Links)
+                {
+                    m_links.Remove(link);
+                    //Console.WriteLine("Link removed");
+                }
             } 
         }
         public void OnMultiTraceFromTo(object obj, GestureEventArgs args)
@@ -204,17 +200,19 @@ namespace GrafitiDemo
                     DemoObjectLink link = MakeLink(fromObj, toObj, cArgs.NOfFingers);
                     if (link != null)
                     {
-                        m_links.Add(link);
-                        //refresh
-                        //Console.WriteLine("Link added");
+                        lock (s_lock)
+                        {
+                            m_links.Add(link);
+                        }
                     }
+                    
                 }
             }
         }
 
         public void OpenLinkRequest(int channel, DemoObject demoObject)
         {
-            lock (m_LinkageLock)
+            lock (s_lock)
             {
                 if (!m_linkRequests.ContainsKey(channel))
                     m_linkRequests[channel] = new List<DemoObject>();
@@ -225,13 +223,12 @@ namespace GrafitiDemo
                 { 
                     link = MakeLink(req, demoObject, channel);
                     if (link != null)
-                        m_pendingLinks.Add(link);
+                        m_links.Add(link);
                 }
 
                 m_linkRequests[channel].Add(demoObject);
             }
         }
-
         private DemoObjectLink MakeLink(DemoObject from, DemoObject to, int n)
         {
             if (m_currentTuioObjects.Contains(from) && m_currentTuioObjects.Contains(to))
@@ -241,7 +238,7 @@ namespace GrafitiDemo
         }
         public void CloseLinkRequest(int channel, DemoObject demoObject)
         {
-            lock (m_LinkageLock)
+            lock (s_lock)
             {
                 m_linkRequests[channel].Remove(demoObject);
             }
@@ -260,13 +257,16 @@ namespace GrafitiDemo
         {
             Gl.glColor3f(1f, 1f, 1f);
 
-            lock (m_lock)
+            lock (s_lock)
             {
                 foreach (DemoObjectLink link in m_links)
                     link.Draw();
 
                 foreach (DemoObject demoObject in m_idDemoObjectTable.Values)
-                    demoObject.Draw(); 
+                    demoObject.Draw(1);
+
+                foreach (DemoObject demoObject in m_idDemoObjectTable.Values)
+                    demoObject.Draw(2);
             }
         }
     }

@@ -34,9 +34,9 @@ namespace Grafiti
     {
         #region Private members
         // The instance object
-        private static Surface m_instance = null;
+        private static Surface s_instance = null;
         // Locking object
-        private static readonly object m_lock = new object();
+        private static readonly object s_lock = new object();
 
         // Client's GUI manager used for hit tests.
         private IGrafitiClientGUIManager m_clientGUIManager;
@@ -139,12 +139,12 @@ namespace Grafiti
         /// <param name="guiManager">Client's GUI manager to set.</param>
         public static void Initialize(IGrafitiClientGUIManager guiManager)
         {
-            lock (m_lock)
+            lock (s_lock)
             {
-                if (m_instance == null)
+                if (s_instance == null)
                 {
-                    m_instance = new Surface();
-                    m_instance.m_clientGUIManager = guiManager;
+                    s_instance = new Surface();
+                    s_instance.m_clientGUIManager = guiManager;
                 }
                 else
                     throw new Exception("Attempting to reinitialize Surface.");
@@ -153,7 +153,7 @@ namespace Grafiti
         /// <summary>
         /// The instance.
         /// </summary>
-        public static Surface Instance { get { return m_instance; } }
+        public static Surface Instance { get { return s_instance; } }
         /// <summary>
         /// Takes a GUI control and point specified in Grafiti-coordinate-system and 
         /// returns the point relative to the GUI component in client's coordinates.

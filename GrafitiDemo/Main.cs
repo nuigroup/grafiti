@@ -67,8 +67,8 @@ namespace GrafitiDemo
         private float m_projectionYAngle = -8.5f;
 
         // Graphic variables
-        private bool m_displayCalibrationGrid = true;
-        private static int m_timerTime = 30;
+        private bool m_displayCalibrationGrid = false;
+        private static int s_timerTime = 15;
         private bool m_fullscreen = false;
 
         private bool m_displayTeapot = false;
@@ -267,7 +267,7 @@ namespace GrafitiDemo
 
 
 
-        #region Graphic functions
+        #region Graphic and keyboard functions
 
         /// <summary>
         /// initialises the openGL settings
@@ -331,8 +331,8 @@ namespace GrafitiDemo
         private static void S_Timer(int val)
         {
             Glut.glutPostRedisplay();
-            Glut.glutTimerFunc(m_timerTime, S_Timer, 0);
-            Thread.Sleep(m_timerTime - 10);
+            Glut.glutTimerFunc(s_timerTime, S_Timer, 0);
+            Thread.Sleep(s_timerTime - 10);
         }
 
         /// <summary>
@@ -451,14 +451,14 @@ namespace GrafitiDemo
                     break;
 
                 case (byte)'t':
-                    if (m_timerTime > 10)
-                        m_timerTime--;
-                    Console.WriteLine("Redraw timer cycle: " + m_timerTime + "ms (~" + (int)(1000f / (float)m_timerTime) + " fps).");
+                    if (s_timerTime > 10)
+                        s_timerTime--;
+                    Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
                     break;
 
                 case (byte)'T':
-                    m_timerTime++;
-                    Console.WriteLine("Redraw timer cycle: " + m_timerTime + "ms (~" + (int)(1000f / (float)m_timerTime) + " fps).");
+                    s_timerTime++;
+                    Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
                     break;
 
                 case (byte)'f':
