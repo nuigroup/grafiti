@@ -1,16 +1,16 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 9.00
 # Visual Studio 2005
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrafitiDemo", "GrafitiDemo\GrafitiDemo.csproj", "{E4EF1F83-109A-405C-A602-CB28325937B2}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Grafiti", "GrafitiFramework\Grafiti.csproj", "{51B4EDB6-E849-4CDE-A7F8-E3E33C3A9828}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GrafitiDemo", "GrafitiDemo\GrafitiDemo.csproj", "{E4EF1F83-109A-405C-A602-CB28325937B2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
 		Debug|Mixed Platforms = Debug|Mixed Platforms
 		Debug|Win32 = Debug|Win32
+		Release|Any CPU = Release|Any CPU
 		Release|Mixed Platforms = Release|Mixed Platforms
 		Release|Win32 = Release|Win32
 	EndGlobalSection
@@ -35,28 +35,26 @@ Global
 		{E4EF1F83-109A-405C-A602-CB28325937B2}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
 		{E4EF1F83-109A-405C-A602-CB28325937B2}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{E4EF1F83-109A-405C-A602-CB28325937B2}.Release|Win32.ActiveCfg = Release|Any CPU
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Debug|Any CPU.ActiveCfg = Debug|Win32
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Debug|Mixed Platforms.Build.0 = Debug|Win32
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Debug|Win32.ActiveCfg = Debug|Win32
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Debug|Win32.Build.0 = Debug|Win32
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Release|Any CPU.ActiveCfg = Release|Win32
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Release|Mixed Platforms.ActiveCfg = Release|Win32
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Release|Mixed Platforms.Build.0 = Release|Win32
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Release|Win32.ActiveCfg = Release|Win32
-		{79E5379B-79D9-4941-9E3E-C534EC07A5D9}.Release|Win32.Build.0 = Release|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Debug|Any CPU.ActiveCfg = Debug|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Debug|Mixed Platforms.Build.0 = Debug|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Debug|Win32.ActiveCfg = Debug|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Debug|Win32.Build.0 = Debug|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Release|Any CPU.ActiveCfg = Release|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Release|Mixed Platforms.ActiveCfg = Release|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Release|Mixed Platforms.Build.0 = Release|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Release|Win32.ActiveCfg = Release|Win32
-		{6D5A6D8D-F3AA-4026-B9C2-B02CFA758E33}.Release|Win32.Build.0 = Release|Win32
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
