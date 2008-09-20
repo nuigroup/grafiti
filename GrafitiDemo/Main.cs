@@ -26,7 +26,7 @@ using Grafiti;
 using Grafiti.GestureRecognizers;
 using Tao.FreeGlut;
 using Tao.OpenGl;
-using System.Runtime.InteropServices;
+//using System.Runtime.InteropServices;
 
 namespace GrafitiDemo
 {
@@ -161,9 +161,6 @@ namespace GrafitiDemo
 
 
 
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
         [STAThread]
         static void Main(String[] argv)
         {
@@ -198,7 +195,6 @@ namespace GrafitiDemo
                     a = float.Parse(argv[5], null);
                     projectionParameters = true;
                     goto case 1;
-                    break;
 
                 default:
                     Console.WriteLine("Usage: [mono] GrafitiGenericDemo [port] [x y w h a]");
@@ -212,10 +208,11 @@ namespace GrafitiDemo
             new MultiTraceGR(new GRConfigurator());
             new RemovingLinkGR(new GRConfigurator());
             new CircleGR(new GRConfigurator());
+            new LazoGR(new GRConfigurator());
+            new RemovingLinkGR(new GRConfigurator());
 
 
             // instantiate viewer
-
             if(projectionParameters)
                 s_viewer = new Viewer(x, y, w, h, a);
             else
@@ -238,18 +235,17 @@ namespace GrafitiDemo
             // initialize glut library
             Glut.glutInit();
 
-            // do our own initialization
+            // initialize viewer's graphic
             s_viewer.Init();
 
-            // callback functions
+            // register callback functions
             Glut.glutKeyboardFunc(new Glut.KeyboardCallback(S_KeyPressed));
             Glut.glutSpecialFunc(new Glut.SpecialCallback(S_SpecialKeyPressed));
             Glut.glutDisplayFunc(new Glut.DisplayCallback(S_Display));
             Glut.glutReshapeFunc(new Glut.ReshapeCallback(S_Reshape));
             Glut.glutTimerFunc(40, new Glut.TimerCallback(S_Timer), 0);
 
-            // enter the main loop. Glut will be here permanently from now on
-            // until we quit the program
+            // main loop
             try
             {
                 Glut.glutMainLoop();
@@ -274,7 +270,7 @@ namespace GrafitiDemo
         #region Graphic and keyboard functions
 
         /// <summary>
-        /// initialises the openGL settings
+        /// Initializes graphics
         /// </summary>
         private void Init()
         {
@@ -305,10 +301,10 @@ namespace GrafitiDemo
         }
 
         /// <summary>
-        /// called when the window changes size
+        /// Called when the window changes size
         /// </summary>
         /// <param name="w">new width of the window</param>
-        /// <param name="h">ne height of the window</param>
+        /// <param name="h">new height of the window</param>
         private static void S_Reshape(int w, int h)
         {
             s_viewer.Reshape(w, h);
@@ -334,15 +330,18 @@ namespace GrafitiDemo
             Gl.glMatrixMode(Gl.GL_MODELVIEW);
         }
 
+        /// <summary>
+        /// Redraws periodically the screen.
+        /// </summary>
+        /// <param name="val">period in ms</param>
         private static void S_Timer(int val)
         {
-            Glut.glutPostRedisplay();
             Glut.glutTimerFunc(s_timerTime, S_Timer, 0);
-            Thread.Sleep(s_timerTime - 10);
+            Glut.glutPostRedisplay();
         }
 
         /// <summary>
-        /// the display callback function
+        /// Display callback function
         /// </summary>
         private static void S_Display()
         {
@@ -386,13 +385,12 @@ namespace GrafitiDemo
 
 
             if (m_displayCalibrationGrid)
-                DisplayCalibrationGrid();
+                DrawCalibrationGrid();
 
             Glut.glutSwapBuffers();
         }
 
-
-        private void DisplayCalibrationGrid()
+        private void DrawCalibrationGrid()
         {
             float grid_width = 7, grid_height = 7;
 
@@ -432,7 +430,6 @@ namespace GrafitiDemo
             Gl.glPopMatrix();
         }
 
-
         private void ToggleFullScreen()
         {
             m_fullscreen = !m_fullscreen;
@@ -458,12 +455,6 @@ namespace GrafitiDemo
         }
 
         #region Keyboard input functions
-        /// <summary>
-        /// handles 'normal' key presses. 
-        /// </summary>
-        /// <param name="key"> the key that was pressed </param>
-        /// <param name="x"> the x coord of the mouse at the time </param>
-        /// <param name="y"> the y coord of the mouse at the time </param>
         private static void S_KeyPressed(byte key, int x, int y)
         {
             s_viewer.KeyPressed(key, x, y);
@@ -485,22 +476,6 @@ namespace GrafitiDemo
                     break;
             }
 
-            if (m_displayCalibrationGrid)
-            {
-                switch (key)
-                {
-                    case (byte)'a':
-                        m_projectionYAngle += 0.1f;
-                        PrintProjectionParameters();
-                        break;
-
-                    case (byte)'z':
-                        m_projectionYAngle -= 0.1f;
-                        PrintProjectionParameters();
-                        break;
-                }
-            }
-
 
             // force re-display
             Glut.glutPostRedisplay();
@@ -508,65 +483,75 @@ namespace GrafitiDemo
             //HWND z;
         }
 
-        /// <summary>
-        /// handles 'special' key presses. F1-F12 and cursor keys
-        /// </summary>
-        /// <param name="key"> the key that was pressed </param>
-        /// <param name="x"> the x coord of the mouse at the time </param>
-        /// <param name="y"> the y coord of the mouse at the time </param>
         private static void S_SpecialKeyPressed(int key, int x, int y)
         {
             s_viewer.SpecialKeyPressed(key, x, y);
         }
         private void SpecialKeyPressed(int key, int x, int y)
         {
-            bool shift = (Glut.glutGetModifiers() & Glut.GLUT_ACTIVE_SHIFT) == 1;
+            int mod = Glut.glutGetModifiers();
 
             if (m_displayCalibrationGrid)
             {
-                if (!shift)
+                switch (mod)
                 {
-                    switch ((char)key)
-                    {
-                        case (char)Glut.GLUT_KEY_RIGHT:
-                            m_projectionX += 0.01f;
-                            PrintProjectionParameters();
-                            break;
-                        case (char)Glut.GLUT_KEY_LEFT:
-                            m_projectionX -= 0.01f;
-                            PrintProjectionParameters();
-                            break;
-                        case (char)Glut.GLUT_KEY_DOWN:
-                            m_projectionY += 0.01f;
-                            PrintProjectionParameters();
-                            break;
-                        case (char)Glut.GLUT_KEY_UP:
-                            m_projectionY -= 0.01f;
-                            PrintProjectionParameters();
-                            break;
-                    }
-                }
-                else
-                {
-                    switch ((char)key)
-                    {
-                        case (char)Glut.GLUT_KEY_RIGHT:
-                            m_projectionW += 0.01f;
-                            PrintProjectionParameters();
-                            break;
-                        case (char)Glut.GLUT_KEY_LEFT:
-                            m_projectionW -= 0.01f;
-                            PrintProjectionParameters();
-                            break;
-                        case (char)Glut.GLUT_KEY_DOWN:
-                            m_projectionH -= 0.01f;
-                            PrintProjectionParameters();
-                            break;
-                        case (char)Glut.GLUT_KEY_UP:
-                            m_projectionH += 0.01f;
-                            PrintProjectionParameters();
-                            break;
-                    }
+                    case 0: // no modifiers
+                        switch ((char)key)
+                        {
+                            case (char)Glut.GLUT_KEY_RIGHT:
+                                m_projectionX += 0.01f;
+                                PrintProjectionParameters();
+                                break;
+                            case (char)Glut.GLUT_KEY_LEFT:
+                                m_projectionX -= 0.01f;
+                                PrintProjectionParameters();
+                                break;
+                            case (char)Glut.GLUT_KEY_DOWN:
+                                m_projectionY += 0.01f;
+                                PrintProjectionParameters();
+                                break;
+                            case (char)Glut.GLUT_KEY_UP:
+                                m_projectionY -= 0.01f;
+                                PrintProjectionParameters();
+                                break;
+                        }
+                        break;
+
+                    case Glut.GLUT_ACTIVE_SHIFT:
+                        switch ((char)key)
+                        {
+                            case (char)Glut.GLUT_KEY_RIGHT:
+                                m_projectionW += 0.01f;
+                                PrintProjectionParameters();
+                                break;
+                            case (char)Glut.GLUT_KEY_LEFT:
+                                m_projectionW -= 0.01f;
+                                PrintProjectionParameters();
+                                break;
+                            case (char)Glut.GLUT_KEY_DOWN:
+                                m_projectionH -= 0.01f;
+                                PrintProjectionParameters();
+                                break;
+                            case (char)Glut.GLUT_KEY_UP:
+                                m_projectionH += 0.01f;
+                                PrintProjectionParameters();
+                                break;
+                        }
+                        break;
+
+                    case Glut.GLUT_ACTIVE_ALT:
+                        switch ((char)key)
+                        {
+                            case (char)Glut.GLUT_KEY_DOWN:
+                                m_projectionYAngle -= 0.1f;
+                                PrintProjectionParameters();
+                                break;
+                            case (char)Glut.GLUT_KEY_UP:
+                                m_projectionYAngle += 0.1f;
+                                PrintProjectionParameters();
+                                break;
+                        }
+                        break;
                 }
             }
 
@@ -601,7 +586,7 @@ namespace GrafitiDemo
             Console.Write(", Y = " + m_projectionY);
             Console.Write(", W = " + m_projectionW);
             Console.Write(", H = " + m_projectionH);
-            Console.Write(", Ay = " + m_projectionYAngle);
+            Console.Write(", A = " + m_projectionYAngle);
             Console.WriteLine();
         }
 

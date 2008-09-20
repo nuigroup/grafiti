@@ -50,6 +50,7 @@
     <Compile Include="DemoTrace.cs" />
     <Compile Include="LazoGR.cs" />
     <Compile Include="Main.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RemovingLinkGR.cs" />
     <Compile Include="Utilities.cs" />
   </ItemGroup>
