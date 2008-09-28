@@ -30,7 +30,6 @@ namespace GrafitiDemo
     {
         const int MAX_TAIL_LENGTH = 15; // number of refresh() calls
         const float PEN_WIDTH = 2f;
-        Viewer m_viewer;
         Trace m_trace;
         int m_startPath = 0;
         MyColor m_color;
@@ -38,10 +37,9 @@ namespace GrafitiDemo
 
         internal Trace Trace { get { return m_trace; } }
 
-        public DemoTrace(Viewer viewer, DemoGroup demoGroup, Trace trace)
+        public DemoTrace(DemoGroup demoGroup, Trace trace)
         {
             m_color = demoGroup.Color;
-            m_viewer = viewer;
             m_trace = trace;
             m_pointerSize = 0.02f;
         }

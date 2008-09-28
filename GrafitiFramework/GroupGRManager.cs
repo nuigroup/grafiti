@@ -292,7 +292,7 @@ namespace Grafiti
                     }
                     #endregion
 
-                    #region set exclusive target and remove equivalent LGRs with different target
+                    #region set exclusive target and remove LGRs with different target
                     if (m_group.ExclusiveLocalTarget == null)
                     {
                         // set exclusive local target (target of the first LGRs encountered in the succeding list)
@@ -328,7 +328,7 @@ namespace Grafiti
                     }
                     #endregion
 
-                    #region arm and process events iteratively; if an exclusive is found, deal with it
+                    #region arm and process events iteratively until an exclusive is found
                     foreach (GestureRecognizer winning in m_succedingGRs)
                     {
                         winning.Armed = true;

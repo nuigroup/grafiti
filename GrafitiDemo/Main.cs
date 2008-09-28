@@ -68,7 +68,7 @@ namespace GrafitiDemo
 
         // Graphic variables
         private bool m_displayCalibrationGrid = false;
-        private static int s_timerTime = 15;
+        private static int s_timerTime = 12;
         private bool m_fullscreen = false;
 
         private bool m_displayTeapot = false;
@@ -76,7 +76,6 @@ namespace GrafitiDemo
 
         // Auxiliar variables
         private static object s_lock = new object();
-        internal Random m_random = new Random();
         private const string m_name = "Grafiti Demo";
         #endregion
 
@@ -127,9 +126,7 @@ namespace GrafitiDemo
             {
                 // Add demo groups
                 foreach (Group group in s_grafitiSurface.AddedGroups)
-                {
-                    m_demoGroups.Add(new DemoGroup(this, group, new MyColor(m_random.NextDouble(),m_random.NextDouble(),m_random.NextDouble())));
-                }
+                    m_demoGroups.Add(new DemoGroup(group));
 
                 // Remove demo groups
                 m_demoGroups.RemoveAll(delegate(DemoGroup demoGroup)
@@ -561,18 +558,18 @@ namespace GrafitiDemo
                     ToggleFullScreen();
                     break;
 
-                case (char)Glut.GLUT_KEY_F2:
-                    if (s_timerTime > 10)
-                    {
-                        s_timerTime--;
-                        Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
-                    }
-                    break;
+                //case (char)Glut.GLUT_KEY_F2:
+                //    if (s_timerTime > 10)
+                //    {
+                //        s_timerTime--;
+                //        Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
+                //    }
+                //    break;
 
-                case (char)Glut.GLUT_KEY_F3:
-                    s_timerTime++;
-                    Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
-                    break;
+                //case (char)Glut.GLUT_KEY_F3:
+                //    s_timerTime++;
+                //    Console.WriteLine("Redraw timer cycle: " + s_timerTime + "ms (~" + (int)(1000f / (float)s_timerTime) + " fps).");
+                //    break;
             }
 
             // force re-display

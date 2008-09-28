@@ -58,7 +58,7 @@ namespace Grafiti
         }
 
         // Auxiliar list used instead of creating a new instance each time.
-        private List<IGestureListener> m_temporaryTargetSingletonList; 
+        private List<IGestureListener> m_temporaryTargetSingletonList;
         #endregion
 
         #region Protected members
@@ -92,7 +92,7 @@ namespace Grafiti
         {
             get { return m_handlerTable; }
         }
-        
+
         #endregion
 
         #region Constructor
@@ -102,7 +102,7 @@ namespace Grafiti
             m_handlerTable = new DoubleDictionary<EventInfo, object, List<GestureEventHandler>>();
             m_temporaryHandlerTable = new DoubleDictionary<TargetList, EventInfo, List<GestureEventHandler>>();
             m_temporaryTargetSingletonList = new List<IGestureListener>(1);
-        } 
+        }
         #endregion
 
         #region Private or internal methods
@@ -261,6 +261,7 @@ namespace Grafiti
                         m_temporaryHandlerTable[targetList, eventInfo].Clear();
                     else
                         m_temporaryHandlerTable[targetList, eventInfo] = new List<GestureEventHandler>();
+
                     foreach (IGestureListener target in groupTargetList)
                         if (m_handlerTable.ContainsKeys(eventInfo, target))
                             foreach (GestureEventHandler handler in m_handlerTable[eventInfo, target])
@@ -271,7 +272,7 @@ namespace Grafiti
                             }
                 }
             }
-        }    
+        }
         #endregion
 
         #region Protected methods
@@ -313,5 +314,5 @@ namespace Grafiti
                 UpdateHandlers(TargetList.CLOSEST_FINAL);
         }
         #endregion
-    } 
+    }
 }

@@ -190,7 +190,7 @@ namespace Grafiti.GestureRecognizers
                     
                     OnMultiTraceGestureDown();
                 }
-                else
+                else if (trace.State == Trace.States.REMOVED)
                 {
                     OnMultiTraceGestureUp();
                 }
@@ -222,12 +222,12 @@ namespace Grafiti.GestureRecognizers
             }
         }
 
-        protected override void UpdateEventHandlers(bool initial, bool final, bool entering, bool current, bool leaving, 
-            bool intersect, bool union, bool newClosestEnt, bool newClosestCur, bool newClosestLvn, 
-            bool newClosestIni, bool newClosestFin)
+        protected override void UpdateEventHandlers(
+            bool initial, bool final, bool entering, bool current, bool leaving, bool intersect, bool union,
+            bool newClosestEnt, bool newClosestCur, bool newClosestLvn, bool newClosestIni, bool newClosestFin)
         {
-            base.UpdateEventHandlers(initial, final, entering, current, leaving,
-                intersect, union, newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
+            base.UpdateEventHandlers(initial, final, entering, current, leaving, intersect, union,
+                newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
 
             if (newClosestIni)
             {

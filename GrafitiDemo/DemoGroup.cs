@@ -29,19 +29,18 @@ namespace GrafitiDemo
 {
     public class DemoGroup
     {
-        Viewer m_viewer;
-        Group m_group;
-        MyColor m_color;
-        List<DemoTrace> m_demoTraces = new List<DemoTrace>();
+        private Group m_group;
+        private MyColor m_color;
+        private List<DemoTrace> m_demoTraces = new List<DemoTrace>();
+        private static Random s_random = new Random();
 
         public Group Group { get { return m_group; } }
         public MyColor Color { get { return m_color; } }
         
-        public DemoGroup(Viewer viewer, Group group, MyColor color)
+        public DemoGroup(Group group)
         {
-            m_viewer = viewer;
             m_group = group;
-            m_color = color;
+            m_color = new MyColor(s_random.NextDouble(), s_random.NextDouble(), s_random.NextDouble());
         }
 
         public void Update(long timestamp)
@@ -53,7 +52,7 @@ namespace GrafitiDemo
                 {
                     return (demoTrace.Trace == trace);
                 }))
-                    m_demoTraces.Add(new DemoTrace(m_viewer, this, trace));
+                    m_demoTraces.Add(new DemoTrace(this, trace));
             }
 
             foreach (DemoTrace demoTrace in m_demoTraces)
