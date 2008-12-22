@@ -30,11 +30,11 @@ namespace Grafiti
         // Attributes' names, values and default values:
 
 
-        // Camera resolution ratio (width resolution over height resolution).
-        // The unit, in all the transmitted coordinates data, will correspond to the height of the screen.
-        private const string CAM_RESO_RATIO_NAME = "CAMERA_RESOLUTION_RATIO";
-        internal static readonly float CAM_RESO_RATIO;
-        internal const float CAM_RESO_RATIO_DEFAULT = (float)(4d / 3d);
+        // Input device resolution ratio (width resolution over height resolution).
+        // The unit, in the Grafiti coordinate system, will correspond to the height.
+        private const string INPUT_DEV_RESO_RATIO_NAME = "INPUT_DEVICE_RESOLUTION_RATIO";
+        internal static readonly float INPUT_DEV_RESO_RATIO;
+        internal const float INPUT_DEV_RESO_RATIO_DEFAULT = (float)(4d / 3d);
 
         // Offset for Tuio's x coordinates can be 0 for rectangular touch table or
         // (1f - 1f / CAMERA_RESOLUTION_RATIO) / 2 for round or square tables (ratio 1:1),
@@ -57,22 +57,22 @@ namespace Grafiti
 
 
         // If set to true, the clustering will consider the distance to the closest living (not removed) trace
-        // If set to false it will consider also resurrectable (recently removed) traces. This latter
-        // case will support non continuous gestures like an 'x' produced with one finger that will
-        // be temporarly removed from the surface between the drawing of the two crossing lines.
+        // If set to false it will consider also non-terminated (recently removed) traces. This latter
+        // case will support multi-stroke gestures (like drawing an 'X') produced by a group that will
+        // be temporarily removed from the surface between the production of the strokes.
         private const string CLUSTERING_ONLY_WITH_ALIVE_TRACES_NAME = "CLUSTERING_ONLY_WITH_ALIVE_TRACES";
         internal static readonly bool CLUSTERING_ONLY_WITH_ALIVE_TRACES;
         internal const bool CLUSTERING_ONLY_WITH_ALIVE_TRACES_DEFAULT = true;
 
 
-        // Maximum time in millisecond between a 'remove' of a cursor and an 'add' of another cursor, to
+        // Maximum time in millisecond between a removal of a cursor and an insertion of another cursor, to
         // associate the cursors to the same (discontinuous) trace.
         private const string TRACE_TIME_GAP_NAME = "TRACE_TIME_GAP";
         internal static readonly int TRACE_TIME_GAP;
         internal const int TRACE_TIME_GAP_DEFAULT = 200; //2000;
 
 
-        // Maximum space between a 'remove' of a cursor and an 'add' of another cursor, to
+        // Maximum space between a removal of a cursor and an insertion of another cursor, to
         // associate the cursors to the same (discontinuous) trace.
         private const string TRACE_SPACE_GAP_NAME = "TRACE_SPACE_GAP";
         internal static readonly float TRACE_SPACE_GAP;
@@ -91,6 +91,14 @@ namespace Grafiti
         }
 
 
+        // Strategy for sorting LGRs in base of the distance to targets.
+        // LGRs can be sorted once at the creation of the group, or dynamically, i.e.
+        // at every refresh cycle.
+        private const string SORT_LGRS_DYNAMICALLY_NAME = "SORT_LGRS_DYNAMICALLY";
+        internal static readonly bool SORT_LGRS_DYNAMICALLY;
+        internal const bool SORT_LGRS_DYNAMICALLY_DEFAULT = true;
+
+
         // Precedence to GGRs over LGRs in case of same priority number
         private const string PRECEDENCE_GGRS_OVER_LGRS_NAME = "PRECEDENCE_GGRS_OVER_LGRS";
         internal static readonly bool PRECEDENCE_GGRS_OVER_LGRS;
@@ -106,7 +114,7 @@ namespace Grafiti
         internal const bool EXCLUSIVE_BLOCK_INTERPRETING_DEFAULT = false;
 
 
-        public static float CameraResolutionRatio { get { return CAM_RESO_RATIO; } }
+        public static float InputDevResolutionRatio { get { return INPUT_DEV_RESO_RATIO; } }
         public static bool GetRectangularTable { get { return RECTANGULAR_TABLE; } }
         public static int GroupingSynchTime { get { return GROUPING_SYNCH_TIME; } }
         public static float GroupingSpace { get { return GROUPING_SPACE; } }
@@ -114,6 +122,7 @@ namespace Grafiti
         public static int TraceTimeGap { get { return TRACE_TIME_GAP; } }
         public static float TraceSpaceGap { get { return TRACE_SPACE_GAP; } }
         public static int LGRTargetList { get { return (int)LGR_TARGET_LIST; } }
+        public static bool SortLGRsDynamically { get { return SORT_LGRS_DYNAMICALLY; } }
         public static bool PrecedeceGGRsOverLGRs { get { return PRECEDENCE_GGRS_OVER_LGRS; } }
         public static bool ExclusiveBlockInterpreting { get { return EXCLUSIVE_BLOCK_INTERPRETING; } }        
 
@@ -121,7 +130,7 @@ namespace Grafiti
         static Settings()
         {
             // Default settings
-            CAM_RESO_RATIO = CAM_RESO_RATIO_DEFAULT;
+            INPUT_DEV_RESO_RATIO = INPUT_DEV_RESO_RATIO_DEFAULT;
             RECTANGULAR_TABLE = RECTANGULAR_TABLE_DEFAULT;
             GROUPING_SYNCH_TIME = GROUPING_SYNCH_TIME_DEFAULT;
             GROUPING_SPACE = GROUPING_SPACE_DEFAULT;
@@ -129,6 +138,7 @@ namespace Grafiti
             TRACE_TIME_GAP = TRACE_TIME_GAP_DEFAULT;
             TRACE_SPACE_GAP = TRACE_SPACE_GAP_DEFAULT;
             LGR_TARGET_LIST = LGR_TARGET_LIST_DEFAULT;
+            SORT_LGRS_DYNAMICALLY = SORT_LGRS_DYNAMICALLY_DEFAULT;
             PRECEDENCE_GGRS_OVER_LGRS = PRECEDENCE_GGRS_OVER_LGRS_DEFAULT;
             EXCLUSIVE_BLOCK_INTERPRETING = EXCLUSIVE_BLOCK_INTERPRETING_DEFAULT;
 
@@ -164,10 +174,10 @@ namespace Grafiti
 
             // Parse attributes and initialize values
 
-            if (reader.MoveToAttribute(CAM_RESO_RATIO_NAME))
+            if (reader.MoveToAttribute(INPUT_DEV_RESO_RATIO_NAME))
                 try
                 {
-                    CAM_RESO_RATIO = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
+                    INPUT_DEV_RESO_RATIO = (float)System.Convert.ToDouble(reader.Value, CultureInfo.InvariantCulture.NumberFormat);
                 }
                 catch (Exception e)
                 {
@@ -248,6 +258,16 @@ namespace Grafiti
                         default:
                             throw new FormatException("Invalid value.");
                     }
+                }
+                catch (Exception e)
+                {
+                    PrintParsingError(settingsFullFileName, reader, e);
+                }
+
+            if (reader.MoveToAttribute(SORT_LGRS_DYNAMICALLY_NAME))
+                try
+                {
+                    SORT_LGRS_DYNAMICALLY = Boolean.Parse(reader.Value);
                 }
                 catch (Exception e)
                 {

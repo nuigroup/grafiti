@@ -43,17 +43,25 @@ namespace GrafitiDemo
         public static void DrawPlainSquare(float size)
         {
             Gl.glBegin(Gl.GL_QUADS);
-            MakeSquare(size);
+            MakeRectangle(size, size);
             Gl.glEnd();
         }
 
-        private static void MakeSquare(float size)
+        public static void DrawPlainRectangle(float width, float height)
         {
-            float s = size / 2;
-            Gl.glVertex2f(-s, s);
-            Gl.glVertex2f(s, s);
-            Gl.glVertex2f(s, -s);
-            Gl.glVertex2f(-s, -s);
+            Gl.glBegin(Gl.GL_QUADS);
+            MakeRectangle(width, height);
+            Gl.glEnd();
+        }
+
+        private static void MakeRectangle(float w, float h)
+        {
+            float w2 = w / 2;
+            float h2 = h / 2;
+            Gl.glVertex2f(-w2, h2);
+            Gl.glVertex2f(w2, h2);
+            Gl.glVertex2f(w2, -h2);
+            Gl.glVertex2f(-w2, -h2);
         }
 
         public static void DrawEmptyCircle(float radius)

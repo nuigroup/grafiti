@@ -28,7 +28,7 @@ using Grafiti.GestureRecognizers;
 
 namespace GrafitiDemo
 {
-    public class DemoObject : ITangibleGestureListener
+    public class DemoObject : ITangibleGestureListener, IPinchable, ISelectable
     {
         private Viewer m_viewer;
         private DemoObjectManager m_objectManager;
@@ -38,18 +38,19 @@ namespace GrafitiDemo
         private float m_x, m_y;
         private float m_angle;
         private float m_targetRadius;
-        private float m_targetRadiusRef;
         private float m_size = 0.1f;
         private MyColor m_color;
         private static Random s_random = new Random();
 
-        public float X { get { return m_x; } }
-        public float Y { get { return m_y; } }
         public List<DemoObjectLink> Links { get { return m_links; } }
         public float TargetRadius { get { return m_targetRadius; } }
 
-        internal bool Selected { get { return m_selected; } set { m_selected = value; } }
+        internal bool IsSelected { get { return m_selected; } set { m_selected = value; } }
 
+        #region ISelectable Members
+        public float X { get { return m_x; } }
+        public float Y { get { return m_y; } }
+        #endregion
 
         public DemoObject(DemoObjectManager objectManager, Viewer viewer, int fiducialId, float x, float y, float angle)
         {
@@ -71,12 +72,9 @@ namespace GrafitiDemo
             GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), m_objectManager.BasicMultiFingerGRConf, "Tap", OnTap);
             //GestureEventManager.RegisterHandler(typeof(BasicMultiFingerGR), m_objectManager.BasicMultiFingerGRConf, "DoubleTap", OnDoubleTap);
 
-            GestureEventManager.SetPriorityNumber(typeof(PinchingGR), m_objectManager.PinchingConf, 2);
-            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "Translate", OnPinchingEvent);
-            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "Scale", OnPinchingEvent);
-            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "Rotate", OnPinchingEvent);
-            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "TranslateOrScaleBegin", OnPinchBegin);
-            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_objectManager.PinchingConf, "RotateBegin", OnPinchBegin);
+            PinchingGRConfiguration m_pinchingGRConf = new PinchingGRConfiguration(true, this, false);
+            GestureEventManager.SetPriorityNumber(typeof(PinchingGR), m_pinchingGRConf, 3);
+            GestureEventManager.RegisterHandler(typeof(PinchingGR), m_pinchingGRConf, "Pinch", OnPinch);
 
         }
         internal void Update(float x, float y, float angle)
@@ -93,29 +91,25 @@ namespace GrafitiDemo
             m_angle = angle;
             GestureEventManager.UnregisterAllHandlersOf(this);
         }
-
-        public void OnPinchBegin(object obj, GestureEventArgs args)
+        #region IPinchable Members
+        public void GetPinchReference(out float x, out float y, out float size, out float rotation)
         {
-            PinchBeginEventArgs cArgs = (PinchBeginEventArgs)args;
-
-            if (cArgs.EventId == "TranslateOrScaleBegin")
-            {
-                m_targetRadiusRef = m_targetRadius;
-            }
+            x = 0; 
+            y = 0;
+            size = m_targetRadius;
+            rotation = 0;
         }
-        public void OnPinchingEvent(object obj, GestureEventArgs args)
+        #endregion
+        public void OnPinch(object obj, GestureEventArgs args)
         {
             PinchEventArgs cArgs = (PinchEventArgs)args;
-            if (cArgs.EventId == "Scale")
-            {
-                m_targetRadius = m_targetRadiusRef + cArgs.Scaling * 2;
-            }
+            m_targetRadius = cArgs.Size;
         }
         public void OnTap(object obj, GestureEventArgs args)
         {
             //Console.WriteLine("tap");
             //BasicMultiFingerEventArgs cArgs = (BasicMultiFingerEventArgs)args;
-            Selected = false;
+            IsSelected = false;
         }
         public void OnDoubleTap(object obj, GestureEventArgs args)
         {

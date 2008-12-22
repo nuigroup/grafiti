@@ -32,14 +32,14 @@ namespace Grafiti
     {
         #region Private members
         private static readonly object s_lock = new object();
-        private static GRConfigurator s_defaultGRConfigurator = new GRConfigurator(false);
+        private static GRConfiguration s_defaultGRConfiguration = new GRConfiguration(false);
         #endregion
 
         #region Client's interface
         /// <summary>
         /// Sets the priority number to associate with the given gesture recognizer class and its default
-        /// configurator. However note that when registering a gesture event handler with the same GR type,
-        /// no configurator must be passed as parameter in order to associate it with the priority number 
+        /// configuration. However note that when registering a gesture event handler with the same GR type,
+        /// no configuration must be passed as parameter in order to associate it with the priority number 
         /// specified.
         /// Note that once a priority number is set it can't be changed.
         /// </summary>
@@ -47,21 +47,21 @@ namespace Grafiti
         /// <param name="priorityNumber"></param>
         public static void SetPriorityNumber(Type grType, int priorityNumber)
         {
-            SetPriorityNumber(grType, GestureRecognizer.DefaultConfigurator, priorityNumber);
+            SetPriorityNumber(grType, GestureRecognizer.DefaultConfiguration, priorityNumber);
         }
         /// <summary>
         /// Sets the priority number to associate with the given gesture recognizer class and the
-        /// given configurator.
+        /// given configuration.
         /// Note that once a priority number is set it can't be changed.
         /// </summary>
         /// <param name="grType">Type of the gesture recognizer.</param>
-        /// <param name="configurator">Configurator of the gesture recognizer.</param>
+        /// <param name="configuration">Configuration of the gesture recognizer.</param>
         /// <param name="priorityNumber">Priority number.</param>
-        public static void SetPriorityNumber(Type grType, GRConfigurator configurator, int priorityNumber)
+        public static void SetPriorityNumber(Type grType, GRConfiguration configuration, int priorityNumber)
         {
             lock (s_lock)
             {
-                GestureEventRegistry.SetPriorityNumber(grType, configurator, priorityNumber);
+                GestureEventRegistry.SetPriorityNumber(grType, configuration, priorityNumber);
             }
         }
         /// <summary>
@@ -72,20 +72,33 @@ namespace Grafiti
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
         public static void RegisterHandler(Type grType, string ev, GestureEventHandler handler)
         {
-            RegisterHandler(grType, GestureRecognizer.DefaultConfigurator, ev, handler);
+            RegisterHandler(grType, GestureRecognizer.DefaultConfiguration, ev, handler);
         }
         /// <summary>
-        /// Registers a handler for a gesture event. The GR will be configured with the given configurator.
+        /// Registers a handler for a gesture event. The GR will be configured with the given configuration.
         /// </summary>
         /// <param name="grType">Type of the gesture recognizer.</param>
-        /// <param name="grConf">The GR's configurator.</param>
+        /// <param name="grConf">The GR's configuration.</param>
         /// <param name="e">The event as string.</param>
         /// <param name="handler">The listener's function that will be called when the event is raised.</param>
-        public static void RegisterHandler(Type grType, GRConfigurator grConf, string ev, GestureEventHandler handler)
+        public static void RegisterHandler(Type grType, GRConfiguration grConf, string ev, GestureEventHandler handler)
         {
             lock (s_lock)
             {
                 GestureEventRegistry.RegisterHandler(grType, grConf, ev, handler);
+            }
+        }
+
+        public static void UnregisterHandler(Type grType, string ev, GestureEventHandler handler)
+        {
+            UnregisterHandler(grType, GestureRecognizer.DefaultConfiguration, ev, handler);
+        }
+        
+        public static void UnregisterHandler(Type grType, GRConfiguration grConf, string ev, GestureEventHandler handler)
+        {
+            lock (s_lock)
+            {
+                GestureEventRegistry.UnregisterHandler(grType, grConf, ev, handler);
             }
         }
         /// <summary>

@@ -74,11 +74,9 @@ namespace Grafiti
         private Dictionary<int, Trace> m_cursorTraceTable;
 
         // Debugging variables
-        private int m_lastProcessedRefreshTimeStamp;
+        private int m_lastProcessedRefreshTimeStamp = 0;
         private DateTime m_startTime;
-
-        // Auxiliary variable used for sorting targets in base of their distance to a point
-        private List<TargetDistanceData> m_targetIdxDistances;
+        
         #endregion
 
         #region Public properties
@@ -110,7 +108,6 @@ namespace Grafiti
         #region Private constructor
         private Surface()
         {
-            m_targetIdxDistances = new List<TargetDistanceData>();
             m_addingCursors = new List<CursorPoint>();
             m_updatingCursors = new List<CursorPoint>();
             m_removingCursors = new List<CursorPoint>();
@@ -124,7 +121,7 @@ namespace Grafiti
             m_startTime = DateTime.Now;
 
             Settings.Initialize();
-            CAMERA_RESOLUTION_RATIO = Settings.CAM_RESO_RATIO;
+            CAMERA_RESOLUTION_RATIO = Settings.INPUT_DEV_RESO_RATIO;
             if (Settings.RECTANGULAR_TABLE)
                 OFFSET_X = 0;
             else
@@ -200,6 +197,8 @@ namespace Grafiti
         }
         public void refresh(long timeStampAsLong)
         {
+			m_lastProcessedRefreshTimeStamp++;
+			
             m_addedGroups.Clear();
             m_removedGroups.Clear();
             m_touchedGroups.Clear();
@@ -215,7 +214,7 @@ namespace Grafiti
             ProcessCurrentRemovingCursors(timeStamp);
             ProcessCurrentUpdatingCursors(timeStamp);
             ProcessCurrentAddingCursors(timeStamp);
-
+            
             foreach (Group group in m_touchedGroups)
                 group.Process(timeStamp);
 
@@ -239,7 +238,7 @@ namespace Grafiti
         {
             m_activeGroups.RemoveAll(delegate(Group group)
             {
-                if (!group.IsPresent && timeStamp - group.CurrentTimeStamp > Settings.TRACE_TIME_GAP)
+                if (!group.IsAlive && timeStamp - group.CurrentTimeStamp > Settings.TRACE_TIME_GAP)
                 {
                     group.Terminate();
                     m_removedGroups.Add(group);
@@ -252,32 +251,31 @@ namespace Grafiti
         }
         private void ProcessCurrentAddingCursors(int timeStamp)
         {
+            // TODO: don't give priority to the first added cursors!
+
             foreach (CursorPoint cursor in m_addingCursors)
             {
                 // set timestamp
                 cursor.TimeStamp = timeStamp;
 
+                // Targeting
+                List<IGestureListener> targets;
+                bool isZControl = GetTargetsAt(cursor.X, cursor.Y, out targets);
+
+                // Grouping
                 Group group;
                 Trace trace;
-
-                List<IGestureListener> targets;
-                bool guiTargets = ListTargetsAt(cursor.X, cursor.Y, out targets);
-
-                // try finding a resurrecting trace
-                // TODO: don't give priority to the first added cursors
-                trace = TryResurrectTrace(cursor);
-
-                if (trace != null)
+                if(TryResurrectTrace(cursor, out trace)) // try finding a resurrecting trace
                 {
                     // resurrect the trace
                     group = trace.Group;
-                    trace.AppendAddingOrUpdatingCursor(cursor, targets, guiTargets);
+                    trace.AppendAddingOrUpdatingCursor(cursor, targets, isZControl);
                 }
                 else
                 {
                     // create a new trace
-                    group = GetMatchingGroup(cursor, targets, guiTargets);
-                    trace = new Trace(cursor, group, targets, guiTargets);
+                    group = GetMatchingGroup(cursor, targets, isZControl);
+                    trace = new Trace(cursor, group, targets, isZControl);
                 }
 
                 // index the cursor
@@ -300,8 +298,8 @@ namespace Grafiti
 
                 // update trace
                 List<IGestureListener> targets;
-                bool guiTargets = ListTargetsAt(cursor.X, cursor.Y, out targets);
-                trace.AppendAddingOrUpdatingCursor(cursor, targets, guiTargets);
+                bool isZControl = GetTargetsAt(cursor.X, cursor.Y, out targets);
+                trace.AppendAddingOrUpdatingCursor(cursor, targets, isZControl);
 
                 // refresh touched group list
                 if (!m_touchedGroups.Contains(trace.Group))
@@ -320,8 +318,8 @@ namespace Grafiti
 
                 // update trace
                 List<IGestureListener> targets;
-                bool guiTargets = ListTargetsAt(cursor.X, cursor.Y, out targets);
-                trace.AppendRemovingCursor(cursor, targets, guiTargets);
+                bool isZControl = GetTargetsAt(cursor.X, cursor.Y, out targets);
+                trace.AppendRemovingCursor(cursor, targets, isZControl);
 
                 // add trace to resurrectable traces list
                 m_resurrectableTraces.Insert(0, trace);
@@ -334,9 +332,9 @@ namespace Grafiti
                     m_touchedGroups.Add(trace.Group);
             }
         }
-        private Trace TryResurrectTrace(CursorPoint cursor)
+        private bool TryResurrectTrace(CursorPoint cursor, out Trace resurrectingTrace)
         {
-            Trace resurrectingTrace = null;
+            resurrectingTrace = null;
             float minDist = Settings.TRACE_SPACE_GAP * Settings.TRACE_SPACE_GAP;
             float dist;
             foreach (Trace trace in m_resurrectableTraces)
@@ -351,8 +349,10 @@ namespace Grafiti
             if (resurrectingTrace != null)
             {
                 m_resurrectableTraces.Remove(resurrectingTrace);
+                return true;
             }
-            return resurrectingTrace;
+            else
+                return false;
         }
         /// <summary>
         /// Clustering method. Determine the best matching group to add the cursor's trace to.
@@ -362,7 +362,7 @@ namespace Grafiti
         /// <param name="targets">The given cursor's targets</param>
         /// <param name="guiTargets">Flag indicating whether the given targets are GUI controls</param>
         /// <returns>The matching group where to add the given cursor-s trace.</returns>
-        private Group GetMatchingGroup(CursorPoint cursor, List<IGestureListener> targets, bool guiTargets)
+        private Group GetMatchingGroup(CursorPoint cursor, List<IGestureListener> targets, bool isZControl)
         {
             Group matchingGroup = null;
             float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE;
@@ -371,8 +371,15 @@ namespace Grafiti
             foreach (Group group in m_activeGroups)
             {
                 // filter out groups that don't accept the trace
-                if (!group.AcceptNewCursor(cursor, targets, guiTargets))
+                if (!group.AcceptNewCursor(cursor, targets, isZControl))
                     continue;
+
+                // group all traces on the same zControl
+                if (isZControl && group.OnZControl && targets[0] == group.ClosestCurrentTarget)
+                {
+                    matchingGroup = group;
+                    break;
+                }
 
                 // find the closest
                 tempDist = group.SquareDistanceToNearestTrace(cursor, Settings.CLUSTERING_ONLY_WITH_ALIVE_TRACES);
@@ -386,6 +393,7 @@ namespace Grafiti
             // if no group is found, create a new one
             if (matchingGroup == null)
                 matchingGroup = CreateGroup();
+
             return matchingGroup;
         }
         private Group CreateGroup()
@@ -395,41 +403,30 @@ namespace Grafiti
             m_activeGroups.Add(group);
             return group;
         }
-        private bool ListTargetsAt(float x, float y, out List<IGestureListener> output)
+        /// <summary>
+        /// Get targets for a point and returns true if such point is over a Z-control.
+        /// </summary>
+        private bool GetTargetsAt(float x, float y, out List<IGestureListener> targets)
         {
-            output = new List<IGestureListener>();
+            targets = new List<IGestureListener>();
 
-            IGestureListener guiCtrl = m_clientGUIManager.HitTest(x, y);
-            if (guiCtrl != null)
+            IGestureListener zListener;
+            object zControl;
+            List<ITangibleGestureListener> tangibleListeners;
+            m_clientGUIManager.GetVisualsAt(x, y, out zListener, out zControl, out tangibleListeners);
+
+            if (zListener != null)
             {
-                output.Add(guiCtrl);
+                targets.Add(zListener);
                 return true;
             }
-            else
+            if (zControl != null)
             {
-                m_targetIdxDistances.Clear();
-                foreach (ITangibleGestureListener listener in m_clientGUIManager.HitTestTangibles(x, y))
-                    m_targetIdxDistances.Add(new TargetDistanceData(listener, listener.GetSquareDistance(x, y)));
-                m_targetIdxDistances.Sort();
-
-                foreach (TargetDistanceData td in m_targetIdxDistances)
-                    output.Add(td.target);
-                return false;
+                return true;
             }
-        }
-        private struct TargetDistanceData : IComparable
-        { 
-            internal ITangibleGestureListener target;
-            internal float distance;
-            public TargetDistanceData(ITangibleGestureListener t, float dist)
-            {
-                target = t;
-                distance = dist;
-            }
-            int IComparable.CompareTo(object obj)
-            {
-                return (int)((distance - ((TargetDistanceData)obj).distance) * 1000000000);
-            }
+            foreach(ITangibleGestureListener tangibleListener in tangibleListeners)
+                targets.Add(tangibleListener);
+            return false;
         }
         #endregion
     }

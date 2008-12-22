@@ -51,6 +51,8 @@ namespace GrafitiDemo
         private static Viewer s_viewer;
 
 
+        private Calculator m_calculator = new Calculator();
+
         // Manages the visual feedback of Grafiti's groups of fingers
         private List<DemoGroup> m_demoGroups = new List<DemoGroup>();
 
@@ -71,8 +73,7 @@ namespace GrafitiDemo
         private static int s_timerTime = 12;
         private bool m_fullscreen = false;
 
-        private bool m_displayTeapot = false;
-        private float m_teapotX = 0.5f, m_teapotY = 0.5f, m_teapotScale = 0.2f;
+        private bool m_displayCalculator = true;
 
         // Auxiliar variables
         private static object s_lock = new object();
@@ -82,7 +83,7 @@ namespace GrafitiDemo
         #region Constructors
         private Viewer()
         {
-            GestureEventManager.SetPriorityNumber(typeof(CircleGR), 2);
+            GestureEventManager.SetPriorityNumber(typeof(CircleGR), 3);
             GestureEventManager.RegisterHandler(typeof(CircleGR), "Circle", OnCircleGesture);
         }
         private Viewer(float x, float y, float w, float h, float a) : this()
@@ -102,12 +103,12 @@ namespace GrafitiDemo
             
             lock (s_lock)
             {
-                m_displayTeapot = !m_displayTeapot;
-                if (m_displayTeapot)
+                m_displayCalculator = !m_displayCalculator;
+                if (m_displayCalculator)
                 {
-                    m_teapotX = cArgs.MeanCenterX;
-                    m_teapotY = cArgs.MeanCenterY;
-                    m_teapotScale = cArgs.MeanRadius;
+                    m_calculator.X = cArgs.MeanCenterX;
+                    m_calculator.Y = cArgs.MeanCenterY;
+                    m_calculator.Size = cArgs.MeanRadius * 2;
                 } 
             }
         }
@@ -141,13 +142,19 @@ namespace GrafitiDemo
         #endregion
 
         #region IGrafitiClientGUIManager Members
-        public IGestureListener HitTest(float xf, float yf)
+        public void GetVisualsAt(float x, float y,
+            out IGestureListener zGestureListener,
+            out object zControl,
+            out List<ITangibleGestureListener> tangibleListeners)
         {
-            return null;
-        }
-        public List<ITangibleGestureListener> HitTestTangibles(float x, float y)
-        {
-            return s_demoObjectManager.HitTestTangibles(x, y);
+			if(m_displayCalculator)
+				m_calculator.GetTargetAt(x, y, out zGestureListener, out zControl);
+			else
+			{
+				zGestureListener = null;
+				zControl = null;
+			}
+            tangibleListeners = s_demoObjectManager.HitTestTangibles(x, y);
         }
         public void PointToClient(IGestureListener target, float x, float y, out float cx, out float cy)
         {
@@ -200,13 +207,12 @@ namespace GrafitiDemo
             }
 
             // Force compilation of GR classes
-            new PinchingGR(new GRConfigurator());
-            new BasicMultiFingerGR(new GRConfigurator());
-            new MultiTraceGR(new GRConfigurator());
-            new RemovingLinkGR(new GRConfigurator());
-            new CircleGR(new GRConfigurator());
-            new LazoGR(new GRConfigurator());
-            new RemovingLinkGR(new GRConfigurator());
+            new PinchingGR();
+            new BasicMultiFingerGR();
+            new MultiTraceGR();
+            new CircleGR();
+            new LazoGR();
+            new RemovingLinkGR();
 
 
             // instantiate viewer
@@ -278,7 +284,7 @@ namespace GrafitiDemo
 
             Gl.glClearColor(0.0f, 0.0f, 0.3f, 1.0f);
             Gl.glClearDepth(1.0f);
-            Gl.glHint(Gl.GL_PERSPECTIVE_CORRECTION_HINT, Gl.GL_NICEST);
+            //Gl.glHint(Gl.GL_PERSPECTIVE_CORRECTION_HINT, Gl.GL_NICEST);
             //Gl.glShadeModel(Gl.GL_SMOOTH);
             Gl.glPushAttrib(Gl.GL_DEPTH_BUFFER_BIT);
             Gl.glDisable(Gl.GL_DEPTH_TEST);
@@ -346,6 +352,8 @@ namespace GrafitiDemo
         }
         private void Display()
         {
+			Gl.glEnable(Gl.GL_LINE_SMOOTH);
+			Gl.glHint(Gl.GL_LINE_SMOOTH_HINT, Gl.GL_NICEST);
             Gl.glClear(Gl.GL_COLOR_BUFFER_BIT);
             Gl.glLoadIdentity();
             Gl.glScalef(1, -1, 1);
@@ -355,31 +363,31 @@ namespace GrafitiDemo
             Gl.glTranslatef(-m_projectionW / 2, -m_projectionH / 2, 0);
             Gl.glScalef(m_projectionW, m_projectionH, 0);
 
-            //Gl.glEnable(Gl.GL_LINE_SMOOTH);
-            //Gl.glLineWidth(2.0f);
+
 
             lock (s_lock)
             {
-                // teapot
-                if (m_displayTeapot)
-                {
-                    Gl.glColor3d(1, 1, 1);
-                    Gl.glPushMatrix();
-                    Gl.glTranslatef(m_teapotX, m_teapotY, 0f);
-                    Gl.glScalef(1, -1, 1);
-                    Glut.glutSolidTeapot(m_teapotScale);
-                    Gl.glPopMatrix();
-                }
-
                 // draw finger groups
                 foreach (DemoGroup demoGroup in m_demoGroups)
-                    demoGroup.Draw();
-            }
+                    demoGroup.Draw1();
 
+                if (m_displayCalculator)
+                    m_calculator.Draw();
+
+                foreach (DemoGroup demoGroup in m_demoGroups)
+                    demoGroup.Draw2();
+            }
 
             // draw objects
             s_demoObjectManager.Draw();
 
+
+            //Gl.glPushMatrix();
+            //    Gl.glTranslatef(0.2f, 0.3f, 0f);
+            //    Gl.glScaled(0.001, -0.001, 1);
+            //    Glut.glutStrokeString(Glut.GLUT_STROKE_ROMAN, "test stroke");
+            //    Glut.glutBitmapString(Glut.GLUT_BITMAP_HELVETICA_10, "test bitmap");
+            //Gl.glPopMatrix();
 
             if (m_displayCalibrationGrid)
                 DrawCalibrationGrid();

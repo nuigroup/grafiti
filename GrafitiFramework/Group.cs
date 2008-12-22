@@ -76,7 +76,7 @@ namespace Grafiti
         private static int s_counter = 0;           // id counter
         private readonly int m_id;                  // id
         private List<Trace> m_traces;               // the traces of which the group is composed
-        private int m_nOfPresentTraces;             // number of alive traces (fingers currently in the surface)
+        private int m_nOfCurrentTraces;             // number of alive traces (fingers currently in the surface)
         private int m_nOfActiveTraces;              // number of alive (present) or resurrectable traces.
         private float m_x0, m_y0;                   // initial coordinates of the first added trace
         private int m_t0, m_currentTimeStamp;       // initial and last time stamp
@@ -87,10 +87,10 @@ namespace Grafiti
         private float m_livingCentroidX, m_livingCentroidY;
         
         private GroupGRManager m_groupGRManager;    // gesture recognition manager
-        private bool m_initializing;
-        private bool m_processing;
+        private bool m_isInitializing;
+        private bool m_isProcessing;
 
-        private int m_maxNumberOfFingersAllowed = -1;
+        private int m_maxNumberOfActiveTraces = -1;
 
         private List<Trace> m_startingSequence;       // traces listed in order of adding
         private List<Trace> m_endingSequenceReversed; // traces listed in reversed order of dying
@@ -112,7 +112,7 @@ namespace Grafiti
         // If the variable is (re)set (by GroupGRManager), the change is reflected in m_lgrTargets.
         private IGestureListener m_exclusiveLocalTarget = null;
 
-        private bool m_onSingleGUIControl;
+        private bool m_isOnZControl;
 
         //private SimmetricDoubleDictionary<Trace, float> m_traceSpaceCouplingTable;
         //private SimmetricDoubleDictionary<Trace, int> m_traceTimeCouplingTable;
@@ -126,12 +126,12 @@ namespace Grafiti
         private List<List<IGestureListener>> m_finalTargetLists = new List<List<IGestureListener>>();
 
         internal GroupGRManager GRManager { get { return m_groupGRManager; } }
-        public bool Processing { get { return m_processing; } }
+        public bool IsProcessing { get { return m_isProcessing; } }
 
-        public int MaxNumberOfFingersAllowed
+        public int MaxNumberOfActiveTraces
         {
-            get { return m_maxNumberOfFingersAllowed; }
-            internal set { m_maxNumberOfFingersAllowed = value; }
+            get { return m_maxNumberOfActiveTraces; }
+            internal set { m_maxNumberOfActiveTraces = value; }
         }
         #endregion
 
@@ -149,12 +149,12 @@ namespace Grafiti
         /// <summary>
         /// Number of present traces
         /// </summary>
-        public int NumberOfPresentTraces { get { return m_nOfPresentTraces; } }
+        public int NumberOfAliveTraces { get { return m_nOfCurrentTraces; } }
 
         /// <summary>
         /// True iff there is at least a present trace (a finger is currently in the surface)
         /// </summary>
-        public bool IsPresent { get { return m_nOfPresentTraces > 0; } }
+        public bool IsAlive { get { return m_nOfCurrentTraces > 0; } }
 
         /// <summary>
         /// Number of active traces
@@ -231,14 +231,14 @@ namespace Grafiti
         /// <summary>
         /// True iff all the traces are currently on the same GUI component.
         /// </summary>
-        public bool OnSingleGUIControl
+        public bool OnZControl
         {
-            get { return m_onSingleGUIControl; }
+            get { return m_isOnZControl; }
             private set
             {
-                if (m_onSingleGUIControl != value)
+                if (m_isOnZControl != value)
                 {
-                    m_onSingleGUIControl = value;
+                    m_isOnZControl = value;
                 }
             }
         }
@@ -250,8 +250,8 @@ namespace Grafiti
             m_id = s_counter++;
             m_traces = new List<Trace>();
             m_nOfActiveTraces = 0;
-            m_nOfPresentTraces = 0;
-            m_initializing = true;
+            m_nOfCurrentTraces = 0;
+            m_isInitializing = true;
 
             m_activeCentroidX = m_activeCentroidY = -1;
             m_livingCentroidX = m_livingCentroidY = -1;
@@ -287,7 +287,7 @@ namespace Grafiti
 
             // First set the GR manager...
             m_groupGRManager = new GroupGRManager(this);
-            m_processing = true;
+            m_isProcessing = true;
 
             // ... then set the LGR target list
             if (Settings.LGR_TARGET_LIST == Settings.LGRTargetLists.INITIAL_TARGET_LIST)
@@ -309,11 +309,11 @@ namespace Grafiti
         internal void StartTrace(Trace trace)
         {
             if (m_traces.Count == 0)
-                m_initializing = true;
+                m_isInitializing = true;
 
             m_traces.Add(trace);
             m_nOfActiveTraces++;
-            m_nOfPresentTraces++;
+            m_nOfCurrentTraces++;
 
             CursorPoint firstPoint = trace.First;
             int firstPointTimeStamp = firstPoint.TimeStamp;
@@ -351,7 +351,7 @@ namespace Grafiti
         {
             if (trace.State == Trace.States.RESET)
             {
-                m_nOfPresentTraces++;
+                m_nOfCurrentTraces++;
                 m_endingSequenceReversed.Remove(trace);
                 m_currentResettingTraces.Add(trace);
             }
@@ -361,7 +361,7 @@ namespace Grafiti
         }
         internal void EndTrace(Trace trace)
         {
-            m_nOfPresentTraces--;
+            m_nOfCurrentTraces--;
 
             // update ending sequence
             m_endingSequenceReversed.Insert(0, trace);
@@ -379,7 +379,7 @@ namespace Grafiti
         }
         internal bool Process(int timeStamp)
         {
-            if (m_processing)
+            if (m_isProcessing)
             {
                 // update current time stamp
                 m_currentTimeStamp = timeStamp;
@@ -392,7 +392,7 @@ namespace Grafiti
 
                 // process
                 if (!m_groupGRManager.Process(m_allCurrentTraces, true))
-                    m_processing = false;
+                    m_isProcessing = false;
 
                 // clear temp lists
                 m_currentStartingTraces.Clear();
@@ -401,7 +401,7 @@ namespace Grafiti
                 m_currentEndingTraces.Clear();
                 m_allCurrentTraces.Clear();
             }
-            return m_processing;
+            return m_isProcessing;
         }
         private void UpdateCentroids()
         {
@@ -414,7 +414,7 @@ namespace Grafiti
             foreach (Trace trace in m_traces)
             {
                 cursor = trace.Last;
-                if (trace.Alive)
+                if (trace.IsAlive)
                 {
                     // Living trace
                     sx += cursor.X;
@@ -503,9 +503,9 @@ namespace Grafiti
             List<IGestureListener> intersectionStartingAndResettingList = Intersect(m_currentStartingAndResettingTargetLists);
 
 
-            if (m_initializing)
+            if (m_isInitializing)
             {
-                m_initializing = false;
+                m_isInitializing = false;
 
                 // The first added traces determine INITIAL, NEWINITIAL and INTERSECTION lists
                 m_initialTargets.AddRange(intersectionInitialList);
@@ -587,7 +587,7 @@ namespace Grafiti
                 {
                     if (m_traces.TrueForAll(delegate(Trace t)
                     {
-                        return !t.Alive || t.CurrentTargets.Contains(enteringTarget);
+                        return !t.IsAlive || t.CurrentTargets.Contains(enteringTarget);
                     }))
                     {
                         m_enteringTargets.Add(enteringTarget);
@@ -630,7 +630,7 @@ namespace Grafiti
 
             #region removed traces
 
-            if (!IsPresent) // if all traces have been removed then compute FINAL targets
+            if (!IsAlive) // if all traces have been removed then compute FINAL targets
             {
                 int finalTimeStamp = m_allCurrentTraces[0].Last.TimeStamp;
                 m_finalTargetLists.Clear();
@@ -653,7 +653,7 @@ namespace Grafiti
                 {
                     m_currentCurrentTargetLists.Clear();
                     foreach (Trace t in m_traces)
-                        if (t.Alive)
+                        if (t.IsAlive)
                             m_currentCurrentTargetLists.Add(t.CurrentTargets);
                     List<IGestureListener> currentTargets = Intersect(m_currentCurrentTargetLists);
 
@@ -673,14 +673,14 @@ namespace Grafiti
             #endregion
 
             
-            OnSingleGUIControl = m_currentTargets.Count > 0 && !(m_currentTargets[0] is ITangibleGestureListener);
+            OnZControl = m_currentTargets.Count > 0 && !(m_currentTargets[0] is ITangibleGestureListener);
 
 
             #region closest targets
             IGestureListener closestTarget = null;
             float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE + 1;
             float tempDist;
-            if (!(OnSingleGUIControl))
+            if (!(OnZControl))
             {
                 foreach (IGestureListener target in m_currentTargets)
                 {
@@ -828,7 +828,7 @@ namespace Grafiti
             float minDist = Settings.GROUPING_SPACE * Settings.GROUPING_SPACE + 1;
             foreach (Trace trace in m_traces)
             {
-                if (trace.Alive || 
+                if (trace.IsAlive || 
                     (!onlyAliveTraces && cursor.TimeStamp - trace.Last.TimeStamp <= Settings.TraceTimeGap)) // recently dead
                     minDist = Math.Min(trace.Last.SquareDistance(cursor), minDist);
             }
@@ -843,16 +843,20 @@ namespace Grafiti
         /// <param name="targets">Targets of the given cursor.</param>
         /// <param name="guiTargets">This flag must be true iff the targets are GUI controls</param>
         /// <returns>true iff the cursor can be added to the group</returns>
-        internal bool AcceptNewCursor(CursorPoint cursor, List<IGestureListener> targets, bool guiTargets)
+        internal bool AcceptNewCursor(CursorPoint cursor, List<IGestureListener> targets, bool zControl)
         {
-            // If both the group and the cursor are on a GUI control, then such control must be the same
-            // If only one of them is on a GUI control than don't accept the cursor
-            if (guiTargets != OnSingleGUIControl ||
-                (guiTargets && targets[0] != m_currentTargets[0]))
+            // If the trace is on a z-Control that is not a gesture listener then don't accept the cursor
+            if (zControl && targets.Count == 0)
                 return false;
 
-            if (m_maxNumberOfFingersAllowed > 0 &&
-                m_nOfActiveTraces >= m_maxNumberOfFingersAllowed)
+            // If both the group and the cursor are on a Z-control, then such control must be the same
+            // If only one of them is on a Z-control then don't accept the cursor
+            if (zControl != OnZControl ||
+                (zControl && targets[0] != m_currentTargets[0]))
+                return false;
+
+            if (m_maxNumberOfActiveTraces > 0 &&
+                m_nOfActiveTraces >= m_maxNumberOfActiveTraces)
                 return false;
 
 

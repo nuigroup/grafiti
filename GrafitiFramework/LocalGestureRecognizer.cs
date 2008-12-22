@@ -35,17 +35,17 @@ namespace Grafiti
     public abstract class LocalGestureRecognizer : GestureRecognizer
     {
         #region Private or internal members
-        private ITangibleGestureListener m_target;
+        private IGestureListener m_target;
         private float m_squareDistanceFromTarget;
         internal float SquareDistanceFromTarget { get { return m_squareDistanceFromTarget; } set { m_squareDistanceFromTarget = value; } }  
         #endregion
 
         #region Public properties
-        public ITangibleGestureListener Target { get { return m_target; } internal set { m_target = value; } }
+        public IGestureListener Target { get { return m_target; } internal set { m_target = value; } }
         #endregion        
 
         #region Constructor
-        public LocalGestureRecognizer(GRConfigurator configurator) : base(configurator) { }
+        public LocalGestureRecognizer(GRConfiguration configuration) : base(configuration) { }
         #endregion
 
         #region Private or internal methods

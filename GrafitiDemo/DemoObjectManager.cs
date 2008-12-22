@@ -75,25 +75,24 @@ namespace GrafitiDemo
     public class DemoObjectManager : TuioListener, IGestureListener
     {
         #region Variables
-        private readonly float CAM_RESO_RATIO = Settings.CameraResolutionRatio;
+        private readonly float CAM_RESO_RATIO = Settings.InputDevResolutionRatio;
         private readonly float OFFSET_X = Surface.Instance.OffsetX;
         private const float MAX_SQUARE_DISTANCE_FOR_LINKING = 0.25f * 0.25f;
         private Viewer m_viewer;
         private List<ITangibleGestureListener> m_tempTangibleList = new List<ITangibleGestureListener>();
         private List<TuioObject> m_tuioObjectAddedList, m_tuioObjectUpdatedList, m_tuioObjectRemovedList;
         private List<DemoObject> m_currentTuioObjects = new List<DemoObject>();
+        private List<ISelectable> m_currentSelectable = new List<ISelectable>();
         private Dictionary<long, DemoObject> m_idDemoObjectTable;
         private List<DemoObjectLink> m_links = new List<DemoObjectLink>();
         private List<DemoObjectLink> m_pendingLinks = new List<DemoObjectLink>();
         
-        private PinchingGRConfigurator m_pinchingGRConf = new PinchingGRConfigurator(true, 2, -1);
-        private BasicMultiFingerGRConfigurator m_basicMultiFingerGRConf = new BasicMultiFingerGRConfigurator();
+        private BasicMultiFingerGRConfiguration m_basicMultiFingerGRConf = new BasicMultiFingerGRConfiguration();
         private Dictionary<int, List<DemoObject>> m_linkRequests = new Dictionary<int, List<DemoObject>>();
         private static object s_lock = new object();
 
         internal List<DemoObjectLink> Links { get { return m_links; } }
-        internal PinchingGRConfigurator PinchingConf { get { return m_pinchingGRConf; } }
-        internal BasicMultiFingerGRConfigurator BasicMultiFingerGRConf { get { return m_basicMultiFingerGRConf; } }
+        internal BasicMultiFingerGRConfiguration BasicMultiFingerGRConf { get { return m_basicMultiFingerGRConf; } }
         
         #endregion
 
@@ -105,16 +104,16 @@ namespace GrafitiDemo
             m_tuioObjectRemovedList = new List<TuioObject>();
             m_idDemoObjectTable = new Dictionary<long,DemoObject>();
 
-            RemovingLinkGRConfigurator removingLinkGRConf = new RemovingLinkGRConfigurator(this);
+            RemovingLinkGRConfiguration removingLinkGRConf = new RemovingLinkGRConfiguration(this);
             GestureEventManager.SetPriorityNumber(typeof(RemovingLinkGR), removingLinkGRConf, 1);
             GestureEventManager.RegisterHandler(typeof(RemovingLinkGR), removingLinkGRConf, "RemoveLinks", OnRemoveLinks);
 
-            MultiTraceGRConfigurator m_multiTraceGRConf = new MultiTraceGRConfigurator(true, MAX_SQUARE_DISTANCE_FOR_LINKING, true, false);
-            GestureEventManager.SetPriorityNumber(typeof(MultiTraceGR), m_multiTraceGRConf, 2);
+            MultiTraceGRConfiguration m_multiTraceGRConf = new MultiTraceGRConfiguration(true, MAX_SQUARE_DISTANCE_FOR_LINKING, true, false);
+            GestureEventManager.SetPriorityNumber(typeof(MultiTraceGR), m_multiTraceGRConf, 3);
             GestureEventManager.RegisterHandler(typeof(MultiTraceGR), m_multiTraceGRConf, "MultiTraceFromTo", OnMultiTraceFromTo);
 
-            LazoGRConfigurator lazoGRConf = new LazoGRConfigurator(m_currentTuioObjects, 1f / 20f);
-            GestureEventManager.SetPriorityNumber(typeof(LazoGR), lazoGRConf, 1);
+            LazoGRConfiguration lazoGRConf = new LazoGRConfiguration(m_currentSelectable, 1f / 20f);
+            GestureEventManager.SetPriorityNumber(typeof(LazoGR), lazoGRConf, 2);
             GestureEventManager.RegisterHandler(typeof(LazoGR), lazoGRConf, "Lazo", OnLazo);
         }
 
@@ -140,20 +139,22 @@ namespace GrafitiDemo
             {
                 foreach (TuioObject o in m_tuioObjectAddedList)
                 {
-                    DemoObject demoObject = new DemoObject(this, m_viewer, (int)o.getSessionID(), (o.getX() + OFFSET_X) * Settings.CameraResolutionRatio, o.getY(), o.getAngle());
+                    DemoObject demoObject = new DemoObject(this, m_viewer, (int)o.getSessionID(), (o.getX() + OFFSET_X) * Settings.InputDevResolutionRatio, o.getY(), o.getAngle());
                     m_idDemoObjectTable[o.getSessionID()] = demoObject;
                     m_currentTuioObjects.Add(demoObject);
+                    m_currentSelectable.Add(demoObject);
                 }
                 foreach (TuioObject o in m_tuioObjectUpdatedList)
                 {
-                    m_idDemoObjectTable[o.getSessionID()].Update((o.getX() + OFFSET_X) * Settings.CameraResolutionRatio, o.getY(), o.getAngle());
+                    m_idDemoObjectTable[o.getSessionID()].Update((o.getX() + OFFSET_X) * Settings.InputDevResolutionRatio, o.getY(), o.getAngle());
                 }
                 foreach (TuioObject o in m_tuioObjectRemovedList)
                 {
                     DemoObject demoObject = m_idDemoObjectTable[o.getSessionID()];
-                    demoObject.Remove((o.getX() + OFFSET_X) * Settings.CameraResolutionRatio, o.getY(), o.getAngle());
+                    demoObject.Remove((o.getX() + OFFSET_X) * Settings.InputDevResolutionRatio, o.getY(), o.getAngle());
                     m_idDemoObjectTable.Remove(o.getSessionID());
                     m_currentTuioObjects.Remove(demoObject);
+                    m_currentSelectable.Remove(demoObject);
                     foreach (DemoObjectLink link in demoObject.Links)
                         m_links.Remove(link);
                 }
@@ -172,7 +173,7 @@ namespace GrafitiDemo
         {
             LazoGREventArgs cArgs = (LazoGREventArgs)args;
             foreach (DemoObject demoObject in cArgs.Selected)
-                demoObject.Selected = true;
+                demoObject.IsSelected = true;
             //refresh
         }
 

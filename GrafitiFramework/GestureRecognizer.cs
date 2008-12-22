@@ -27,7 +27,7 @@ using TUIO;
 namespace Grafiti
 {
     /// <summary>
-    /// Derived classes will include gesture event data
+    /// Base class for gesture event data.
     /// </summary>
     public class GestureEventArgs : EventArgs
     {
@@ -47,23 +47,20 @@ namespace Grafiti
             m_eventId = eventId;
             m_groupId = groupId;
         }
-
-        public virtual GestureEventArgs Clone() { return this; }
     }
 
     /// <summary>
-    /// Default event handler for gestures
+    /// Default event handler for gestures.
     /// </summary>
-    /// <param name="gestureRecognizer">Instance of a class deriving from GestureRecognizer that called 
-    /// the event</param>
-    /// <param name="args">The object containing the arguments data of the gesture event.</param>
+    /// <param name="obj">The object that raised the event</param>
+    /// <param name="args">The object containing the arguments data of the event.</param>
     public delegate void GestureEventHandler(object obj, GestureEventArgs args);
 
     /// <summary>
-    /// Base class for gesture recognizers' configurator objects. A configurator contains all the
-    /// informations to parametrize or the behaviour of the GR, or to make it access to some resource.
+    /// Base class for gesture recognizers' configuration objects. A configuration contains all the
+    /// informations to parametrize the behaviour of the GR, or to make it access some resources.
     /// </summary>
-    public class GRConfigurator
+    public class GRConfiguration
     {
         protected readonly bool m_exclusive;
 
@@ -73,25 +70,27 @@ namespace Grafiti
         // to send events as well.
         public bool Exclusive { get { return m_exclusive; } }
 
-        public GRConfigurator() : this(false) { }
+        public GRConfiguration() : this(false) { }
         
-        public GRConfigurator(bool exclusive)
+        public GRConfiguration(bool exclusive)
         {
             m_exclusive = exclusive;
         }
     }
     
     /// <summary>
-    /// Base class of gesture recognizers. Instances of this class will be created dynamically by
-    /// Grafiti. The constructor optionally expects a configurator object. A gesture recognizer 
-    /// will process data of a single instance of the class Group.
+    /// Base class of gesture recognizers (GRs). A GR, that is dynamically instantiated by Grafiti,
+    /// processes data of a single instance of the class Group for the recognition of a gesture.
+    /// In case of successful recognition the GR can be enabled to send gesture events to the 
+    /// registered listeners. A GR can be parametrized through a configuration at the time
+    /// of registration of a handler.
     /// </summary>
     public abstract class GestureRecognizer
     {
         #region Private or internal members
-        internal static readonly GRConfigurator DefaultConfigurator = new GRConfigurator();
+        internal static readonly GRConfiguration DefaultConfiguration = new GRConfiguration();
 
-        private GRConfigurator m_configurator;
+        private GRConfiguration m_configuration;
         private int m_priorityNumber;
         private Group m_group;
         private bool m_armed;
@@ -100,7 +99,7 @@ namespace Grafiti
         private int m_maxNumberOfFingersAllowed = -1;
         private int m_debug_NProcessCalls = 0;
 
-        // The result state, in base of which the GRs are coordinated by the group GR manager,
+        // The recognition state, in base of which the GRs are coordinated by the group GR manager,
         // is composed by the following four parameters.
         /// <summary>
         /// Still attempting to recognize the gesture.
@@ -111,9 +110,9 @@ namespace Grafiti
         /// </summary>
         private bool m_successful;
         /// <summary>
-        /// Probability of successful recognition (0 = plain failure, 1 = plain success).
+        /// Confidence of successful recognition (0 = plain failure, 1 = plain success).
         /// </summary>
-        private float m_probability;
+        private float m_confidence;
         /// <summary>
         /// Will process further incoming input.
         /// </summary>
@@ -122,20 +121,24 @@ namespace Grafiti
         // These are public but intended to be internal
         public bool Recognizing { get { return m_recognizing; } }
         public bool Successful { get { return m_successful; } }
+        public float Confidence { get { return m_confidence; } }
         public bool Processing { get { return m_processing; } }
-        public float Probability { get { return m_probability; } }
 
         internal int PriorityNumber { get { return m_priorityNumber; } set { m_priorityNumber = value; } }
         internal bool Armed { get { return m_armed; } set { m_armed = value; } } 
         #endregion
 
         #region Public members
-        // This object will be passed as parameter to the constructor. It can be used to configure its
-        // behaviour and/or to give it access to some resources.
-        // Should be set once in the constructor.
-        public GRConfigurator Configurator { get { return m_configurator; } protected set { m_configurator = value; } }
+        /// <summary>
+        /// Object that will be passed as parameter to the constructor. It can be used to configure
+        /// the GR's behaviour and/or to give it access to some resources.
+        /// It should be set once in the constructor.
+        /// </summary>
+        public GRConfiguration Configuration { get { return m_configuration; } protected set { m_configuration = value; } }
 
-        // The associated group to process
+        /// <summary>
+        /// The associated group to process 
+        /// </summary>
         public Group Group { get { return m_group; } internal set { m_group = value; } }
 
         /// <summary>
@@ -152,16 +155,16 @@ namespace Grafiti
         #endregion
 
         #region Constructor
-        public GestureRecognizer(GRConfigurator configurator)
+        public GestureRecognizer(GRConfiguration configuration)
         {
-            m_configurator = configurator;
+            m_configuration = configuration;
             m_armed = false;
             m_bufferedHandlers = new List<GestureEventHandler>();
             m_bufferedArgs = new List<GestureEventArgs>();
 
             m_recognizing = true;
             m_successful = false;
-            m_probability = 1;
+            m_confidence = 1;
             m_processing = true;
         }
         #endregion
@@ -170,16 +173,17 @@ namespace Grafiti
         internal abstract void AddHandler(string ev, GestureEventHandler handler);
         internal System.Reflection.EventInfo GetEventInfo(string ev)
         {
-            Debug.Assert(GetType().GetEvent(ev) != null);
+            Debug.Assert(GetType().GetEvent(ev) != null, "Attempting to access unexisting event named " + ev +
+                " for class " + GetType().ToString());
             return GetType().GetEvent(ev);
         }
         internal void Process1(List<Trace> traces)
         {
-            m_debug_NProcessCalls++;
-            Debug.WriteLine("N Process calls: " + m_debug_NProcessCalls + ", in " + this);
+            //m_debug_NProcessCalls++;
+            //Debug.WriteLine("N Process calls: " + m_debug_NProcessCalls + ", in " + this);
             Process(traces);
         }
-        internal void ProcessPendlingEvents()
+        internal void RaisePendlingEvents()
         {
             Debug.Assert(m_armed);
 
@@ -201,46 +205,52 @@ namespace Grafiti
         /// of the TUIO messages.
         /// </summary>
         /// <param name="traces">The list of the updated traces, to which one element has been added to their cursor list.</param>
-        /// <returns></returns>
         public abstract void Process(List<Trace> traces);
 
-        #region Changing state methods
-        protected void GestureHasBeenRecognized()
+        #region Recognition state-transition methods
+        protected void ValidateGesture()
         {
-            GestureHasBeenRecognized(true, 1f);
+            ValidateGesture(1f);
         }
-        protected void GestureHasBeenRecognized(bool successful)
+        protected void ValidateGesture(float confidence)
         {
-            GestureHasBeenRecognized(successful, 1f);
-        }
-        protected void GestureHasBeenRecognized(bool successful, float probability)
-        {
-            Debug.Assert(m_recognizing || (m_successful == successful && m_probability == probability));
+            Debug.WriteLine(m_recognizing, "Warning: GestureHasBeenRecognized has been called more than once (class " 
+                + GetType().ToString() +").");
+
             if (m_recognizing)
             {
                 m_recognizing = false;
-                m_successful = successful;
-                m_probability = probability;
-                if (!successful)
-                    Terminate();
+                m_successful = true;
+                m_confidence = confidence;
             }
         }
-        protected void Terminate()
+        protected void Terminate(bool successful)
         {
-            Terminate(false);
+            Terminate(successful, 1f);
         }
-        protected void Terminate(bool successfulRecognition)
+        protected void Terminate(bool successful, float confidence)
         {
-            if (m_recognizing)
-                GestureHasBeenRecognized(successfulRecognition);
-            m_processing = false;
+            Debug.WriteLine(m_processing, "Warning: Terminate has been called more than once (class "
+                + GetType().ToString() + ").");
+
+            if (m_processing)
+            {
+                if (m_recognizing)
+                {
+                    m_recognizing = false;
+                    m_successful = successful;
+                    m_confidence = confidence;
+                }
+                m_processing = false;
+            }
         }
         #endregion
 
 
         /// <summary>
-        /// Use this method to send events. If the GRs is not armed (e.g. it's in competition with another
-        /// GR), events will be scheduled and raised as soon as the GR will be armed.
+        /// Use this method to send events. If the GR is not armed (e.g. it's in competition
+        /// with other GRs), events will be scheduled in a queue and raised as soon as the GR 
+        /// will be armed. If the GR is already armed, events are raised immediately.
         /// </summary>
         /// <param name="ev">The event</param>
         /// <param name="args">The event's arguments</param>
@@ -253,7 +263,7 @@ namespace Grafiti
                 else
                 {
                     m_bufferedHandlers.Add((GestureEventHandler)ev.Clone());
-                    m_bufferedArgs.Add(args); // or clone?
+                    m_bufferedArgs.Add(args);
                 }
             }
         }
@@ -262,14 +272,16 @@ namespace Grafiti
         /// Called when the GR is going to be removed from the list of active GRs and thus it won't
         /// be called anymore. Override this to handle the finalization of the GR if needed,
         /// like terminating threads, freeing resources, send terminating events...
-        /// State changes (about the gesture recognition) made here will be ignored.
+        /// From now on, recognition state transitions will be in fact ignored.
         /// Note: at least one of the following reasons causes this method to be called:
-        /// - previously the GR has been explicitly put in the 'terminated' state.
-        /// - the group ceased to be active
-        /// - the GR has been blocked by an exclusive winner
+        /// - the GR has been explicitly put in the 'terminated' state through one of the relative 
+        ///   methods called in its Process function
+        /// - the group ceased to be active i.e. all the fingers have been removed for a sufficient
+        ///   time, such that the traces can't be reset anymore
+        /// - an exclusive GR with precedence has won
         /// In case of an LGR the following reasons are also possible:
         /// - its target has been removed from the group's LGR-list
-        /// - an LGR with different target has succeeded and has the precedence
+        /// - an LGR with different target has the precedence and has won
         /// </summary>
         protected virtual void OnTerminating() { } 
         #endregion

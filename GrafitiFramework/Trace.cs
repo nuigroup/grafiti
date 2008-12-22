@@ -43,13 +43,13 @@ namespace Grafiti
         // A trace is alive when its last cursor in the path is in the state ADDED or UPDATED.
         // When the cursor is removed the trace dies, but it can "resurrect" if another ADDED cursor
         // is added to the path.
-        private bool m_alive;
+        private bool m_isAlive;
 
         private List<IGestureListener> m_initialTargets, m_finalTargets;
         private List<IGestureListener> m_enteringTargets, m_currentTargets, m_leavingTargets;
         private List<IGestureListener> m_intersectionTargets, m_unionTargets;
 
-        private bool m_onGUIControl; 
+        private bool m_onZControl; 
         #endregion
 
         #region Public properties
@@ -114,7 +114,7 @@ namespace Grafiti
         /// True iff the last added cursor point is on state 'ADDED' or 'UPDATED', iff the finger is currently
         /// on the surface.
         /// </summary>
-        public bool Alive { get { return m_alive; } }
+        public bool IsAlive { get { return m_isAlive; } }
 
         // Target lists
         public List<IGestureListener> InitialTargets { get { return m_initialTargets; } }
@@ -128,13 +128,13 @@ namespace Grafiti
         /// <summary>
         /// True iff the last added cursor point is on a GUI component
         /// </summary>
-        public bool OnGUIControl
+        public bool OnZControl
         {
-            get { return m_onGUIControl; }
+            get { return m_onZControl; }
             private set
             {
-                if (m_onGUIControl != value)
-                    m_onGUIControl = value;
+                if (m_onZControl != value)
+                    m_onZControl = value;
             }
         } 
         #endregion
@@ -148,7 +148,7 @@ namespace Grafiti
             m_path.Add(cursor);
             m_first = m_last = cursor;
             m_state = States.ADDED;
-            m_alive = true;
+            m_isAlive = true;
 
             m_initialTargets = new List<IGestureListener>();
             m_finalTargets = new List<IGestureListener>();
@@ -164,7 +164,8 @@ namespace Grafiti
 	    #endregion
 
         #region Private or internal methods
-        internal void AppendAddingOrUpdatingCursor(CursorPoint cursor, List<IGestureListener> targets, bool guiTargets)
+        internal void AppendAddingOrUpdatingCursor(
+            CursorPoint cursor, List<IGestureListener> targets, bool isZControl)
         {
             UpdateCursorValues(cursor);
             m_path.Add(cursor);
@@ -173,25 +174,26 @@ namespace Grafiti
             if (m_state == States.REMOVED)
             {
                 m_state = States.RESET;
-                m_alive = true;
+                m_isAlive = true;
             }
             else
                 m_state = States.UPDATED;
 
             m_group.UpdateTrace(this);
-            UpdateTargets(targets, guiTargets);
+            UpdateTargets(targets, isZControl);
         }
-        internal void AppendRemovingCursor(CursorPoint cursor, List<IGestureListener> targets, bool guiTargets)
+        internal void AppendRemovingCursor(
+            CursorPoint cursor, List<IGestureListener> targets, bool isZControl)
         {
             UpdateCursorValues(cursor);
             m_path.Add(cursor);
             m_last = cursor;
-            m_alive = false;
+            m_isAlive = false;
 
             m_state = States.REMOVED;
 
             m_group.EndTrace(this);
-            UpdateTargets(targets, guiTargets);
+            UpdateTargets(targets, isZControl);
         }
         internal void Terminate()
         {
@@ -214,7 +216,7 @@ namespace Grafiti
             }
             //Console.WriteLine("x_sp={0},\ty_sp={1},\tsp={2},\tac={3}", cursor.XSpeed, cursor.YSpeed, cursor.MotionSpeed, cursor.MotionAcceleration);
         }
-        private void UpdateTargets(List<IGestureListener> targets, bool guiTargets)
+        private void UpdateTargets(List<IGestureListener> targets, bool isZControl)
         {
             m_enteringTargets.Clear();
             foreach (IGestureListener target in targets)
@@ -239,8 +241,22 @@ namespace Grafiti
             }
 
             foreach (IGestureListener leavingTarget in m_leavingTargets)
+            {
+                if (leavingTarget is ISimpleTouchListener)
+                    ((ISimpleTouchListener)leavingTarget).OnTraceLeave(m_id, m_state, m_last);
                 m_currentTargets.Remove(leavingTarget); // current -
-            m_currentTargets.AddRange(m_enteringTargets); // current +
+            }
+            foreach (IGestureListener currentTarget in m_currentTargets)
+            { 
+                if(currentTarget is ISimpleTouchListener)
+                    ((ISimpleTouchListener)currentTarget).OnTraceUpdate(m_id, m_state, m_last);
+            }
+            foreach (IGestureListener enteringTarget in m_enteringTargets)
+            {
+                if (enteringTarget is ISimpleTouchListener)
+                    ((ISimpleTouchListener)enteringTarget).OnTraceEnter(m_id, m_state, m_last);
+                m_currentTargets.Add(enteringTarget); // current +
+            }
 
 
             if (m_state == States.ADDED) // this happens only once, at the beginning
@@ -263,7 +279,7 @@ namespace Grafiti
             //    Console.Write(target.ToString() + ", ");
             //Console.WriteLine();
 
-            OnGUIControl = guiTargets;
+            OnZControl = isZControl;
         }
         #endregion
 

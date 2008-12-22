@@ -51,9 +51,9 @@ namespace Grafiti.GestureRecognizers
     public delegate void CircleGREventHandler(object obj, CircleGREventArgs args);
 
 
-    public class CircleGRConfigurator : GRConfigurator
+    public class CircleGRConfiguration : GRConfiguration
     {
-        public static readonly CircleGRConfigurator DEFAULT_CONFIGURATOR = new CircleGRConfigurator();
+        public static readonly CircleGRConfiguration DEFAULT_Configuration = new CircleGRConfiguration();
 
         /// <summary>
         /// Threshold value multiplier, that will refer to the radius length.
@@ -66,19 +66,19 @@ namespace Grafiti.GestureRecognizers
 
         public float Threshold { get { return m_threshold; } }
 
-        public CircleGRConfigurator()
+        public CircleGRConfiguration()
             : this(THRESHOLD_DEFAULT) { }
 
-        public CircleGRConfigurator(bool exclusive)
+        public CircleGRConfiguration(bool exclusive)
             : this(exclusive, THRESHOLD_DEFAULT) { }
 
-        public CircleGRConfigurator(float threshold)
+        public CircleGRConfiguration(float threshold)
             : base()
         {
             m_threshold = threshold;
         }
 
-        public CircleGRConfigurator(bool exclusive, float threshold)
+        public CircleGRConfiguration(bool exclusive, float threshold)
             : base(exclusive)
         {
             m_threshold = threshold;
@@ -98,7 +98,7 @@ namespace Grafiti.GestureRecognizers
     /// </summary>
     public class CircleGR : GlobalGestureRecognizer
     {
-        CircleGRConfigurator m_configurator;
+        CircleGRConfiguration m_configuration;
         private int m_startingTime = -1;
         private readonly float m_threshold;
         private float m_left, m_right, m_top, m_bottom;
@@ -110,19 +110,22 @@ namespace Grafiti.GestureRecognizers
         // They're not intended to be accessed directly from clients.
         public event GestureEventHandler Circle;
 
-        public CircleGR(GRConfigurator configurator)
-            : base(configurator)
-        {
-            if (!(configurator is CircleGRConfigurator))
-                Configurator = CircleGRConfigurator.DEFAULT_CONFIGURATOR;
+        public CircleGR()
+            : base(null){ }
 
-            m_configurator = (CircleGRConfigurator)Configurator;
-            m_threshold = m_configurator.Threshold;
+        public CircleGR(GRConfiguration configuration)
+            : base(configuration)
+        {
+            if (!(configuration is CircleGRConfiguration))
+                Configuration = CircleGRConfiguration.DEFAULT_Configuration;
+
+            m_configuration = (CircleGRConfiguration)Configuration;
+            m_threshold = m_configuration.Threshold;
             m_startingTime = -1;
 
             DefaultEvents = new string[] { "Circle" };
 
-            m_left = Settings.CameraResolutionRatio;
+            m_left = Settings.InputDevResolutionRatio;
             m_right = 0;
             m_top = 1;
             m_bottom = 0;
@@ -169,7 +172,7 @@ namespace Grafiti.GestureRecognizers
                 m_bottom = Math.Max(m_bottom, y);
             }
 
-            if (!Group.IsPresent)
+            if (!Group.IsAlive)
             {
                 int endTime = Group.CurrentTimeStamp;
                 if (!Group.Traces.TrueForAll(delegate(Trace t)

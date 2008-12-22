@@ -40,18 +40,18 @@ namespace Grafiti
         internal class RegistrationInfo
         {
             private readonly Type m_grType;                 // type of the GR
-            private readonly GRConfigurator m_grConf;       // configurator of the GR
+            private readonly GRConfiguration m_grConf;       // configuration of the GR
             private readonly int m_priorityNumber;          // priority number of the GR
             private readonly string m_event;                // event as string
             private readonly GestureEventHandler m_handler; // listener's handler
 
             internal Type GRType { get { return m_grType; } }
-            internal GRConfigurator GRConfigurator { get { return m_grConf; } }
+            internal GRConfiguration GRConfiguration { get { return m_grConf; } }
             internal int PriorityNumber { get { return m_priorityNumber; } }
             internal string Event { get { return m_event; } }
             internal GestureEventHandler Handler { get { return m_handler; } }
 
-            internal RegistrationInfo(Type grType, GRConfigurator grConf, int pn, string ev, GestureEventHandler handler)
+            internal RegistrationInfo(Type grType, GRConfiguration grConf, int pn, string ev, GestureEventHandler handler)
             {
                 m_grType = grType;
                 m_grConf = grConf;
@@ -62,7 +62,7 @@ namespace Grafiti
         }
 
         // Registry of priority numbers. Once an entry is stored it can't be changed, nor removed.
-        private static DoubleDictionary<Type, GRConfigurator, int> s_priorityNumbersTable = new DoubleDictionary<Type, GRConfigurator, int>();
+        private static DoubleDictionary<Type, GRConfiguration, int> s_priorityNumbersTable = new DoubleDictionary<Type, GRConfiguration, int>();
 
         // Registries of listeners' registrations
         private static List<RegistrationInfo> s_ggrRegistry; // global
@@ -97,15 +97,15 @@ namespace Grafiti
         #endregion
 
         #region Called by GestureEventManager (handler registrations)
-        internal static void SetPriorityNumber(Type grType, GRConfigurator configurator, int priorityNumber)
+        internal static void SetPriorityNumber(Type grType, GRConfiguration configuration, int priorityNumber)
         {
-            if (!s_priorityNumbersTable.ContainsKeys(grType, configurator))
-                s_priorityNumbersTable[grType, configurator] = priorityNumber;
+            if (!s_priorityNumbersTable.ContainsKeys(grType, configuration))
+                s_priorityNumbersTable[grType, configuration] = priorityNumber;
             else
-                System.Diagnostics.Debug.Assert(s_priorityNumbersTable[grType, configurator] == priorityNumber,
+                System.Diagnostics.Debug.Assert(s_priorityNumbersTable[grType, configuration] == priorityNumber,
                     "Attempting to reset a priority number to a different value than the one previously set.");
         }
-        internal static void RegisterHandler(Type grType, GRConfigurator grConf, string ev, GestureEventHandler handler)
+        internal static void RegisterHandler(Type grType, GRConfiguration grConf, string ev, GestureEventHandler handler)
         {
             System.Diagnostics.Debug.Assert(handler.Target is IGestureListener,
                 "Attempting to register a handler for an instance of class " +
@@ -137,6 +137,25 @@ namespace Grafiti
 
                 // TODO: if LGRs are associated to the group's FINAL target list then dynamic update should be done
             }
+        }
+        internal static void UnregisterHandler(Type grType, GRConfiguration grConf, string ev, GestureEventHandler handler)
+        {
+            List<RegistrationInfo> registry;
+            if (grType.IsSubclassOf(typeof(GlobalGestureRecognizer)))
+                registry = s_ggrRegistry;
+            else
+                registry = s_lgrRegistry;
+
+            bool removed = registry.Remove(registry.Find(delegate(RegistrationInfo ggrInfo)
+            {
+                return
+                    ggrInfo.GRType == grType &&
+                    ggrInfo.GRConfiguration == grConf &&
+                    ggrInfo.Event == ev &&
+                    ggrInfo.Handler == handler;
+            }));
+
+            System.Diagnostics.Debug.WriteLineIf(!removed, "Warning: GRRegistry.UnregisterHandler did not find the handler to remove.");
         }
         internal static void UnregisterAllHandlers(object listener)
         {

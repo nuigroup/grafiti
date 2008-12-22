@@ -32,21 +32,22 @@ namespace Grafiti
     public interface IGrafitiClientGUIManager
     {
         /// <summary>
-        /// Returns the list of objects associated to the tangibles which target area
-        /// includes the given Grafiti point.
+        /// Determines the visual elements which target area includes a specific point.
+        /// The function distinguishes (by delivering different output values): Z-ordered 
+        /// control gesture listeners, Z-ordered controls that are no gesture listeners and
+        /// tangible gesture listeners. Only one of these values should refer to an existing
+        /// visual element (or a non-empty set of elements in case of the tangibles).
         /// </summary>
-        /// <param name="x">X coordinate of the Grafiti point.</param>
-        /// <param name="y">Y coordinate of the Grafiti point.</param>
-        /// <returns>The tangibles listeners.</returns>
-        List<ITangibleGestureListener> HitTestTangibles(float x, float y);
+        /// <param name="x">X coordinate of the point.</param>
+        /// <param name="y">Y coordinate of the point.</param>
+        /// <param name="zGestureListener">The Z-ordered control listener at the specified point.</param>
+        /// <param name="zControl">The Z-ordered control that is not a listener at the specified point.</param>
+        /// <param name="tangibleListeners">The listeners associated to the tangibles at the specified point.</param>
+        void GetVisualsAt(float x, float y,
+            out IGestureListener zListener,
+            out object zControl,
+            out List<ITangibleGestureListener> tangibleListeners);
 
-        /// <summary>
-        /// Returns the GUI component at the specified Grafiti point.
-        /// </summary>
-        /// <param name="x">X coordinate of the Grafiti point.</param>
-        /// <param name="y">Y coordinate of the Grafiti point.</param>
-        /// <returns>The GUI control.</returns>
-        IGestureListener HitTest(float x, float y);
 
         /// <summary>
         /// Takes a GUI control and a point specified in Grafiti-coordinate-system and 

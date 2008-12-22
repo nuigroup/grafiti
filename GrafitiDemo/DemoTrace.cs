@@ -41,7 +41,7 @@ namespace GrafitiDemo
         {
             m_color = demoGroup.Color;
             m_trace = trace;
-            m_pointerSize = 0.02f;
+            m_pointerSize = 0.01f;
         }
 
         public void Update(long timestamp)
@@ -101,7 +101,7 @@ namespace GrafitiDemo
                         Gl.glEnable(Gl.GL_BLEND);
                         Gl.glBlendFunc(Gl.GL_SRC_ALPHA, Gl.GL_ONE_MINUS_SRC_ALPHA);
                         // draw grouping area
-                        if (m_trace.Group.MaxNumberOfFingersAllowed < 0 && !m_trace.Group.OnSingleGUIControl)
+                        if (m_trace.Group.MaxNumberOfActiveTraces < 0 && !m_trace.Group.OnZControl)
                         {
                             Gl.glColor4d(m_color.R, m_color.G, m_color.B, 0.2);
                             Utilities.DrawPlainCircle(Settings.GroupingSpace);

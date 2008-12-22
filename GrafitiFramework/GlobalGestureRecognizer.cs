@@ -96,8 +96,8 @@ namespace Grafiti
         #endregion
 
         #region Constructor
-        public GlobalGestureRecognizer(GRConfigurator configurator)
-            : base(configurator)
+        public GlobalGestureRecognizer(GRConfiguration configuration)
+            : base(configuration)
         {
             m_handlerTable = new DoubleDictionary<EventInfo, object, List<GestureEventHandler>>();
             m_temporaryHandlerTable = new DoubleDictionary<TargetList, EventInfo, List<GestureEventHandler>>();
@@ -108,7 +108,7 @@ namespace Grafiti
         #region Private or internal methods
         internal override sealed void AddHandler(string ev, GestureEventHandler handler)
         {
-            // Check id it's a default event
+            // Check if it's a default event
             bool isDefaultEvent = false;
             for (int i = 0; i < DefaultEvents.Length; i++)
             {

@@ -1,5 +1,5 @@
 /*
-	GenericDemo, Grafiti demo application
+	GrafitiDemo, Grafiti demo application
 
     Copyright 2008  Alessandro De Nardi <alessandro.denardi@gmail.com>
 
@@ -20,55 +20,67 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Drawing;
 using Grafiti;
 using TUIO;
 
-namespace GenericDemo
+namespace Grafiti.GestureRecognizers
 {
+    public interface ISelectable
+    {
+        float X { get; }
+        float Y { get; }
+    }
+
     public class LazoGREventArgs : GestureEventArgs
     {
-        private List<DemoObject> m_selected;
+        private List<ISelectable> m_selected;
 
-        public List<DemoObject> Selected { get { return m_selected; } }
+        public List<ISelectable> Selected { get { return m_selected; } }
 
-        public LazoGREventArgs(string eventId, int groupId, List<DemoObject> selected)
+        public LazoGREventArgs(string eventId, int groupId, List<ISelectable> selected)
             : base(eventId, groupId)
         {
             m_selected = selected;
         }
     }
 
-    public class LazoGRConfigurator : GRConfigurator
+    public class LazoGRConfiguration : GRConfiguration
     {
-        public static readonly LazoGRConfigurator DEFAULT_CONFIGURATOR = new LazoGRConfigurator();
+        private List<ISelectable> m_currentTuioObjects;
+        private float m_threshold;
 
-        private List<DemoObject> m_currentTuioObjects;
+        public List<ISelectable> CurrentTuioObjects { get { return m_currentTuioObjects; } }
+        public float Threshold { get { return m_threshold; } }
 
-        public List<DemoObject> CurrentTuioObjects { get { return m_currentTuioObjects; } }
-
-        public LazoGRConfigurator()
+        public LazoGRConfiguration()
             : this(null) { }
 
-        public LazoGRConfigurator(List<DemoObject> currentTuioObjects)
+        public LazoGRConfiguration(List<ISelectable> currentTuioObjects)
+            : this(currentTuioObjects, 1f) { }
+
+        public LazoGRConfiguration(List<ISelectable> currentTuioObjects, float threshold)
             : base(true) // Default is exclusive
         {
             m_currentTuioObjects = currentTuioObjects;
+            m_threshold = threshold;
         }
     }
 
     public class LazoGR : GlobalGestureRecognizer
     {
-        private List<DemoObject> m_currentTuioObjects;
-        private List<DemoObject> m_tuioObjectsInPoly = new List<DemoObject>();
+        private List<ISelectable> m_currentTuioObjects;
+        private float m_threshold;
+        private List<ISelectable> m_tuioObjectsInPoly = new List<ISelectable>();
 
-        public LazoGR(GRConfigurator configurator)
-            : base(configurator)
+        public LazoGR()
+            : base(null) { }
+
+        public LazoGR(GRConfiguration configuration)
+            : base(configuration)
         {
-            if (!(configurator is LazoGRConfigurator))
-                Configurator = LazoGRConfigurator.DEFAULT_CONFIGURATOR;
-            LazoGRConfigurator conf = (LazoGRConfigurator)Configurator;
+            LazoGRConfiguration conf = (LazoGRConfiguration)Configuration;
             m_currentTuioObjects = conf.CurrentTuioObjects;
+            m_threshold = conf.Threshold;
             DefaultEvents = new string[] { "Lazo" };
         }
 
@@ -86,15 +98,20 @@ namespace GenericDemo
 
             if (trace.State == Trace.States.REMOVED)
             {
-                foreach (DemoObject obj in m_currentTuioObjects)
-                    if (PointInPath(obj.X, obj.Y, trace))
-                        m_tuioObjectsInPoly.Add(obj);
-
-                if (m_tuioObjectsInPoly.Count > 0)
+                if (trace.First.SquareDistance(trace.Last) <= m_threshold)
                 {
-                    AppendEvent(Lazo, new LazoGREventArgs("Lazo", Group.Id, m_tuioObjectsInPoly));
-                    Terminate(true);
+                    foreach (ISelectable obj in m_currentTuioObjects)
+                        if (PointInPath(obj.X, obj.Y, trace))
+                            m_tuioObjectsInPoly.Add(obj);
+
+                    if (m_tuioObjectsInPoly.Count > 0)
+                    {
+                        AppendEvent(Lazo, new LazoGREventArgs("Lazo", Group.Id, m_tuioObjectsInPoly));
+                        Terminate(true);
+                        return;
+                    }
                 }
+                Terminate(false);
             }
         }
 
@@ -145,7 +162,15 @@ namespace GenericDemo
 
             return inside;
         }
+
+        private struct PointF
+        {
+            public float X, Y;
+            public PointF(float x, float y)
+            {
+                X = x;
+                Y = y;
+            }
+        }
     }
-
-
 }

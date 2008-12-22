@@ -1,5 +1,5 @@
 /*
-	GenericDemo, Grafiti demo application
+	Grafiti library
 
     Copyright 2008  Alessandro De Nardi <alessandro.denardi@gmail.com>
 
@@ -15,22 +15,18 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 */
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Text;
 
-using Grafiti;
-
-namespace GenericDemo
+namespace Grafiti
 {
-    class Utilities
+    public interface ISimpleTouchListener
     {
-        //public static PointF GetScreenPoint(Cursor cursor)
-        //{
-        //    return new PointF(cursor.X * m_form.ClientSize.Height, cursor.Y * m_form.ClientSize.Height);    
-        //}
+        void OnTraceEnter(int traceId, Trace.States state, CursorPoint cursorPoint);
+        void OnTraceLeave(int traceId, Trace.States state, CursorPoint cursorPoint);
+        void OnTraceUpdate(int traceId, Trace.States state, CursorPoint cursorPoint);
     }
 }

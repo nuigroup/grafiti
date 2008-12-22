@@ -78,10 +78,8 @@ namespace Grafiti.GestureRecognizers
     public delegate void MultiTraceFromToEventHandler(object obj, MultiTraceFromToEventArgs args);
 
 
-    public class MultiTraceGRConfigurator : GRConfigurator
+    public class MultiTraceGRConfiguration : GRConfiguration
     {
-        public static readonly MultiTraceGRConfigurator DEFAULT_CONFIGURATOR = new MultiTraceGRConfigurator();
-
         public readonly float MAX_SQUARE_DISTANCE;
         private const float DEFAULT_MAX_SQUARE_DISTANCE = -1;
 
@@ -91,13 +89,13 @@ namespace Grafiti.GestureRecognizers
         public readonly bool ALLOW_AUTOLINK;
         private const bool DEFAULT_ALLOW_AUTOLINK = true;
 
-        public MultiTraceGRConfigurator()
+        public MultiTraceGRConfiguration()
             : this(DEFAULT_MAX_SQUARE_DISTANCE, DEFAULT_RECOGNIZE_WHEN_ENDED, DEFAULT_ALLOW_AUTOLINK) { }
 
-        public MultiTraceGRConfigurator(bool exclusive)
+        public MultiTraceGRConfiguration(bool exclusive)
             : this(exclusive, DEFAULT_MAX_SQUARE_DISTANCE, DEFAULT_RECOGNIZE_WHEN_ENDED, DEFAULT_ALLOW_AUTOLINK) { }
 
-        public MultiTraceGRConfigurator(float maxSquareDistance, bool recognizeWhenEnded, bool allowAutolink)
+        public MultiTraceGRConfiguration(float maxSquareDistance, bool recognizeWhenEnded, bool allowAutolink)
             : base()
         {
             MAX_SQUARE_DISTANCE = maxSquareDistance;
@@ -105,7 +103,7 @@ namespace Grafiti.GestureRecognizers
             ALLOW_AUTOLINK = allowAutolink;
         }
 
-        public MultiTraceGRConfigurator(bool exclusive, float maxSquareDistance, bool recognizeWhenEnded, bool allowAutolink)
+        public MultiTraceGRConfiguration(bool exclusive, float maxSquareDistance, bool recognizeWhenEnded, bool allowAutolink)
             : base(exclusive)
         {
             MAX_SQUARE_DISTANCE = maxSquareDistance;
@@ -117,7 +115,7 @@ namespace Grafiti.GestureRecognizers
 
     public class MultiTraceGR : GlobalGestureRecognizer
     {
-        private MultiTraceGRConfigurator m_conf;
+        private MultiTraceGRConfiguration m_conf;
         private int m_startingTime = -1;
         private List<Trace> m_startingTraces;
         private int m_nOfFingers;
@@ -134,12 +132,13 @@ namespace Grafiti.GestureRecognizers
         public event GestureEventHandler MultiTraceEnd;
         public event GestureEventHandler MultiTraceFromTo;
 
-        public MultiTraceGR(GRConfigurator configurator) : base(configurator)
-        {
-            if (!(configurator is MultiTraceGRConfigurator))
-                Configurator = MultiTraceGRConfigurator.DEFAULT_CONFIGURATOR;
+        public MultiTraceGR() 
+            : base(null) { }
 
-            m_conf = (MultiTraceGRConfigurator)Configurator;
+        public MultiTraceGR(GRConfiguration configuration)
+            : base(configuration)
+        {
+            m_conf = (MultiTraceGRConfiguration)Configuration;
             
             ClosestInitialEvents  = new string[] { "MultiTraceStarted" };
             ClosestEnteringEvents = new string[] { "MultiTraceEnter" };
@@ -170,9 +169,9 @@ namespace Grafiti.GestureRecognizers
                 m_startingTime = traces[0].Last.TimeStamp;
 
             if (!m_conf.RECOGNIZE_WHEN_ENDED)
-                GestureHasBeenRecognized();
+                ValidateGesture();
 
-            m_nOfFingers = Group.NumberOfPresentTraces;
+            m_nOfFingers = Group.NumberOfAliveTraces;
 
             OnMultiTraceGestureLeave();
             OnMultiTraceGestureEnter();
@@ -196,7 +195,7 @@ namespace Grafiti.GestureRecognizers
                 }
             }
 
-            if (!Group.IsPresent)
+            if (!Group.IsAlive)
             {
                 m_nOfFingers = 0;
                 int endTime = Group.CurrentTimeStamp;

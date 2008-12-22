@@ -59,7 +59,7 @@ namespace GrafitiDemo
                 demoTrace.Update(timestamp);
         }
 
-        public void Draw()
+        public void Draw1()
         {
             // draw demo traces
             foreach (DemoTrace demoTrace in m_demoTraces)
@@ -70,7 +70,7 @@ namespace GrafitiDemo
             // draw lines from last cursor to centroid
             foreach (Trace trace in m_group.Traces)
             {
-                if (trace.Alive)
+                if (trace.IsAlive)
                 {
                     Gl.glLineWidth(1);
                     Gl.glBegin(Gl.GL_LINES);
@@ -81,13 +81,13 @@ namespace GrafitiDemo
             }
 
             // draw lines to target(s)
-            if (m_group.NumberOfPresentTraces >= 0 && !m_group.OnSingleGUIControl)
+            if (m_group.NumberOfAliveTraces >= 0 && !m_group.OnZControl)
             {
                 if (m_group.ExclusiveLocalTarget != null)
                 {
                     // draw lines from centroid to exclusive local target
                     Gl.glLineWidth(2);
-                    DrawLineToTarget((DemoObject)m_group.ExclusiveLocalTarget);
+                    DrawLineToTarget(m_group.ExclusiveLocalTarget);
                 }
                 else
                 {
@@ -97,7 +97,9 @@ namespace GrafitiDemo
                         DrawLineToTarget(target);
                 }
             }
-
+        }
+        public void Draw2()
+        {
             // draw demo traces
             foreach (DemoTrace demoTrace in m_demoTraces)
                 demoTrace.Draw(2);

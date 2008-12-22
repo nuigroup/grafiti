@@ -7,6 +7,13 @@ by Alessandro De Nardi
 History of major changes and notes
 ----------------------------------
 
+08-12-22
+- Rewritten PinchingGR.cs and BasicMultiFingerGR.cs
+- In demo, added calculator
+- Improved various parts
+- Renamed some variables and classes (configurator -> configuration,
+GestureHasBeenRecognized -> ValidateGesture...)
+
 08-09-20
 - In demo changed keyboard interface.
 

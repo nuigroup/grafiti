@@ -38,18 +38,16 @@ namespace GrafitiDemo
         }
     }
 
-    public class RemovingLinkGRConfigurator : GRConfigurator
+    public class RemovingLinkGRConfiguration : GRConfiguration
     {
-        public static readonly RemovingLinkGRConfigurator DEFAULT_CONFIGURATOR = new RemovingLinkGRConfigurator();
-
         private DemoObjectManager m_demoObjectManager;
 
         public DemoObjectManager DemoObjectManager { get { return m_demoObjectManager; } }
 
-        public RemovingLinkGRConfigurator()
+        public RemovingLinkGRConfiguration()
             : this(null) { }
 
-        public RemovingLinkGRConfigurator(DemoObjectManager demoObjectManager)
+        public RemovingLinkGRConfiguration(DemoObjectManager demoObjectManager)
             : base(true) // exclusive
         {
             m_demoObjectManager = demoObjectManager;
@@ -65,12 +63,13 @@ namespace GrafitiDemo
         private List<DemoObjectLink> m_linksToRemove;
         private float x1, y1, x2, y2; // coordinates of the last two points
 
-        public RemovingLinkGR(GRConfigurator configurator)
-            : base(configurator)
+        public RemovingLinkGR()
+            : base(null){ }
+
+        public RemovingLinkGR(GRConfiguration configuration)
+            : base(configuration)
         {
-            if (!(configurator is RemovingLinkGRConfigurator))
-                Configurator = RemovingLinkGRConfigurator.DEFAULT_CONFIGURATOR;
-            RemovingLinkGRConfigurator conf = (RemovingLinkGRConfigurator)Configurator;
+            RemovingLinkGRConfiguration conf = (RemovingLinkGRConfiguration)Configuration;
             m_demoObjectManager = conf.DemoObjectManager;
             DefaultEvents = new string[] { "RemoveLinks" };
             m_linksToRemove = new List<DemoObjectLink>();
@@ -132,7 +131,7 @@ namespace GrafitiDemo
             }
 
 
-            if (Group.NumberOfPresentTraces == 0)
+            if (Group.NumberOfAliveTraces == 0)
             {
                 if (m_linksToRemove.Count > 0)
                 {

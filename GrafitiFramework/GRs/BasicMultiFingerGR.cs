@@ -33,33 +33,31 @@ namespace Grafiti.GestureRecognizers
         // private float m_centroidX, m_centroidY;
         private float m_x, m_y;
         private int m_nFingers;
-        private IGestureListener m_dragStartingListener;
+        private IGestureListener m_validInitialZTarget;
 
         public float X { get { return m_x; } }
         public float Y { get { return m_y; } }
         public int NFingers { get { return m_nFingers; } }
-        public IGestureListener DragStartingListener { get { return m_dragStartingListener; } }
+        public IGestureListener ValidInitialZTarget { get { return m_validInitialZTarget; } }
 
         public BasicMultiFingerEventArgs() 
             : base() { }
 
-        public BasicMultiFingerEventArgs(string eventId, int groupId, float x, float y, int nFingers, IGestureListener initialListener)
+        public BasicMultiFingerEventArgs(string eventId, int groupId, float x, float y, int nFingers, IGestureListener validInitialZTarget)
             : base(eventId, groupId)
         {
             m_x = x;
             m_y = y;
             m_nFingers = nFingers;
-            m_dragStartingListener = initialListener;
+            m_validInitialZTarget = validInitialZTarget;
         }
     }
 
     public delegate void BasicMultiFingerEventHandler(object obj, BasicMultiFingerEventArgs args);
 
 
-    public class BasicMultiFingerGRConfigurator : GRConfigurator
+    public class BasicMultiFingerGRConfiguration : GRConfiguration
     {
-        public static readonly BasicMultiFingerGRConfigurator DEFAULT_CONFIGURATOR = new BasicMultiFingerGRConfigurator();
-
         // the spatial tollerance for TAP is implicitly Settings.TRACE_TIME_GAP
 
         // time range for double/triple tap
@@ -73,19 +71,19 @@ namespace Grafiti.GestureRecognizers
 
         // the pause required to raise a hover
         public readonly long HOVER_TIME;
-        public const long DEFAULT_HOVER_TIME = 2000;
+        public const long DEFAULT_HOVER_TIME = 1000;
 
         // flag enabling/disabling triple tap
         public readonly bool IS_TRIPLE_TAP_ENABLED;
         public const bool DEFAULT_IS_TRIPLE_TAP_ENABLED = false;
 
-        public BasicMultiFingerGRConfigurator()
+        public BasicMultiFingerGRConfiguration()
             : this(false) { } // default is not exclusive
 
-        public BasicMultiFingerGRConfigurator(bool exclusive)
+        public BasicMultiFingerGRConfiguration(bool exclusive)
             : this(DEFAULT_TAP_TIME, DEFAULT_HOVER_SIZE, DEFAULT_HOVER_TIME, DEFAULT_IS_TRIPLE_TAP_ENABLED, exclusive) { }
 
-        public BasicMultiFingerGRConfigurator(long tapTime, float hoverSize, long hoverTime, bool exclusive, bool isTripleTapEnabled)
+        public BasicMultiFingerGRConfiguration(long tapTime, float hoverSize, long hoverTime, bool exclusive, bool isTripleTapEnabled)
             : base(exclusive)
         {
             TAP_TIME = tapTime;
@@ -105,51 +103,49 @@ namespace Grafiti.GestureRecognizers
         private readonly bool IS_TRIPLE_TAP_ENABLED;
 
         private const int HOVER_THREAD_SLEEP_TIME = 5;
-        private CursorPoint m_currentProcessingCursor;
-        private bool m_tapSizeOk;
-        private bool m_newClosestCurrentTarget;
-        private Dictionary<Trace, int> m_traceDownTimesDict;
-        private Dictionary<Trace, CursorPoint> m_traceLastDownCurDict;
-        private List<Trace> m_removingTraces = new List<Trace>();
-        private long m_t0;
-        private bool m_haveSingleTapped, m_haveDoubleTapped, m_needResetTap;
-        private int m_numberOfAliveFingers;
-        private int m_maxNumberOfAliveFingers;
-        private int m_nFingersHovering;
+        private bool m_tapSpatialConstraintsOk;
+        private Dictionary<Trace, CursorPoint> m_traceLastDownCurDict = new Dictionary<Trace, CursorPoint>();
+        private long m_tapInitialTime;
+        private bool m_haveSingleTapped, m_haveDoubleTapped, m_tapHasBeenReset;
+        private int m_numberOfCurrentFingers;
+        private int m_tapNumberOfFingers;
 
         private Thread m_hoverThread;
         private bool m_hoverEnabled = false;
-        private bool m_hoverStarted = false;
-        private float m_hoverXRef, m_hoverYRef;
+        private bool m_hovering = false;
+        private bool m_hoverHasBeenReset = false; // true if hover has been reset during the current refresh cycle
+        private int m_hoveringNFingers = 0;
+        private Dictionary<Trace, CursorPoint> m_traceCur4HoverDict = new Dictionary<Trace, CursorPoint>();
         private DateTime m_hoverTimeRef;
 
-        private IGestureListener m_dragStartingListener;
+        private IGestureListener m_validInitialZTarget = null;
+        private bool m_allUp = true;
 
-        public BasicMultiFingerGR(GRConfigurator configurator)
-            : base(configurator)
+        public BasicMultiFingerGR()
+            : base(null) { }
+
+        public BasicMultiFingerGR(GRConfiguration configuration)
+            : base(configuration)
         {
-            if (!(configurator is BasicMultiFingerGRConfigurator))
-                Configurator = BasicMultiFingerGRConfigurator.DEFAULT_CONFIGURATOR;
+            if (!(configuration is BasicMultiFingerGRConfiguration))
+                Configuration = new BasicMultiFingerGRConfiguration();
 
-            BasicMultiFingerGRConfigurator conf = (BasicMultiFingerGRConfigurator)Configurator;
+            BasicMultiFingerGRConfiguration conf = (BasicMultiFingerGRConfiguration)Configuration;
             TAP_TIME = conf.TAP_TIME;
             HOVER_SIZE = conf.HOVER_SIZE;
             HOVER_TIME = conf.HOVER_TIME;
             IS_TRIPLE_TAP_ENABLED = conf.IS_TRIPLE_TAP_ENABLED;
 
-            ClosestCurrentEvents = new string[] { "Down", "Up", "Tap", "DoubleTap", "TripleTap", "Hover", "EndHover", "Move" };
+            ClosestCurrentEvents = new string[] { "Down", "Up", "Tap", "DoubleTap", "TripleTap", "Hover", "EndHover", "Move" }; // add, remove?
             ClosestEnteringEvents = new string[] { "Enter" };
             ClosestLeavingEvents = new string[] { "Leave" };
-
-            m_traceDownTimesDict = new Dictionary<Trace, int>();
-            m_traceLastDownCurDict = new Dictionary<Trace, CursorPoint>();
+            UnionEvents = new string[] { "Removed", "Terminated" };
 
             m_hoverThread = new Thread(new ThreadStart(HoverLoop));
             m_hoverThread.Start();
-            m_tapSizeOk = true;
-            m_newClosestCurrentTarget = false;
-            m_numberOfAliveFingers = 0;
-            m_maxNumberOfAliveFingers = 0;
+            m_tapSpatialConstraintsOk = true;
+            m_numberOfCurrentFingers = 0;
+            m_tapNumberOfFingers = 0;
         }
 
         public event GestureEventHandler Down;
@@ -162,254 +158,258 @@ namespace Grafiti.GestureRecognizers
         public event GestureEventHandler TripleTap;
         public event GestureEventHandler Hover;
         public event GestureEventHandler EndHover;
+        public event GestureEventHandler Removed;
+        public event GestureEventHandler Terminated;
 
+        // cursor events
+        protected void OnDown(CursorPoint c) { AppendEvent(Down,      new BasicMultiFingerEventArgs("Down",      Group.Id, c.X,                   c.Y,                   m_numberOfCurrentFingers, m_validInitialZTarget)); }
+        protected void OnUp(CursorPoint c)   { AppendEvent(Up,        new BasicMultiFingerEventArgs("Up",        Group.Id, c.X,                   c.Y,                   m_numberOfCurrentFingers, m_validInitialZTarget)); }
+        protected void OnMove(CursorPoint c) { AppendEvent(Move,      new BasicMultiFingerEventArgs("Move",      Group.Id, c.X,                   c.Y,                   m_numberOfCurrentFingers, m_validInitialZTarget)); }
+        // group events
+        protected void OnEnter()             { AppendEvent(Enter,     new BasicMultiFingerEventArgs("Enter",     Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_numberOfCurrentFingers, m_validInitialZTarget)); }
+        protected void OnLeave()             { AppendEvent(Leave,     new BasicMultiFingerEventArgs("Leave",     Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_numberOfCurrentFingers, m_validInitialZTarget)); }
+        protected void OnTap()               { AppendEvent(Tap,       new BasicMultiFingerEventArgs("Tap",       Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_tapNumberOfFingers,     m_validInitialZTarget)); }
+        protected void OnDoubleTap()         { AppendEvent(DoubleTap, new BasicMultiFingerEventArgs("DoubleTap", Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_tapNumberOfFingers,     m_validInitialZTarget)); }
+        protected void OnTripleTap()         { AppendEvent(TripleTap, new BasicMultiFingerEventArgs("TripleTap", Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_tapNumberOfFingers,     m_validInitialZTarget)); }
+        protected void OnHover()             { AppendEvent(Hover,     new BasicMultiFingerEventArgs("Hover",     Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_hoveringNFingers,       m_validInitialZTarget)); }
+        protected void OnEndHover1()         { AppendEvent(EndHover,  new BasicMultiFingerEventArgs("EndHover",  Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_hoveringNFingers,       m_validInitialZTarget)); }
+        protected void OnRemove()            { AppendEvent(Removed,   new BasicMultiFingerEventArgs("Removed",   Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, 0,                        m_validInitialZTarget)); }
+        protected void OnTerminate()         { AppendEvent(Terminated,new BasicMultiFingerEventArgs("Terminated",Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_numberOfCurrentFingers, m_validInitialZTarget)); }
 
-        protected void OnDown()      { AppendEvent(Down,     new BasicMultiFingerEventArgs("Down",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers, m_dragStartingListener)); }
-        protected void OnUp()        { AppendEvent(Up,       new BasicMultiFingerEventArgs("Up",        Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, m_numberOfAliveFingers, m_dragStartingListener)); }
-        protected void OnMove()      { AppendEvent(Move,     new BasicMultiFingerEventArgs("Move",      Group.Id, m_currentProcessingCursor.X, m_currentProcessingCursor.Y, Group.NumberOfPresentTraces, m_dragStartingListener)); }
-        protected void OnEnter()     { AppendEvent(Enter,    new BasicMultiFingerEventArgs("Enter",     Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, Group.NumberOfPresentTraces, m_dragStartingListener)); }
-        protected void OnLeave()     { AppendEvent(Leave,    new BasicMultiFingerEventArgs("Leave",     Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, Group.NumberOfPresentTraces, m_dragStartingListener)); }
-        protected void OnTap()       { AppendEvent(Tap,      new BasicMultiFingerEventArgs("Tap",       Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
-        protected void OnDoubleTap() { AppendEvent(DoubleTap,new BasicMultiFingerEventArgs("DoubleTap", Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
-        protected void OnTripleTap() { AppendEvent(TripleTap,new BasicMultiFingerEventArgs("TripleTap", Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_maxNumberOfAliveFingers, m_dragStartingListener)); }
-        protected void OnHover()     { AppendEvent(Hover,    new BasicMultiFingerEventArgs("Hover",     Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_nFingersHovering, m_dragStartingListener)); }
-        protected void OnEndHover()
+        private void OnEndHover()
         {
-            if (m_hoverStarted)
+            if (m_hovering)
             {
-                AppendEvent(EndHover, new BasicMultiFingerEventArgs("EndHover", Group.Id, Group.ActiveCentroidX, Group.ActiveCentroidY, m_nFingersHovering, m_dragStartingListener));
-                m_hoverStarted = false;
+                m_hovering = false;
+                OnEndHover1();
             }
         }
 
         public override void Process(List<Trace> traces)
         {
-            foreach (Trace trace in traces)
+            // If the group is added or reset, then reset m_initialZTarget
+            if (m_allUp && traces.Exists(delegate(Trace trace)
             {
-                if (trace.State == Trace.States.ADDED || trace.State == Trace.States.RESET)
+                return trace.State == Trace.States.ADDED || trace.State == Trace.States.RESET;
+            }))
+            {
+                m_allUp = false;
+                if (Group.OnZControl)
                 {
-                    m_dragStartingListener = Group.ClosestCurrentTarget;
+                    // If the Z-control has changed then reset the down times
+                    if (m_validInitialZTarget != Group.ClosestCurrentTarget)
+                    {
+                        //ResetDownTimes();
+                        m_validInitialZTarget = Group.ClosestCurrentTarget;
+                    }
+                }
+                else
+                    m_validInitialZTarget = null;
+            }
+
+            // Check tap's spatial constraints for every updated, removed and reset trace
+            if (m_tapSpatialConstraintsOk)
+            {
+                foreach (Trace trace in traces)
+                {
+                    if (trace.State != Trace.States.ADDED && trace.State != Trace.States.TERMINATED)
+                    {
+                        #region on Z-target
+                        // This works good for buttons, but not for large controls where it's not desired
+                        // to have a tap without any spatial threshold. It's probably better to deal taps 
+                        // at the client level by receiving only Down and Up events and by checking 
+                        // the ValidInitialZTarget property.
+                        if (m_validInitialZTarget != null)
+                        {
+                            if (!(Group.OnZControl && m_validInitialZTarget == Group.ClosestCurrentTarget))
+                            {
+                                m_tapSpatialConstraintsOk = false;
+                                m_validInitialZTarget = null;
+                                break;
+                            }
+                        }
+                        #endregion
+
+                        #region outside of the Z-target
+                        else
+                        {
+                            if (trace.Last.SquareDistance(m_traceLastDownCurDict[trace]) >
+                                Settings.TRACE_SPACE_GAP * Settings.TRACE_SPACE_GAP)
+                            {
+                                m_tapSpatialConstraintsOk = false;
+                                break;
+                            }
+                        }
+                        #endregion
+                    }
                 }
             }
 
-            OnLeave();
+            // enter
             OnEnter();
 
-            foreach (Trace trace in traces)
-                if (trace.State == Trace.States.UPDATED)
-                {
-                    m_currentProcessingCursor = trace.Last;
-                    OnMove();
-                    break;
-                }
-
-            bool hoverReset = false;
-            if (m_newClosestCurrentTarget)
-            {
-                m_newClosestCurrentTarget = false;
-                ResetTap();
-                OnEndHover();
-                ResetHover();
-                hoverReset = true;
-                if (Group.ClosestCurrentTarget == null)
-                    m_hoverEnabled = false;
-            }
-
+            // track cursors and send cursor events
             foreach (Trace trace in traces)
             {
-                m_currentProcessingCursor = trace.Last;
-
-                /*** ADD ***/
+                /*** ADDED ***/
                 if (trace.State == Trace.States.ADDED)
                 {
-                    m_traceDownTimesDict[trace] = 1;
                     m_traceLastDownCurDict[trace] = trace.Last;
-                    m_numberOfAliveFingers++;
-                    m_maxNumberOfAliveFingers = Math.Max(m_maxNumberOfAliveFingers, m_numberOfAliveFingers);
-
-                    OnDown();
-                    if (!hoverReset)
-                    {
-                        OnEndHover();
-                        ResetHover();
-                        hoverReset = true;
-                    }
+                    m_numberOfCurrentFingers++;
+                    m_tapNumberOfFingers++;// = Math.Max(m_tapNumberOfFingers, m_numberOfCurrentFingers);
+                    OnDown(trace.Last);
                 }
 
-                else
+                /*** UPDATED ***/
+                else if (trace.State == Trace.States.UPDATED)
                 {
-                    /*** SET ***/
-                    if (trace.State == Trace.States.UPDATED)
-                    {
-                        if (!hoverReset && Group.ClosestCurrentTarget != null && !CheckHoverSize())
-                        {
-                            OnEndHover();
-                            ResetHover();
-                            hoverReset = true;
-                        }
-                    }
+                    OnMove(trace.Last);
+                }
 
-                    /*** RESET ***/
-                    else if (trace.State == Trace.States.RESET)
-                    {
-                        m_traceDownTimesDict[trace]++;
-                        m_traceLastDownCurDict[trace] = trace.Last;
-                        m_numberOfAliveFingers++;
+                /*** RESET ***/
+                else if (trace.State == Trace.States.RESET)
+                {
+                    m_traceLastDownCurDict[trace] = trace.Last;
+                    m_numberOfCurrentFingers++;
+                    m_tapNumberOfFingers++;// = Math.Max(m_tapNumberOfFingers, m_numberOfCurrentFingers);
+                    OnDown(trace.Last);
+                }
 
-                        OnDown();
-                        if (m_needResetTap)
-                        {
-                            foreach (Trace t in Group.Traces)
-                                if (t != trace)
-                                    m_traceDownTimesDict[t] = 0;
-
-                            ResetTap();
-                        }
-                        if (!hoverReset)
-                        {
-                            OnEndHover();
-                            ResetHover();
-                            hoverReset = true;
-                        }
-                    }
-
-                    /*** DEL ***/
-                    else
-                    {
-                        m_removingTraces.Add(trace);
-                    }
+                /*** REMOVED ***/
+                else if (trace.State == Trace.States.REMOVED)
+                {
+                    m_numberOfCurrentFingers--;
+                    OnUp(trace.Last);
                 }
             }
 
-            foreach (Trace trace in m_removingTraces)
+            // tap stuff
+            if (m_numberOfCurrentFingers == 0)
             {
-                if (trace.State == Trace.States.REMOVED)
+                if (m_tapSpatialConstraintsOk)
                 {
-                    m_numberOfAliveFingers--;
-                    m_hoverEnabled = false;
-                    OnUp();
-
-                    if (!hoverReset)
-                        OnEndHover();
-
-                    if (!CheckTapSize(trace))
-                        m_tapSizeOk = false;
-
-                    if (m_numberOfAliveFingers == 0)
+                    if (!m_haveSingleTapped)
                     {
-                        if (CheckDownTimes(m_traceDownTimesDict[trace]))
+                        OnTap();
+                        m_haveSingleTapped = true;
+                    }
+                    else
+                    {
+                        // TAP's temporal constraint
+                        if (Group.CurrentTimeStamp - m_tapInitialTime <= TAP_TIME)
                         {
-                            if (m_tapSizeOk)
+                            if (!m_haveDoubleTapped)
                             {
-                                if (!m_haveSingleTapped)
-                                {
-                                    OnTap();
-                                    m_haveSingleTapped = true;
-                                }
-                                else
-                                    if (CheckTapTime())
-                                        if (!m_haveDoubleTapped)
-                                        {
-                                            OnDoubleTap();
-                                            m_haveDoubleTapped = true;
-                                            if (!IS_TRIPLE_TAP_ENABLED)
-                                                m_needResetTap = true;
-                                        }
-                                        else
-                                        {
-                                            OnTripleTap();
-                                            m_needResetTap = true;
-                                        }
-                                    else
-                                    {
-                                        OnTap();
-                                        m_needResetTap = true;
-                                    }
+                                OnDoubleTap();
+                                m_haveDoubleTapped = true;
+                                if (!IS_TRIPLE_TAP_ENABLED)
+                                    ResetTap();
                             }
                             else
                             {
-                                m_needResetTap = true;
+                                OnTripleTap();
+                                ResetTap();
                             }
                         }
                         else
-                            foreach (Trace t in Group.Traces)
-                                m_traceDownTimesDict[t] = 0;
-                    }
-                    else
-                        if (!hoverReset)
                         {
-                            ResetHover();
-                            hoverReset = true;
+                            OnTap();
+                            ResetTap();
                         }
+                    }
                 }
+                else
+                {
+                    ResetTap();
+                }
+                m_tapNumberOfFingers = 0;
+                m_allUp = true;
+                m_tapSpatialConstraintsOk = true;
             }
 
-            m_removingTraces.Clear();
+
+            // hover stuff
+            if (!m_hoverHasBeenReset)
+            {
+                if(traces.Exists(delegate(Trace trace)
+                {
+                   return trace.State == Trace.States.ADDED ||
+                        trace.State == Trace.States.REMOVED ||
+                        trace.State == Trace.States.RESET;
+                }))
+                {
+                    OnEndHover();
+                    ResetHover();
+                }
+                // (TODO configurable...)
+                // Same thing as for tap, where on Z-controls there's no threshold.
+                else if (!Group.OnZControl && Group.ClosestCurrentTarget != null)
+                {
+                    // updated traces must comply with the spatial constraint
+                    if (!traces.TrueForAll(delegate(Trace trace)
+                    {
+                        return trace.State != Trace.States.UPDATED ||
+                            CheckHoverSpatialConstraints(trace);
+                    }))
+                    {
+                        OnEndHover();
+                        ResetHover();
+                    }
+                }
+            }
+            if (m_numberOfCurrentFingers == 0)
+            {
+                OnRemove();
+                m_hoverEnabled = false;
+            }
+
+            // set for next refresh cycle
+            m_hoverHasBeenReset = false;
+            m_tapHasBeenReset = false;
 
             if (Recognizing)
-                GestureHasBeenRecognized();
+                ValidateGesture();
         }
 
         #region TAP functions
         private void ResetTap()
         {
-            m_t0 = Group.CurrentTimeStamp;
-            m_haveSingleTapped = false;
-            m_haveDoubleTapped = false;
-            m_needResetTap = false;
-        }
-        private bool CheckTapSize(Trace trace)
-        {
-            #region Optional (configurable?)
-            // This works good for buttons, but not for large controls where it's not desired
-            // to have a tap without any spatial threshold. It's probably better to deal taps 
-            // at the client level by receiving only Down and Up events and by checking 
-            // the DragStartingListener property.
-            //if (Group.OnGUIControl)
-            //    return m_dragStartingListener == Group.ClosestCurrentTarget;
-            //else
-            #endregion
-
-            return (trace.Last.SquareDistance(m_traceLastDownCurDict[trace]) <=
-                Settings.TRACE_SPACE_GAP * Settings.TRACE_SPACE_GAP);
-        }
-        private bool CheckTapTime()
-        {
-            return m_currentProcessingCursor.TimeStamp - m_t0 <= TAP_TIME;
-        }
-        // Check whether all traces have been reset the same number of times
-        private bool CheckDownTimes(int n)
-        {
-            return Group.Traces.TrueForAll(delegate(Trace trace)
+            if (!m_tapHasBeenReset)
             {
-                return m_traceDownTimesDict[trace] == n;
-            });
+                m_tapInitialTime = Group.CurrentTimeStamp;
+                m_haveSingleTapped = false;
+                m_haveDoubleTapped = false;
+                m_tapHasBeenReset = true;
+            }
         }
         #endregion
 
         #region HOVER functions
         private void ResetHover()
         {
-            m_hoverXRef = Group.ActiveCentroidX;
-            m_hoverYRef = Group.ActiveCentroidY;
+            m_traceCur4HoverDict.Clear();
+            foreach (Trace trace in Group.Traces)
+            {
+                if (trace.IsAlive)
+                    m_traceCur4HoverDict.Add(trace, trace.Last);
+            }
             m_hoverTimeRef = DateTime.Now;
             m_hoverEnabled = true;
+            m_hoverHasBeenReset = true;
         }
-        private bool CheckHoverSize()
+        private bool CheckHoverSpatialConstraints(Trace trace)
         {
-            return Math.Abs(Group.ActiveCentroidX - m_hoverXRef) <= HOVER_SIZE &&
-                   Math.Abs(Group.ActiveCentroidY - m_hoverYRef) <= HOVER_SIZE;
+            return m_traceCur4HoverDict[trace].SquareDistance(trace.Last) <= HOVER_SIZE * HOVER_SIZE;
         }
-        private void HoverLoop()
+        private void HoverLoop() // TODO synchronize
         {
             while (true)
             {
                 if (m_hoverEnabled && DateTime.Now.Subtract(m_hoverTimeRef).TotalMilliseconds >= HOVER_TIME)
                 {
-                    m_nFingersHovering = m_numberOfAliveFingers;
+                    m_hoveringNFingers = m_numberOfCurrentFingers;
                     OnHover();
-                    m_hoverStarted = true;
-                    ResetHover();
+                    m_hovering = true;
                     m_hoverEnabled = false;
                 }
                 try
@@ -432,20 +432,29 @@ namespace Grafiti.GestureRecognizers
             bool newClosestIni, bool newClosestFin)
         {
             if (newClosestCur)
+            {
                 OnEndHover();
+            }
 
             base.UpdateEventHandlers(initial, final, entering, current, leaving,
                 intersect, union, newClosestEnt, newClosestCur, newClosestLvn, newClosestIni, newClosestFin);
 
-            m_newClosestCurrentTarget = newClosestCur;
-            if (initial)
-                m_dragStartingListener = Group.ClosestInitialTarget;
+            // if main target has changed, then reset tap and hover
+            if (newClosestCur)
+            {
+                OnLeave();
+                ResetTap();
+                ResetHover();
+                if (Group.ClosestCurrentTarget == null)
+                    m_hoverEnabled = false;
+            }
         }
 
         protected override void OnTerminating()
         {
             m_hoverThread.Interrupt();
             OnEndHover();
+            OnTerminate();
         }
     }
 }

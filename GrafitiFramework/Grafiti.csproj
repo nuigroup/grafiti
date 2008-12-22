@@ -66,10 +66,12 @@
     <Compile Include="GRRegistry.cs" />
     <Compile Include="GRs\BasicMultiFingerGR.cs" />
     <Compile Include="GRs\CircleGR.cs" />
+    <Compile Include="GRs\LazoGR.cs" />
     <Compile Include="GRs\MultiTraceGR.cs" />
     <Compile Include="GRs\PinchingGR.cs" />
     <Compile Include="IGestureListener.cs" />
     <Compile Include="IGrafitiClientGUIManager.cs" />
+    <Compile Include="ISingleTouchListener.cs" />
     <Compile Include="ITangibleGestureListener.cs" />
     <Compile Include="LocalGestureRecognizer.cs" />
     <Compile Include="OSC.NET\OSCBundle.cs" />
