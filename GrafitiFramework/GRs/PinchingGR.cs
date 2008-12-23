@@ -124,7 +124,8 @@ namespace Grafiti.GestureRecognizers
                     trace.State == Trace.States.RESET;
             }))
             {
-                ValidateGesture();
+                if(Recognizing)
+                    ValidateGesture();
 
                 // Set traces A and B
                 m_traceA = m_traceB = null;
@@ -156,56 +157,53 @@ namespace Grafiti.GestureRecognizers
                 m_yRef = y;
                 m_sizeRef = size;
                 m_rotationRef = rotation;
-                m_scaleFactor = m_sizeRef / m_lengthA0B0;
+                if (m_relativeScaling)
+                    m_scaleFactor = m_sizeRef / m_lengthA0B0;
+                else
+                    m_scaleFactor = 1f;
             }
             else
             {
-                // Compute scaling
-                if (Group.NumberOfAliveTraces == 2)
-                {
-                    // Scale
-                    float newLength = GetDistanceAB();
-                    float deltaSize = (newLength - m_lengthA0B0);
-                    if (m_relativeScaling)
-                        deltaSize *= m_scaleFactor;
-                    float size = m_sizeRef + deltaSize;
+                // Scale
+                float newLength = GetDistanceAB();
+                float deltaSize = (newLength - m_lengthA0B0) * m_scaleFactor;
+                float size = m_sizeRef + deltaSize;
 
-                    // rotation
-                    float newAngle = GetAngleAB();
-                    float deltaAngle = newAngle - m_angleA0B0;
-                    float rotation = m_rotationRef - deltaAngle;
+                // rotation
+                float newAngle = GetAngleAB();
+                float deltaAngle = newAngle - m_angleA0B0;
+                float rotation = m_rotationRef - deltaAngle;
 
-                    // translate
-                    // How did 'a' get there (from a0 to a)? Let's do all the steps:
-                    // translate a0 of -R (a is now relative to R, the reference point)
-                    float A1x = m_A0x - m_xRef;
-                    float A1y = m_A0y - m_yRef;
-                    // scale a0 (from R) of ratioLength
-                    float ratioLength = newLength / m_lengthA0B0;
-                    A1x *= ratioLength;
-                    A1y *= ratioLength;
-                    // rotate a0 (around c0) of rotation
-                    float tempX = (float)((double)A1x * Math.Cos(deltaAngle) - (double)A1y * Math.Sin(deltaAngle));
-                    float tempY = (float)((double)A1x * Math.Sin(deltaAngle) + (double)A1y * Math.Cos(deltaAngle));
-                    #region Step by step
-                    //// back to c0 (now it's in absolute coordinates)
-                    //A1x = tempX + m_xRef;
-                    //A1y = tempY + m_yRef;
+                // translate
+                // How did 'a' get there (from a0 to a)? Let's do all the steps:
+                // translate a0 of -R (a is now relative to R, the reference point)
+                float A1x = m_A0x - m_xRef;
+                float A1y = m_A0y - m_yRef;
+                // scale a0 (from R) of ratioLength
+                float ratioLength = newLength / m_lengthA0B0;
+                A1x *= ratioLength;
+                A1y *= ratioLength;
+                // rotate a0 (around c0) of rotation
+                float tempX = (float)((double)A1x * Math.Cos(deltaAngle) - (double)A1y * Math.Sin(deltaAngle));
+                float tempY = (float)((double)A1x * Math.Sin(deltaAngle) + (double)A1y * Math.Cos(deltaAngle));
+                #region Step by step
+                //// back to c0 (now it's in absolute coordinates)
+                //A1x = tempX + m_xRef;
+                //A1y = tempY + m_yRef;
 
-                    //// Now the point obtained is just a translation back from the current 'a'
-                    //// so calculate the translation
-                    //float xt = m_traceA.Last.X - A1x;
-                    //float yt = m_traceA.Last.Y - A1y;
+                //// Now the point obtained is just a translation back from the current 'a'
+                //// so calculate the translation
+                //float xt = m_traceA.Last.X - A1x;
+                //float yt = m_traceA.Last.Y - A1y;
 
-                    //// and apply it to the reference point
-                    //float x = xt + m_xRef;
-                    //float y = yt + m_yRef; 
-                    #endregion
-                    float x = m_traceA.Last.X - tempX;
-                    float y = m_traceA.Last.Y - tempY;
+                //// and apply it to the reference point
+                //float x = xt + m_xRef;
+                //float y = yt + m_yRef; 
+                #endregion
+                float x = m_traceA.Last.X - tempX;
+                float y = m_traceA.Last.Y - tempY;
 
-                    AppendEvent(Pinch, new PinchEventArgs("Pinch", Group.Id, x, y, size, rotation));
-                }
+                AppendEvent(Pinch, new PinchEventArgs("Pinch", Group.Id, x, y, size, rotation));
             }
         }
 

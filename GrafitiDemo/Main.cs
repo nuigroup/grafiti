@@ -62,11 +62,11 @@ namespace GrafitiDemo
         private int m_window_top = 0;
         private int m_window_width = 640;
         private int m_window_height = 480;
-        private float m_projectionX = 0.44f;
-        private float m_projectionY = 0.82f;
-        private float m_projectionW = 10.08f;
-        private float m_projectionH = 10f;
-        private float m_projectionYAngle = -8.5f;
+        private float m_projectionX;
+        private float m_projectionY;
+        private float m_projectionW;
+        private float m_projectionH;
+        private float m_projectionYAngle;
 
         // Graphic variables
         private bool m_displayCalibrationGrid = false;
@@ -168,8 +168,7 @@ namespace GrafitiDemo
         [STAThread]
         static void Main(String[] argv)
         {
-            float x = 0, y = 0, w = 0, h = 0, a = 0;
-            bool projectionParameters = false;
+            float x = 0, y = 0, w = 10, h = 10, a = 0;
 
             int port = 3333;
             switch (argv.Length)
@@ -188,7 +187,6 @@ namespace GrafitiDemo
                     w = float.Parse(argv[2], null);
                     h = float.Parse(argv[3], null);
                     a = float.Parse(argv[4], null);
-                    projectionParameters = true;
                     break;
 
                 case 6:
@@ -197,7 +195,6 @@ namespace GrafitiDemo
                     w = float.Parse(argv[3], null);
                     h = float.Parse(argv[4], null);
                     a = float.Parse(argv[5], null);
-                    projectionParameters = true;
                     goto case 1;
 
                 default:
@@ -216,10 +213,7 @@ namespace GrafitiDemo
 
 
             // instantiate viewer
-            if(projectionParameters)
-                s_viewer = new Viewer(x, y, w, h, a);
-            else
-                s_viewer = new Viewer();
+            s_viewer = new Viewer(x, y, w, h, a);
 
             // instantiate Grafiti
             s_grafitiSurface = Surface.Initialize(s_viewer);
