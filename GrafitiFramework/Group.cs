@@ -76,7 +76,7 @@ namespace Grafiti
         private static int s_counter = 0;           // id counter
         private readonly int m_id;                  // id
         private List<Trace> m_traces;               // the traces of which the group is composed
-        private int m_nOfCurrentTraces;             // number of alive traces (fingers currently in the surface)
+        private int m_nOfAliveTraces;               // number of alive traces (fingers currently in the surface)
         private int m_nOfActiveTraces;              // number of alive (present) or resurrectable traces.
         private float m_x0, m_y0;                   // initial coordinates of the first added trace
         private int m_t0, m_currentTimeStamp;       // initial and last time stamp
@@ -90,7 +90,7 @@ namespace Grafiti
         private bool m_isInitializing;
         private bool m_isProcessing;
 
-        private int m_maxNumberOfActiveTraces = -1;
+        private int m_maxNumberOfAliveTraces = -1;
 
         private List<Trace> m_startingSequence;       // traces listed in order of adding
         private List<Trace> m_endingSequenceReversed; // traces listed in reversed order of dying
@@ -128,10 +128,10 @@ namespace Grafiti
         internal GroupGRManager GRManager { get { return m_groupGRManager; } }
         public bool IsProcessing { get { return m_isProcessing; } }
 
-        public int MaxNumberOfActiveTraces
+        public int MaxNumberOfAliveTraces
         {
-            get { return m_maxNumberOfActiveTraces; }
-            internal set { m_maxNumberOfActiveTraces = value; }
+            get { return m_maxNumberOfAliveTraces; }
+            internal set { m_maxNumberOfAliveTraces = value; }
         }
         #endregion
 
@@ -149,12 +149,12 @@ namespace Grafiti
         /// <summary>
         /// Number of present traces
         /// </summary>
-        public int NumberOfAliveTraces { get { return m_nOfCurrentTraces; } }
+        public int NumberOfAliveTraces { get { return m_nOfAliveTraces; } }
 
         /// <summary>
         /// True iff there is at least a present trace (a finger is currently in the surface)
         /// </summary>
-        public bool IsAlive { get { return m_nOfCurrentTraces > 0; } }
+        public bool IsAlive { get { return m_nOfAliveTraces > 0; } }
 
         /// <summary>
         /// Number of active traces
@@ -250,7 +250,7 @@ namespace Grafiti
             m_id = s_counter++;
             m_traces = new List<Trace>();
             m_nOfActiveTraces = 0;
-            m_nOfCurrentTraces = 0;
+            m_nOfAliveTraces = 0;
             m_isInitializing = true;
 
             m_activeCentroidX = m_activeCentroidY = -1;
@@ -313,7 +313,7 @@ namespace Grafiti
 
             m_traces.Add(trace);
             m_nOfActiveTraces++;
-            m_nOfCurrentTraces++;
+            m_nOfAliveTraces++;
 
             CursorPoint firstPoint = trace.First;
             int firstPointTimeStamp = firstPoint.TimeStamp;
@@ -351,7 +351,7 @@ namespace Grafiti
         {
             if (trace.State == Trace.States.RESET)
             {
-                m_nOfCurrentTraces++;
+                m_nOfAliveTraces++;
                 m_endingSequenceReversed.Remove(trace);
                 m_currentResettingTraces.Add(trace);
             }
@@ -361,7 +361,7 @@ namespace Grafiti
         }
         internal void EndTrace(Trace trace)
         {
-            m_nOfCurrentTraces--;
+            m_nOfAliveTraces--;
 
             // update ending sequence
             m_endingSequenceReversed.Insert(0, trace);
@@ -855,8 +855,8 @@ namespace Grafiti
                 (zControl && targets[0] != m_currentTargets[0]))
                 return false;
 
-            if (m_maxNumberOfActiveTraces > 0 &&
-                m_nOfActiveTraces >= m_maxNumberOfActiveTraces)
+            if (m_maxNumberOfAliveTraces > 0 &&
+                m_nOfAliveTraces >= m_maxNumberOfAliveTraces)
                 return false;
 
 

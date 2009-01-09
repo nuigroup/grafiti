@@ -348,7 +348,7 @@ namespace Grafiti
                                 ClearNonNegativePNArmedBut(candidate); // clear armed with nonnegative PN but the winner
 
                             // Set max number of fingers allowed
-                            m_group.MaxNumberOfActiveTraces = candidate.MaxNumberOfFingersAllowed;
+                            m_group.MaxNumberOfAliveTraces = candidate.MaxNumberOfFingersAllowed;
 
                             // If a GGR wins exclusively and no LGR has set the exclusive local target,
                             // then reset it in order to clear LGRtargetList

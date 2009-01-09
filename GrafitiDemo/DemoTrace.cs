@@ -101,7 +101,7 @@ namespace GrafitiDemo
                         Gl.glEnable(Gl.GL_BLEND);
                         Gl.glBlendFunc(Gl.GL_SRC_ALPHA, Gl.GL_ONE_MINUS_SRC_ALPHA);
                         // draw grouping area
-                        if (m_trace.Group.MaxNumberOfActiveTraces < 0 && !m_trace.Group.OnZControl)
+                        if (m_trace.Group.MaxNumberOfAliveTraces < 0 && !m_trace.Group.OnZControl)
                         {
                             Gl.glColor4d(m_color.R, m_color.G, m_color.B, 0.2);
                             Utilities.DrawPlainCircle(Settings.GroupingSpace);

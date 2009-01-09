@@ -108,8 +108,9 @@ namespace GrafitiDemo
         public void OnTap(object obj, GestureEventArgs args)
         {
             //Console.WriteLine("tap");
-            //BasicMultiFingerEventArgs cArgs = (BasicMultiFingerEventArgs)args;
-            IsSelected = false;
+            BasicMultiFingerEventArgs cArgs = (BasicMultiFingerEventArgs)args;
+            if (cArgs.NFingers == 1)
+                IsSelected = false;
         }
         public void OnDoubleTap(object obj, GestureEventArgs args)
         {
